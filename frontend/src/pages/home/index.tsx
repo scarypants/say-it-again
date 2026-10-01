@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import { PRESENTATION_LEVELS } from "../../api/presentationLevels";
+import { JOB_MAX_LENGTH } from "../question/interviewItems";
 import { useAnalysis, type Exam, type PresentationLevel } from "../../store/analysis";
 import type { Lang } from "../../types/api";
 
@@ -22,7 +23,7 @@ const EXAMS: { value: Exam; label: string }[] = [
   { value: "opic", label: "오픽" },
 ];
 
-// 와이어프레임 "초기화면": 모드 선택 → (발표) 발표 수준 / (어학) 토익 스피킹·오픽 / (면접) 답변 언어 → 시작
+// 와이어프레임 "초기화면": 모드 선택 → (발표) 발표 수준 / (어학) 토익 스피킹·오픽 / (면접) 지원 직무·답변 언어 → 시작
 export default function HomePage() {
   const navigate = useNavigate();
   const { settings, setSettings, setPrevious } = useAnalysis();
@@ -31,11 +32,13 @@ export default function HomePage() {
   // 발표·면접 언어: 어학 모드에서 돌아와도 한국어로 시작
   const [lang, setLang] = useState<Lang>(settings.mode === "speaking" ? "ko" : settings.language);
   const [exam, setExam] = useState<Exam | null>(settings.exam ?? null);
+  const [job, setJob] = useState(settings.job ?? "");
+  const jobName = job.trim();
 
   const ready =
     (mode === "presentation" && level !== null) ||
     (mode === "speaking" && exam !== null) ||
-    mode === "interview";
+    (mode === "interview" && jobName !== "");
 
   function start() {
     setPrevious(null); // 새 연습이면 재도전 비교 기준을 비운다
@@ -45,8 +48,8 @@ export default function HomePage() {
     } else if (mode === "speaking" && exam) {
       setSettings({ mode: "speaking", language: "en", exam });
       navigate("/question");
-    } else if (mode === "interview") {
-      setSettings({ mode: "interview", language: lang });
+    } else if (mode === "interview" && jobName) {
+      setSettings({ mode: "interview", language: lang, job: jobName });
       navigate("/question");
     }
   }
@@ -122,9 +125,23 @@ export default function HomePage() {
 
                 {selected && m.value === "interview" && (
                   <div className="animate-reveal border-t border-base-300 px-4 pt-3 pb-4">
+                    <label className="mb-4 block">
+                      <span className="mb-2 block text-sm font-medium">지원 직무</span>
+                      <input
+                        type="text"
+                        className="input w-full"
+                        placeholder="예: 백엔드 개발자, 마케팅, 간호사"
+                        maxLength={JOB_MAX_LENGTH}
+                        value={job}
+                        onChange={(e) => setJob(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && ready) start();
+                        }}
+                      />
+                    </label>
                     <LangPicker label="답변 언어" value={lang} onChange={setLang} />
                     <p className="-mt-2 text-xs text-secondary">
-                      자기소개부터 마무리까지 다섯 질문에 답해요.
+                      AI가 직무에 맞춘 면접 질문 다섯 개를 만들어 드려요.
                     </p>
                   </div>
                 )}
@@ -167,6 +184,11 @@ export default function HomePage() {
           {mode === "speaking" && !exam && (
             <p className="mt-2 animate-fade text-center text-xs text-secondary">
               시험 종류를 골라 주세요
+            </p>
+          )}
+          {mode === "interview" && !jobName && (
+            <p className="mt-2 animate-fade text-center text-xs text-secondary">
+              지원 직무를 적어 주세요
             </p>
           )}
           {mode === "presentation" && !level && (

@@ -3,6 +3,8 @@ import type {
   AnalyzeResponse,
   ApiError,
   CompareStats,
+  InterviewQuestionsRequest,
+  InterviewQuestionsResponse,
   RetryRequest,
   RetryResponse,
   TranscribeRequest,
@@ -32,6 +34,53 @@ async function fix3gp(blob: Blob): Promise<Blob> {
   head.set([0x69, 0x73, 0x6f, 0x6d], 16); // "isom"
   if (head.length >= 24) head.set(m4a, 20);
   return new Blob([head, blob.slice(24)], { type: "audio/mp4" });
+}
+
+// 면접 질문 생성: 지원 직무 → 질문 5개 (면접 모드에서 녹음 전에 부른다)
+export async function interviewQuestions(
+  req: InterviewQuestionsRequest,
+): Promise<InterviewQuestionsResponse> {
+  if (USE_MOCK) return mockInterviewQuestions(req);
+
+  return post<InterviewQuestionsResponse>("/api/interview/questions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(req),
+  });
+}
+
+// mock 면접 질문: 서버 없이 화면을 확인하려고 직무만 끼워 넣은 고정 질문
+async function mockInterviewQuestions({
+  language,
+  job,
+}: InterviewQuestionsRequest): Promise<InterviewQuestionsResponse> {
+  await new Promise((r) => setTimeout(r, 800));
+  const questions: InterviewQuestionsResponse["questions"] =
+    language === "en"
+      ? [
+          { type: "intro", text: "Please introduce yourself in about one minute." },
+          { type: "motivation", text: `Why do you want to work as a ${job}?` },
+          { type: "job", text: `What skills make you a good fit for the ${job} role?` },
+          {
+            type: "experience",
+            text: "Tell me about a time you had a conflict with a teammate and how you resolved it.",
+          },
+          { type: "closing", text: "Is there anything else you would like to tell us?" },
+        ]
+      : [
+          { type: "intro", text: "1분 동안 자기소개를 해 주세요." },
+          { type: "motivation", text: `${job} 직무에 지원한 이유는 무엇인가요?` },
+          {
+            type: "job",
+            text: `${job}로 일하는 데 가장 중요한 역량은 무엇이고, 본인은 어떻게 갖췄나요?`,
+          },
+          {
+            type: "experience",
+            text: "팀 프로젝트에서 갈등이 생겼을 때 어떻게 해결했는지 말해 주세요.",
+          },
+          { type: "closing", text: "마지막으로 하고 싶은 말이 있나요?" },
+        ];
+  return { language, job, questions };
 }
 
 // [1] 녹음 → 문장 단위 대본. audio 필드를 녹음 순서대로 여러 번 붙인다 (서버는 붙인 순서를 파트 순서로 씀)
