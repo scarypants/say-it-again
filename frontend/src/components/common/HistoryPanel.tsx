@@ -197,10 +197,20 @@ function HistoryItem({ record, onOpen, onRetry, onDelete }: ItemProps) {
         )}
         {!record.audioTypes && <span className="text-xs text-secondary">녹음 없이 저장됨</span>}
         <button
-          className="btn ml-auto btn-ghost btn-xs text-secondary hover:text-error"
+          className="btn ml-auto btn-outline btn-xs border-error/40 text-error hover:border-error hover:bg-error hover:text-error-content"
           onClick={onDelete}
           aria-label="이 기록 삭제"
         >
+          <svg viewBox="0 0 24 24" className="size-3.5" aria-hidden="true">
+            <path
+              d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
           삭제
         </button>
       </div>
