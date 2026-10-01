@@ -80,7 +80,7 @@ mode: lecture | language | interview, language: ko | en
 
 ## 7. 기술 스택
 - frontend: React(Vite) + TypeScript + TailwindCSS + DaisyUI, MediaRecorder(webm), recharts. 모바일 우선 반응형.
-- server: Node.js + Express + TypeScript, multer, cors, dotenv
+- backend: Node.js + Express + TypeScript, multer, cors, dotenv
 - STT: `openai` 패키지, whisper-1, timestamp_granularities ["word","segment"], response_format verbose_json. webm 그대로 전송. 한국어 침묵 검출 초반 실측.
 - LLM: OpenAI API (`openai` 패키지), Structured Outputs(JSON schema)로 구조화 JSON. 모델명은 서버 설정 상수로 관리
 - 저장: DB 없음. 로컬 실행, 모바일 필요 시 ngrok.

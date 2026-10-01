@@ -15,13 +15,14 @@
 ## 실행
 
 ```bash
-# 루트에서 한 번만 (워크스페이스 전체 설치)
+# 루트에서 한 번에 설치 (npm workspaces)
 npm install
-cp backend/.env.example backend/.env   # 키 입력
 
-# 각각 실행 (터미널 2개)
+# backend — backend/.env 에 키 입력
 npm run dev:back
-npm run dev:front
+
+# frontend — 서버 없이 보려면 frontend/.env 에 VITE_USE_MOCK=true
+npm run dev:front                    # http://localhost:5173
 ```
 
 ## 문서
