@@ -12,36 +12,41 @@ export const PRIORITY: Record<HighlightCategory, number> = {
 // 색은 styles/index.css 의 --color-hl-* 토큰. Tailwind가 찾을 수 있게 클래스 이름을 통째로 적는다
 export const CATEGORY: Record<
   HighlightCategory,
-  { label: string; mark: string; dot: string; desc: string }
+  { label: string; mark: string; dot: string; under: string; desc: string }
 > = {
   panic: {
     label: "패닉존",
     mark: "bg-hl-panic-soft",
     dot: "bg-hl-panic",
+    under: "decoration-hl-panic",
     desc: "2초 넘게 말이 멈추기 직전의 말",
   },
   filler: {
     label: "군말",
     mark: "bg-hl-filler-soft",
     dot: "bg-hl-filler",
+    under: "decoration-hl-filler",
     desc: "빼도 뜻이 그대로인 말버릇",
   },
   repeat: {
     label: "반복",
     mark: "bg-hl-repeat-soft",
     dot: "bg-hl-repeat",
+    under: "decoration-hl-repeat",
     desc: "가까이에서 되풀이한 말",
   },
   expression: {
     label: "표현 개선",
     mark: "bg-hl-expr-soft",
     dot: "bg-hl-expr",
+    under: "decoration-hl-expr",
     desc: "더 분명하게 바꿀 수 있는 표현",
   },
   grammar: {
     label: "문법",
     mark: "bg-hl-grammar-soft",
     dot: "bg-hl-grammar",
+    under: "decoration-hl-grammar",
     desc: "문법이 틀린 부분",
   },
 };
@@ -54,9 +59,13 @@ const covers = (h: Highlight, word: number) => word >= h.from && word <= h.to;
 // 한 줄을 칠할 조각으로 나눈다. 같은 하이라이트, 또는 같은 종류가 바로 붙어 있는 단어
 // ("그러니까 그" 같은 연속 군말)는 한 조각이라 띄어쓰기까지 색이 이어지고 한 번에 열린다.
 // 줄 끝에서 다음 줄로 이어지면 continues
+// 단어마다 under: 배경색에 가려진 다른 종류의 하이라이트 (범위를 밑줄로 보여 준다)
+export type RunWord = { text: string; under?: HighlightCategory };
+
 export type Run = {
   first: number; // 조각 첫 단어의 파트 전체 번호
   text: string;
+  words: RunWord[];
   top?: Highlight; // 배경색을 정하는 하이라이트
   items: Highlight[]; // 이 조각에 걸린 하이라이트 전부 (우선순위 순)
   continues: boolean;
@@ -70,15 +79,36 @@ export function lineRuns(line: Line, highlights: Highlight[]): Run[] {
     const top = items[0];
     const prev = runs.at(-1);
     const sameKind = !!prev?.top && !!top && prev.top.category === top.category;
+    const under = top && items.find((h) => h.category !== top.category)?.category;
     if (prev && (prev.top === top || sameKind)) {
       prev.text += " " + word;
+      prev.words.push({ text: word, under });
       for (const h of items) if (!prev.items.includes(h)) prev.items.push(h);
       prev.continues = !!top && top.to > g;
       return;
     }
-    runs.push({ first: g, text: word, top, items, continues: !!top && top.to > g });
+    runs.push({
+      first: g,
+      text: word,
+      words: [{ text: word, under }],
+      top,
+      items,
+      continues: !!top && top.to > g,
+    });
   });
   return runs;
+}
+
+// 조각을 눌렀을 때 열 하이라이트: 보이는 색과 같은 종류 + 어디에서도 색으로 안 보이는(완전히 가려진) 것.
+// 다른 색으로 보이는 하이라이트는 그 색을 눌러야 열린다 (겹쳐 있어도 섞이지 않게)
+export function runSelection(run: Run, part: Part): Highlight[] {
+  if (!run.top) return [];
+  const visible = new Set<Highlight>();
+  for (const line of part.script)
+    if (!line.pause)
+      for (const r of lineRuns(line, part.highlight))
+        r.items.forEach((h) => r.top && h.category === r.top.category && visible.add(h));
+  return run.items.filter((h) => h.category === run.top!.category || !visible.has(h));
 }
 
 // 하이라이트가 가리키는 말 (줄을 넘어가도 이어서)

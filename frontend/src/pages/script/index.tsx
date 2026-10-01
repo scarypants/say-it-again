@@ -15,6 +15,7 @@ import {
   lineOfWord,
   lineRuns,
   PRIORITY,
+  runSelection,
 } from "./highlights";
 
 const canLoadSample = import.meta.env.DEV || import.meta.env.VITE_USE_MOCK === "true";
@@ -38,7 +39,14 @@ export default function ScriptPage() {
     const w = Number(linkWord);
     const part = result.parts[pi];
     if (!part) return null;
-    const items = part.highlight.filter((h) => w >= h.from && w <= h.to).sort(byPriority);
+    // 총평은 하이라이트 시작 단어(from)로 연결한다. 겹친 다른 하이라이트는 섞지 않는다
+    const starts = part.highlight.filter((h) => h.from === w).sort(byPriority);
+    const items = starts.length
+      ? [starts[0]]
+      : part.highlight
+          .filter((h) => w >= h.from && w <= h.to)
+          .sort(byPriority)
+          .slice(0, 1);
     return items.length ? { part: pi, line: lineOfWord(part, w), first: w, items } : null;
   });
   useEffect(() => {
@@ -128,9 +136,14 @@ export default function ScriptPage() {
                       >
                         <p className="min-w-0 flex-1 py-1 text-[1.0625rem] leading-8">
                           {lineRuns(line, part.highlight).map((run) => {
+                            // 선택한 하이라이트가 이 조각의 보이는 색일 때만 테두리
                             const isSelected =
                               selected?.part === pi &&
-                              selected.items.some((h) => run.items.includes(h));
+                              !!run.top &&
+                              selected.items[0]?.category === run.top.category &&
+                              selected.items.some(
+                                (h) => run.items.includes(h) && h.category === run.top!.category,
+                              );
                             return run.top ? (
                               <span key={run.first}>
                                 <button
@@ -151,12 +164,25 @@ export default function ScriptPage() {
                                             part: pi,
                                             line: li,
                                             first: run.first,
-                                            items: run.items,
+                                            items: runSelection(run, part),
                                           },
                                     )
                                   }
                                 >
-                                  {run.text}
+                                  {run.words.map((w, wi) => (
+                                    <span key={wi}>
+                                      {wi > 0 && " "}
+                                      <span
+                                        className={
+                                          w.under
+                                            ? `underline decoration-2 underline-offset-[5px] ${CATEGORY[w.under].under}`
+                                            : undefined
+                                        }
+                                      >
+                                        {w.text}
+                                      </span>
+                                    </span>
+                                  ))}
                                 </button>{" "}
                               </span>
                             ) : (
