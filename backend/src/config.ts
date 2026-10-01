@@ -1,6 +1,19 @@
 // 서버 튜닝 상수는 이 파일에 모은다.
 import type { Category } from './types/api';
 
+// 기본으로 허용하는 요청 출처(Origin): 내 PC, 같은 와이파이(사설 IP), ngrok 주소 (포트 무관)
+export const DEFAULT_ORIGINS: RegExp[] = [
+  /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/,
+  /^https?:\/\/(10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+)(:\d+)?$/,
+  /^https:\/\/[a-z0-9-]+\.ngrok(-free)?\.(app|dev|io)$/,
+];
+
+// 추가로 허용할 출처. 쉼표로 여러 개, "https://*.example.com" 형식 가능, "*"면 모두 허용
+export const EXTRA_ORIGINS: string[] = (process.env.CORS_ORIGIN ?? '')
+  .split(',')
+  .map((origin) => origin.trim().replace(/\/$/, ''))
+  .filter(Boolean);
+
 // 문장 분할: whisper segment(문장) 끝에서 끊고, PANIC_GAP초 이상 멈추면 pause 줄을 넣는다
 export const PANIC_GAP = 2.0;
 export const MAX_WORDS = 40; // 한 문장 최대 단어 수 (whisper가 아주 긴 segment를 줄 때 대비)
