@@ -575,8 +575,8 @@ export default function ToeicSpeakingExam({ onRestart }: { onRestart: () => void
             <p className="bg-base-200 px-3 py-2 font-semibold">{item.schedule.title}</p>
             <table className="table table-sm">
               <tbody>
-                {item.schedule.rows.map((r) => (
-                  <tr key={r.time}>
+                {item.schedule.rows.map((r, ri) => (
+                  <tr key={ri}>
                     <td className="whitespace-nowrap tabular-nums">{r.time}</td>
                     <td>{r.session}</td>
                     <td className="text-secondary">{r.speaker}</td>
