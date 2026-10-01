@@ -36,13 +36,13 @@ export default function FeedbackChart({
         말하기 항목별 비율
       </h2>
       <p className="mt-2 text-sm text-base-content/70">
-        보라색 반복, 노란색 군말를 누르면 개선안을 볼 수 있어요.
+        보라색 반복, 노란색 군말을 누르면 개선안을 볼 수 있어요.
       </p>
       {total > 0 ? (
         <>
           <svg
             viewBox="0 0 260 260"
-            className="mx-auto mt-3 w-full max-w-72"
+            className="mx-auto mt-3 w-full max-w-64"
             role="group"
             aria-label="정상 구간을 포함한 말하기 비율 원형 차트"
           >
@@ -87,7 +87,10 @@ export default function FeedbackChart({
                       className="pointer-events-none fill-base-100 text-[13px] font-bold"
                       aria-hidden="true"
                       style={{
-                        fill: item.key === "filler" ? "var(--color-base-content)" : undefined,
+                        fill:
+                          item.key === "filler" || item.key === "normal"
+                            ? "var(--color-base-content)"
+                            : undefined,
                       }}
                     >
                       {item.percent}%
@@ -97,7 +100,7 @@ export default function FeedbackChart({
               );
             })}
           </svg>
-          <ul className="grid grid-cols-2 gap-2 text-xs" aria-label="항목별 백분율">
+          <ul className="grid grid-cols-2 gap-2 text-sm" aria-label="항목별 백분율">
             {categories.map((item) => (
               <li key={item.key}>
                 {item.key === "filler" || item.key === "repeat" ? (
