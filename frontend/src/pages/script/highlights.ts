@@ -107,7 +107,7 @@ export function lineRuns(line: Line, highlights: Highlight[]): Run[] {
 }
 
 // 조각을 눌렀을 때 열 하이라이트: 보이는 색과 같은 종류 + 어디에서도 색으로 안 보이는(완전히 가려진) 것.
-// 다른 색으로 보이는 하이라이트는 그 색을 눌러야 열린다 (겹쳐 있어도 섞이지 않게). 패닉존은 열지 않는다
+// 다른 색으로 보이는 하이라이트는 그 색을 눌러야 열린다 (겹쳐 있어도 섞이지 않게). 패닉존은 원인·대안을 연다
 export function runSelection(run: Run, part: Part): Highlight[] {
   const top = run.top;
   if (!top) return [];
@@ -116,14 +116,12 @@ export function runSelection(run: Run, part: Part): Highlight[] {
   for (const line of part.script) {
     if (line.pause) continue;
     for (const r of lineRuns(line, part.highlight)) {
-      if (!r.top || r.top.category === "panic") continue;
+      if (!r.top) continue;
       const k = displayCategory(r.top.category);
       for (const h of r.items) if (displayCategory(h.category) === k) visible.add(h);
     }
   }
-  return run.items.filter(
-    (h) => h.category !== "panic" && (displayCategory(h.category) === kind || !visible.has(h)),
-  );
+  return run.items.filter((h) => displayCategory(h.category) === kind || !visible.has(h));
 }
 
 // 하이라이트가 가리키는 말 (줄을 넘어가도 이어서)
