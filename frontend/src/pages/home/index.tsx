@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import Collapse from "../../components/common/Collapse";
+import { revealSoon } from "../../components/common/reveal";
 import { PRESENTATION_LEVELS } from "../../api/presentationLevels";
 import { JOB_MAX_LENGTH } from "../question/interviewItems";
 import { useAnalysis, type Exam, type PresentationLevel } from "../../store/analysis";
@@ -29,6 +30,9 @@ export default function HomePage() {
   const navigate = useNavigate();
   const { settings, setSettings, setPrevious } = useAnalysis();
   const [mode, setMode] = useState<Choice | null>(null);
+  const cardRefs = useRef<Partial<Record<Choice, HTMLDivElement | null>>>({});
+  // 작은 화면에서 옵션이 펼쳐져 아래가 잘리면, 다 펼친 뒤 고른 모드를 화면 가운데로 올린다
+  useEffect(() => revealSoon(mode ? (cardRefs.current[mode] ?? null) : null, "center"), [mode]);
   const [level, setLevel] = useState<PresentationLevel | null>(settings.level ?? null);
   // 발표·면접 언어: 어학 모드에서 돌아와도 한국어로 시작
   const [lang, setLang] = useState<Lang>(settings.mode === "speaking" ? "ko" : settings.language);
@@ -79,6 +83,9 @@ export default function HomePage() {
             return (
               <div
                 key={m.value}
+                ref={(el) => {
+                  cardRefs.current[m.value] = el;
+                }}
                 className={`rounded-box border transition-colors ${
                   selected ? "border-primary bg-base-100" : "border-base-300 bg-base-100"
                 }`}
