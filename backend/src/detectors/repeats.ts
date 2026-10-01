@@ -78,7 +78,7 @@ export function findRepeats(script: Line[], language: Language): Highlight[] {
       from: index,
       to: index,
       category: 'repeat',
-      reason: `반복 단어 '${key}' (짧은 구간에서 ${count}번). 다른 표현으로 바꿔 보세요.`,
+      reason: `반복: '${key}' (짧은 구간에서 ${count}번). 다른 표현으로 바꿔 보세요.`,
     });
   }
 

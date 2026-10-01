@@ -180,6 +180,7 @@ type Analysis = {
 - `repeatTop`·`fillerTop`은 전체 파트의 합산이다(최대 10개).
 - `stats`는 모든 파트의 합산이다. `wpm` = 전체 단어 수 ÷ 발화 시간(분, pause 줄과 문장 사이 간격 제외, 필러 포함). `fillerCount`·`panicCount`·`repeatCount`·`expressionCount`·`grammarCount` = 해당 category의 하이라이트 수. `panicTotalSec` = `pauseSec`의 합.
 - `summary.comment`는 총평 LLM이 쓰는 전체 코멘트이고, `parts[].comment`는 파트별 코멘트(스피킹만)다.
+- 용어: 서버가 쓰는 설명 글(`reason`, `comment`, `summary`, `retry`)은 화면과 같은 이름만 쓴다 — 패닉존(`panic`), 군말(`filler`), 반복(`repeat`), 표현 개선(`expression`), 문법(`grammar`), 정상(`normal`). LLM 프롬프트에도 같은 지시가 들어 있다.
 - 총평 화면 5개와의 대응: 카테고리 비율 = `charts.categoryRatio`, 중복 차트 = `charts.repeatTop`, 필러 차트 = `charts.fillerTop`, 분석 총평 = `analysis`, 최종 대본 = `parts[].final`.
 
 ### 예시 (발표, 파트 1개)
@@ -201,9 +202,9 @@ type Analysis = {
       ],
       "highlight": [
         { "from": 2, "to": 4, "category": "panic", "pauseSec": 3.2, "reason": "주제를 꺼낸 직후 근거로 넘어가는 연결 문장이 준비되지 않았습니다.", "fixed": "오늘은 캠퍼스 식당 문제를 이야기하려 합니다. 점심시간 대기 시간이 평균 20분입니다." },
-        { "from": 1, "to": 1, "category": "filler", "reason": "군말(필러)입니다. 빼고 말해 보세요.", "fixed": "" },
-        { "from": 5, "to": 5, "category": "filler", "reason": "군말(필러)입니다. 빼고 말해 보세요.", "fixed": "" },
-        { "from": 6, "to": 6, "category": "filler", "reason": "군말(필러)입니다. 빼고 말해 보세요.", "fixed": "" },
+        { "from": 1, "to": 1, "category": "filler", "reason": "군말입니다. 빼고 말해 보세요.", "fixed": "" },
+        { "from": 5, "to": 5, "category": "filler", "reason": "군말입니다. 빼고 말해 보세요.", "fixed": "" },
+        { "from": 6, "to": 6, "category": "filler", "reason": "군말입니다. 빼고 말해 보세요.", "fixed": "" },
         { "from": 8, "to": 11, "category": "expression", "reason": "모호한 표현", "fixed": "식당이 붐빕니다" }
       ],
       "final": [
@@ -390,7 +391,7 @@ type Retry = {
           "wordTimes": [[3.3, 3.6], [3.8, 4.4], [4.5, 4.8], [4.9, 5.3], [5.4, 5.8], [5.9, 6.6]] }
       ],
       "highlight": [
-        { "from": 6, "to": 6, "category": "filler", "reason": "군말(필러)입니다. 빼고 말해 보세요.", "fixed": "" }
+        { "from": 6, "to": 6, "category": "filler", "reason": "군말입니다. 빼고 말해 보세요.", "fixed": "" }
       ],
       "final": []
     }
@@ -415,7 +416,7 @@ type Retry = {
     "after":  { "score": 92, "durationSec": 7.0, "wpm": 120, "fillerCount": 1, "panicCount": 0, "panicTotalSec": 0, "repeatCount": 0, "fillerPerMin": 8.6, "panicPerMin": 0, "repeatPerMin": 0 }
   },
   "retry": {
-    "improved": ["패닉존이 1번(3.2초)에서 0번으로 사라졌어요", "필러가 분당 12.7회에서 8.6회로 줄었어요"],
+    "improved": ["패닉존이 1번(3.2초)에서 0번으로 사라졌어요", "군말이 분당 12.7회에서 8.6회로 줄었어요"],
     "remaining": ["두 번째 문장 앞 '음' 없애기"],
     "comment": "연결 문장을 준비해 오니 도입 직후 막힘이 사라졌어요."
   }
