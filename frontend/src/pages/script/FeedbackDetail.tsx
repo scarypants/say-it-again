@@ -38,9 +38,14 @@ export default function FeedbackDetail({ part, items: raw, onClose, inline }: Pr
   const ref = useRef<HTMLDivElement>(null);
   const items = mergeAdjacent(raw);
 
-  // 줄 아래에 펼쳐질 때 화면 밖으로 밀려나면 보이게 당긴다
+  // 줄 아래에 펼쳐질 때 화면 밖으로 밀려나면 보이게 당긴다 (Collapse가 다 펼친 뒤)
   useEffect(() => {
-    if (inline) ref.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    if (!inline) return;
+    const t = window.setTimeout(
+      () => ref.current?.scrollIntoView({ block: "nearest", behavior: "smooth" }),
+      280,
+    );
+    return () => clearTimeout(t);
   }, [inline, raw]);
 
   if (!items.length) return null;
@@ -50,9 +55,7 @@ export default function FeedbackDetail({ part, items: raw, onClose, inline }: Pr
       ref={ref}
       role="region"
       aria-label="하이라이트 분석"
-      className={
-        inline ? "mt-1 mb-2 animate-reveal rounded-box bg-base-200 px-4 py-4" : "animate-fade"
-      }
+      className={inline ? "mt-1 mb-2 rounded-box bg-base-200 px-4 py-4" : "animate-fade"}
     >
       {items.map((h, i) => (
         <article key={i} className={i ? "mt-5 border-t border-base-300 pt-5" : ""}>

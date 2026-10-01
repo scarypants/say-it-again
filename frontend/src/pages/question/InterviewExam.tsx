@@ -286,7 +286,7 @@ export default function InterviewExam({ onRestart }: { onRestart: () => void }) 
         {leaveGuard}
         <PageHeader
           title="면접이 끝났어요"
-          description="질문과 답변을 확인하고, 다섯 답변을 한 번에 분석해요."
+          description={`질문과 답변을 확인하고, 답한 ${answers.filter(Boolean).length}개를 한 번에 분석해요.`}
         />
         <ul className="flex flex-col gap-3">
           {items.map((it, i) => (

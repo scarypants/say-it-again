@@ -105,11 +105,26 @@ body,
 
 body {
   @apply bg-base-200 font-sans text-base-content antialiased;
+  /* 한국어는 글자 사이에서 줄바꿈하지 않고 띄어쓰기에서만 (말씀드리겠습/니다 방지).
+     띄어쓰기 없이 긴 영어·주소는 넘치지 않게 끊는다 */
+  word-break: keep-all;
+  overflow-wrap: break-word;
 }
 
 :focus-visible {
   outline: 2px solid var(--color-accent);
   outline-offset: 2px;
+}
+
+/* Collapse.tsx: 펼침·접힘. 처음 그려질 때도(@starting-style) 0에서 펼쳐진다 */
+.collapse-area {
+  transition:
+    grid-template-rows 260ms var(--ease-soft),
+    opacity 200ms ease-out;
+  @starting-style {
+    grid-template-rows: 0fr;
+    opacity: 0;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
