@@ -101,7 +101,11 @@ export default function PdfViewer({ file }: Props) {
         }}
       >
         {doc ? (
-          <canvas ref={canvasRef} className="bg-white shadow-sm" aria-label={`발표 자료 ${page}쪽`} />
+          <canvas
+            ref={canvasRef}
+            className="bg-white shadow-sm"
+            aria-label={`발표 자료 ${page}쪽`}
+          />
         ) : (
           <span className="loading loading-spinner text-secondary" />
         )}

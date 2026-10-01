@@ -1,4 +1,3 @@
-import { isPdf } from "./material";
 import PdfViewer from "./PdfViewer";
 
 type Props = { file: File; locked: boolean; onRemove: () => void };
@@ -14,14 +13,7 @@ export default function MaterialPreview({ file, locked, onRemove }: Props) {
   return (
     <figure className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-box border border-base-300 bg-base-200">
       <div className="flex min-h-72 flex-1">
-        {isPdf(file) ? (
-          <PdfViewer file={file} />
-        ) : (
-          <p className="m-auto max-w-64 text-center text-sm leading-relaxed text-secondary">
-            PPT는 분석에는 함께 보내지만 화면 미리보기는 아직 안 돼요. PowerPoint에서 PDF로 저장해
-            올리면 넘겨 보면서 연습할 수 있어요.
-          </p>
-        )}
+        <PdfViewer file={file} />
       </div>
       <figcaption className="flex items-center justify-between gap-3 border-t border-base-300 bg-base-100 px-3 py-2 text-sm">
         <span className="truncate">

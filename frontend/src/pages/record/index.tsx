@@ -6,7 +6,7 @@ import LevelBars from "../../components/common/LevelBars";
 import MicButton from "../../components/common/MicButton";
 import { useRecorder } from "../../components/common/useRecorder";
 import { useAnalysis } from "../../store/analysis";
-import { isMaterialFile, MATERIAL_ACCEPT } from "./material";
+import { isPdf, MATERIAL_ACCEPT } from "./material";
 import MaterialPreview from "./MaterialPreview";
 
 const MAX_SEC = 300; // 파일 하나 5분. 다 되면 잠깐 멈추고 새 파일로 이어서 녹음할지 고른다
@@ -29,11 +29,13 @@ export default function RecordPage() {
   const [analyzeError, setAnalyzeError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  // 발표 자료는 PDF·PPT만
+  // 발표 자료는 PDF만
   function pickMaterial(file: File | null) {
     if (fileRef.current) fileRef.current.value = ""; // 같은 파일을 다시 골라도 반응하게
-    if (file && !isMaterialFile(file)) {
-      setMaterialError("발표 자료는 PDF나 PPT 파일만 올릴 수 있어요.");
+    if (file && !isPdf(file)) {
+      setMaterialError(
+        "발표 자료는 PDF 파일만 올릴 수 있어요. PowerPoint는 PDF로 저장해서 올려 주세요.",
+      );
       return;
     }
     setMaterialError(null);
@@ -197,7 +199,7 @@ export default function RecordPage() {
         {!material && rec.status === "idle" && (
           <>
             <p className="text-center text-xs text-secondary">
-              발표 자료를 먼저 올리면 화면에 띄워 놓고 보면서 녹음할 수 있어요
+              PDF 발표 자료를 먼저 올리면 화면에 띄워 놓고 보면서 녹음할 수 있어요
             </p>
             <input
               ref={fileRef}
