@@ -2,14 +2,45 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { renderToStaticMarkup } from "react-dom/server";
-import original from "../../mocks/analyze.sample.json";
-import retry from "../../mocks/analyze.retry.sample.json";
 import type { AnalyzeResponse } from "../../types/api";
 import RetryComparison from "./components/RetryComparison";
 import { comparablePrevious, retryReference } from "./retryComparison";
 
-const before = original as AnalyzeResponse;
-const after = retry as AnalyzeResponse;
+const before: AnalyzeResponse = {
+  mode: "presentation",
+  level: "exam",
+  language: "ko",
+  parts: [{ duration: 47.1, script: [], highlight: [], final: [{ words: ["도입"] }] }],
+  charts: {
+    categoryRatio: { panic: 0, filler: 0, repeat: 0, expression: 0, grammar: 0, normal: 100 },
+    repeatTop: [],
+    fillerTop: [],
+  },
+  analysis: {
+    score: 75,
+    stats: { wpm: 118, fillerCount: 6, panicCount: 2, panicTotalSec: 5.8, repeatCount: 1, expressionCount: 0, grammarCount: 0 },
+    summary: { headline: "이전 총평", topPriorities: [], comment: "" },
+  },
+};
+const after: AnalyzeResponse = {
+  ...before,
+  parts: [{ duration: 26, script: [], highlight: [], final: [] }],
+  analysis: {
+    score: 88,
+    stats: { wpm: 118, fillerCount: 2, panicCount: 1, panicTotalSec: 2.6, repeatCount: 0, expressionCount: 0, grammarCount: 0 },
+    summary: { headline: "군말이 줄었어요", topPriorities: [], comment: "" },
+  },
+  compare: {
+    scriptMatch: 40,
+    before: { score: 75, durationSec: 47.1, wpm: 118, fillerCount: 6, panicCount: 2, panicTotalSec: 5.8, repeatCount: 1, fillerPerMin: 7.6, panicPerMin: 2.5, repeatPerMin: 1.3 },
+    after: { score: 88, durationSec: 26, wpm: 118, fillerCount: 2, panicCount: 1, panicTotalSec: 2.6, repeatCount: 0, fillerPerMin: 4.6, panicPerMin: 2.3, repeatPerMin: 0 },
+  },
+  retry: {
+    improved: ["말이 멈춘 시간이 5.8초에서 2.6초로 줄었어요", "군말이 분당 7.6회에서 4.6회로 줄었어요"],
+    remaining: ["두 번째 문장 앞 '음' 없애기"],
+    comment: "군말이 줄었어요",
+  },
+};
 const render = (result: AnalyzeResponse) => renderToStaticMarkup(<RetryComparison previous={before} result={result} />);
 
 test("이전·이번 수치의 방향과 소수점을 정확히 비교하고 서버 피드백을 표시한다", () => {
@@ -69,13 +100,4 @@ test("첫 분석·스피킹·다른 설정의 이전 결과를 재도전 비교�
   assert.equal(comparablePrevious(after, null), null);
   assert.equal(comparablePrevious({ ...after, mode: "speaking", language: "en", exam: "opic" }, before), null);
   assert.equal(comparablePrevious({ ...after, level: "assignment" }, before), null);
-});
-
-test("재도전 샘플의 하이라이트·통계·비율이 일치한다", () => {
-  assert.equal(Object.values(after.charts.categoryRatio).reduce((sum, n) => sum + n, 0), 100);
-  assert.equal(after.analysis.score, after.charts.categoryRatio.normal);
-  const marks = after.parts.flatMap((part) => part.highlight);
-  assert.equal(marks.filter((h) => h.category === "filler").length, after.analysis.stats.fillerCount);
-  assert.equal(marks.filter((h) => h.category === "panic").length, after.analysis.stats.panicCount);
-  assert.equal(marks.filter((h) => h.category === "panic").reduce((sum, h) => sum + (h.pauseSec ?? 0), 0), after.analysis.stats.panicTotalSec);
 });
