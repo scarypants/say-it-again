@@ -13,8 +13,10 @@ import {
   CATEGORY,
   countByCategory,
   DISPLAY_CATEGORIES,
+  displayCategory,
   lineOfWord,
   lineRuns,
+  runSelection,
 } from "./highlights";
 
 const canLoadSample = import.meta.env.DEV || import.meta.env.VITE_USE_MOCK === "true";
@@ -38,9 +40,13 @@ export default function ScriptPage() {
     const w = Number(linkWord);
     const part = result.parts[pi];
     if (!part) return null;
-    const items = part.highlight
+    // 총평은 하이라이트 시작 단어(from)로 연결한다. 겹친 다른 하이라이트는 섞지 않는다
+    const covering = part.highlight
       .filter((h) => h.category !== "panic" && w >= h.from && w <= h.to)
       .sort(byPriority);
+    const items = (
+      covering.filter((h) => h.from === w).length ? covering.filter((h) => h.from === w) : covering
+    ).slice(0, 1);
     return items.length ? { part: pi, line: lineOfWord(part, w), first: w, items } : null;
   });
   useEffect(() => {
@@ -128,14 +134,22 @@ export default function ScriptPage() {
                       >
                         <p className="min-w-0 flex-1 py-1 text-[1.0625rem] leading-8">
                           {lineRuns(line, part.highlight).map((run) => {
-                            const items = run.items.filter((h) => h.category !== "panic");
+                            const items = runSelection(run, part);
                             const hint =
                               run.top && ["panic", "filler"].includes(run.top.category)
                                 ? CATEGORY[run.top.category].desc
                                 : undefined;
+                            // 선택한 하이라이트가 이 조각의 보이는 색일 때만 테두리
                             const isSelected =
                               selected?.part === pi &&
-                              selected.items.some((h) => run.items.includes(h));
+                              !!run.top &&
+                              run.top.category !== "panic" &&
+                              selected.items.some(
+                                (h) =>
+                                  run.items.includes(h) &&
+                                  displayCategory(h.category) ===
+                                    displayCategory(run.top!.category),
+                              );
                             return run.top ? (
                               <span
                                 key={run.first}
@@ -149,34 +163,60 @@ export default function ScriptPage() {
                                     aria-label={`${run.text} — ${CATEGORY.panic.desc}`}
                                     className={`box-decoration-clone rounded-[4px] px-1 py-0.5 text-base-content focus-visible:outline-2 focus-visible:outline-offset-1 ${CATEGORY.panic.mark}`}
                                   >
-                                    {run.text}
+                                    {run.words.map((w, wi) => (
+                                      <span key={wi}>
+                                        {wi > 0 && " "}
+                                        <span
+                                          className={
+                                            w.under
+                                              ? `underline decoration-2 underline-offset-[5px] ${CATEGORY[w.under].under}`
+                                              : undefined
+                                          }
+                                        >
+                                          {w.text}
+                                        </span>
+                                      </span>
+                                    ))}
                                   </mark>
                                 ) : (
                                   <button
-                                  type="button"
-                                  data-word={`${pi}:${run.first}`}
-                                  aria-expanded={isSelected}
-                                  className={`box-decoration-clone rounded-[4px] px-1 py-0.5 text-left outline-2 outline-offset-1 transition-[outline-color] duration-150 ${
-                                    CATEGORY[run.top.category].mark
-                                  } ${isSelected ? "outline-base-content" : "outline-transparent"}`}
-                                  aria-label={`${run.text} — ${[...new Set(items
-                                    .map((h) => CATEGORY[h.category].label))]
-                                    .join(", ")}`}
-                                  onClick={() =>
-                                    setSelected(
-                                      isSelected
-                                        ? null
-                                        : {
-                                            part: pi,
-                                            line: li,
-                                            first: run.first,
-                                            items,
-                                          },
-                                    )
-                                  }
-                                >
-                                  {run.text}
-                                </button>
+                                    type="button"
+                                    data-word={`${pi}:${run.first}`}
+                                    aria-expanded={isSelected}
+                                    className={`box-decoration-clone rounded-[4px] px-1 py-0.5 text-left outline-2 outline-offset-1 transition-[outline-color] duration-150 ${
+                                      CATEGORY[run.top.category].mark
+                                    } ${isSelected ? "outline-base-content" : "outline-transparent"}`}
+                                    aria-label={`${run.text} — ${[
+                                      ...new Set(items.map((h) => CATEGORY[h.category].label)),
+                                    ].join(", ")}`}
+                                    onClick={() =>
+                                      setSelected(
+                                        isSelected
+                                          ? null
+                                          : {
+                                              part: pi,
+                                              line: li,
+                                              first: run.first,
+                                              items,
+                                            },
+                                      )
+                                    }
+                                  >
+                                    {run.words.map((w, wi) => (
+                                      <span key={wi}>
+                                        {wi > 0 && " "}
+                                        <span
+                                          className={
+                                            w.under
+                                              ? `underline decoration-2 underline-offset-[5px] ${CATEGORY[w.under].under}`
+                                              : undefined
+                                          }
+                                        >
+                                          {w.text}
+                                        </span>
+                                      </span>
+                                    ))}
+                                  </button>
                                 )}{" "}
                               </span>
                             ) : (
