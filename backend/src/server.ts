@@ -52,6 +52,5 @@ const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
 app.use(errorHandler);
 
 app.listen(port, () => {
-  const extra = EXTRA_ORIGINS.length > 0 ? ` + ${EXTRA_ORIGINS.join(', ')}` : '';
-  console.log(`server listening on http://localhost:${port} (허용 출처: localhost·사설 IP·ngrok${extra})`);
+  console.log(`server listening on http://localhost:${port}`);
 });
