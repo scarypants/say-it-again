@@ -548,12 +548,19 @@ type Question = {
 ```
 ① POST /api/questions (토익 initial)        → 질문 5개 바로 응답. Part 2는 picture.scene만
 ② 바로 뒤에서 POST /api/questions/image     → 사진 생성 (10~30초)
-③ 사용자는 Part 1 진행 (준비 45초 + 답변 45초)
+③ 사용자는 Part 1 진행 (준비 45초 + 답변 45초. 준비를 건너뛰면 더 짧다)
 ④ Part 2 차례가 되면
-   - 사진이 도착함        → 생성 사진으로 출제, questions[i] = picture.prompt
-   - 아직 안 옴 / 실패    → 기본 사진(picture.fallback.id)으로 출제, questions[i] = picture.fallback.prompt
-                            (그 뒤에 도착한 사진은 버린다)
+   - 사진이 도착함        → 바로 생성 사진으로 출제, questions[i] = picture.prompt
+   - 아직 생성 중         → "사진을 준비하고 있어요" 화면을 최대 10초 보여 준다
+                            · 그 사이 도착 → 생성 사진으로 출제
+                            · 10초가 지나거나 사용자가 "기본 사진으로 시작"을 누름 → 기본 사진으로 출제
+   - 이미 실패(400·502)   → 바로 기본 사진으로 출제
+   기본 사진 출제: picture.fallback.id, questions[i] = picture.fallback.prompt
 ```
+
+- Part 1 준비 시간을 건너뛰면 사진이 Part 2 전에 도착하지 못할 수 있어서 ④에서 최대 10초를 기다린다 (프론트 상수, 실제 생성 시간을 재 보고 조정).
+- 기다리는 동안은 Part 2 준비 시간 타이머를 시작하지 않는다. 사진이 화면에 나온 순간부터 준비 45초를 센다.
+- 한 번 출제한 사진은 바꾸지 않는다. 출제한 뒤에 도착한 사진은 버린다 (준비 도중 사진이 바뀌면 혼란스럽다).
 
 요청:
 
