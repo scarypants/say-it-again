@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router";
 import { audioFileName, initialQuestions } from "../../api/client";
 import { useTranscribe } from "../../api/useTranscribe";
+import AnswerActions from "./AnswerActions";
+import { failedAnswerIndex } from "./answerRetry";
 import AnalyzingView from "../../components/common/AnalyzingView";
 import LevelBars from "../../components/common/LevelBars";
 import MicButton from "../../components/common/MicButton";
@@ -76,6 +78,7 @@ export default function InterviewExam({ onRestart }: { onRestart: () => void }) 
   const answersRef = useRef<(Blob | null)[]>([]);
   const urlsRef = useRef<string[]>([]);
   const beepCtxRef = useRef<AudioContext | null>(null);
+  const redoRef = useRef(false); // 끝난 뒤 한 질문만 다시 녹음 중: 그 질문이 끝나면 목록으로
 
   function beep() {
     const ctx = beepCtxRef.current;
@@ -92,6 +95,8 @@ export default function InterviewExam({ onRestart }: { onRestart: () => void }) 
 
   function finish() {
     tokenRef.current++;
+    redoRef.current = false;
+    urlsRef.current.forEach((u) => URL.revokeObjectURL(u));
     const urls = answersRef.current.map((b) => (b ? URL.createObjectURL(b) : null));
     urlsRef.current = urls.filter((u): u is string => u !== null);
     setAnswerUrls(urls);
@@ -99,7 +104,7 @@ export default function InterviewExam({ onRestart }: { onRestart: () => void }) 
   }
 
   function nextQuestion(q: number) {
-    if (q + 1 < itemsRef.current.length) askQuestion(q + 1);
+    if (q + 1 < itemsRef.current.length && !redoRef.current) askQuestion(q + 1);
     else finish();
   }
 
@@ -155,6 +160,22 @@ export default function InterviewExam({ onRestart }: { onRestart: () => void }) 
     setAnswers(answersRef.current);
     setStage("running");
     askQuestion(0);
+  }
+
+  // 끝난 뒤 이 질문만 다시 답하고 목록으로 돌아온다
+  function redoAnswer(q: number) {
+    tx.clear();
+    redoRef.current = true;
+    setStage("running");
+    askQuestion(q);
+  }
+
+  // 이 질문의 답변을 빼고 분석한다
+  function skipAnswer(q: number) {
+    tx.clear();
+    answersRef.current = answersRef.current.map((b, i) => (i === q ? null : b));
+    setAnswers(answersRef.current);
+    setAnswerUrls((urls) => urls.map((u, i) => (i === q ? null : u)));
   }
 
   async function runTranscribe() {
@@ -249,8 +270,8 @@ export default function InterviewExam({ onRestart }: { onRestart: () => void }) 
         </p>
         <ul className="mt-5 list-disc space-y-1 pl-5 text-sm text-secondary">
           <li>
-            답변은 {secText(items[0]?.goalSec ?? ANSWER_GOAL_SEC)} 안팎을 권해요.{" "}
-            {secText(maxSec)}이 되면 다음 질문으로 넘어가요.
+            답변은 {secText(items[0]?.goalSec ?? ANSWER_GOAL_SEC)} 안팎을 권해요. {secText(maxSec)}
+            이 되면 다음 질문으로 넘어가요.
           </li>
           <li>
             {isSpeaking
@@ -306,6 +327,7 @@ export default function InterviewExam({ onRestart }: { onRestart: () => void }) 
   }
 
   if (stage === "done") {
+    const failed = tx.noSpeech ? failedAnswerIndex(tx.error, answers) : null;
     return (
       <div className="flex flex-1 flex-col">
         {leaveGuard}
@@ -324,30 +346,30 @@ export default function InterviewExam({ onRestart }: { onRestart: () => void }) 
                 {it.text}
               </p>
               {answerUrls[i] ? (
-                <>
-                  <audio src={answerUrls[i]!} controls className="mt-3 w-full" />
-                  <div className="mt-2 flex justify-end">
-                    <a
-                      href={answerUrls[i]!}
-                      download={`q${i + 1}-${audioFileName(answers[i]!)}`}
-                      className="btn btn-ghost btn-sm"
-                    >
-                      파일 저장
-                    </a>
-                  </div>
-                </>
+                <audio src={answerUrls[i]!} controls className="mt-3 w-full" />
               ) : (
                 <p className="mt-2 text-sm text-secondary">건너뛴 질문이라 분석에서 빠져요.</p>
               )}
+              <AnswerActions
+                hasAnswer={!!answers[i]}
+                failed={failed === i}
+                onRedo={() => redoAnswer(i)}
+                onSkip={() => skipAnswer(i)}
+                download={
+                  answerUrls[i] && answers[i]
+                    ? { href: answerUrls[i]!, name: `q${i + 1}-${audioFileName(answers[i]!)}` }
+                    : undefined
+                }
+              />
             </li>
           ))}
         </ul>
         {!answers.some(Boolean) && (
           <p className="mt-4 text-sm text-secondary">
-            모든 질문을 건너뛰어 분석할 답변이 없어요. 처음부터 다시 해 보세요.
+            분석할 답변이 없어요. 질문을 골라 녹음하거나 처음부터 다시 해 보세요.
           </p>
         )}
-        {tx.error && (
+        {tx.error && failed === null && (
           <div role="alert" className="alert alert-error alert-soft mt-4 text-sm">
             {tx.error}
           </div>
@@ -359,10 +381,14 @@ export default function InterviewExam({ onRestart }: { onRestart: () => void }) 
           <button
             type="button"
             className="btn btn-primary btn-lg flex-[2]"
-            onClick={tx.noSpeech ? onRestart : runTranscribe}
-            disabled={!answers.some(Boolean)}
+            onClick={tx.noSpeech && failed === null ? onRestart : runTranscribe}
+            disabled={!answers.some(Boolean) || failed !== null}
           >
-            {tx.noSpeech ? "처음부터 다시 하기" : tx.error ? "다시 시도하기" : "대본 만들기"}
+            {tx.noSpeech && failed === null
+              ? "처음부터 다시 하기"
+              : tx.error
+                ? "다시 시도하기"
+                : "대본 만들기"}
           </button>
         </div>
       </div>
@@ -439,6 +465,7 @@ export default function InterviewExam({ onRestart }: { onRestart: () => void }) 
           key={qi}
           size="md"
           recording={rec.status === "recording"}
+          disabled={rec.status !== "recording"}
           onClick={() => rec.stop()}
         />
         <p className="text-xs text-secondary">

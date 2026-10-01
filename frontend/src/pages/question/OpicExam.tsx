@@ -3,8 +3,9 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 import { audioFileName } from "../../api/client";
 import { useTranscribe } from "../../api/useTranscribe";
+import AnswerActions from "./AnswerActions";
+import { failedAnswerIndex } from "./answerRetry";
 import AnalyzingView from "../../components/common/AnalyzingView";
-import CountdownBar from "../../components/common/CountdownBar";
 import LevelBars from "../../components/common/LevelBars";
 import MicButton from "../../components/common/MicButton";
 import { useLeaveGuard } from "../../components/common/useLeaveGuard";
@@ -64,6 +65,7 @@ export default function OpicExam({ onRestart }: { onRestart: () => void }) {
   const answersRef = useRef<(Blob | null)[]>([]);
   const urlsRef = useRef<string[]>([]);
   const beepCtxRef = useRef<AudioContext | null>(null);
+  const redoRef = useRef(false); // 끝난 뒤 한 문제만 다시 녹음 중: 그 문제가 끝나면 목록으로
 
   function clearTimer() {
     if (timerRef.current) clearTimeout(timerRef.current);
@@ -115,6 +117,8 @@ export default function OpicExam({ onRestart }: { onRestart: () => void }) {
   function finishExam() {
     clearTimer();
     tokenRef.current++;
+    redoRef.current = false;
+    urlsRef.current.forEach((u) => URL.revokeObjectURL(u));
     const urls = answersRef.current.map((b) => (b ? URL.createObjectURL(b) : null));
     urlsRef.current = urls.filter((u): u is string => u !== null);
     setAnswerUrls(urls);
@@ -122,7 +126,7 @@ export default function OpicExam({ onRestart }: { onRestart: () => void }) {
   }
 
   function nextQuestion(q: number) {
-    if (q + 1 < itemsRef.current.length) askQuestion(q + 1);
+    if (q + 1 < itemsRef.current.length && !redoRef.current) askQuestion(q + 1);
     else finishExam();
   }
 
@@ -211,6 +215,22 @@ export default function OpicExam({ onRestart }: { onRestart: () => void }) {
   // 답변 중 버튼 = 지금 답변을 끝내고 다음 문제 (onRecorded에서 넘어간다)
   function stopEarly() {
     rec.stop();
+  }
+
+  // 끝난 뒤 이 문제만 다시: 질문을 다시 듣고 답한 뒤 목록으로 돌아온다
+  function redoAnswer(q: number) {
+    tx.clear();
+    redoRef.current = true;
+    setStage("running");
+    askQuestion(q);
+  }
+
+  // 이 문제의 답변을 빼고 분석한다
+  function skipAnswer(q: number) {
+    tx.clear();
+    answersRef.current = answersRef.current.map((b, i) => (i === q ? null : b));
+    setAnswers(answersRef.current);
+    setAnswerUrls((urls) => urls.map((u, i) => (i === q ? null : u)));
   }
 
   async function runAnalyze() {
@@ -360,6 +380,7 @@ export default function OpicExam({ onRestart }: { onRestart: () => void }) {
   }
 
   if (stage === "done") {
+    const failed = tx.noSpeech ? failedAnswerIndex(analyzeError, answers) : null;
     return (
       <div className="flex flex-1 flex-col">
         {leaveGuard}
@@ -381,25 +402,25 @@ export default function OpicExam({ onRestart }: { onRestart: () => void }) {
                 {it.text}
               </p>
               {answerUrls[i] ? (
-                <>
-                  <audio src={answerUrls[i]!} controls className="mt-3 w-full" />
-                  <div className="mt-2 flex justify-end">
-                    <a
-                      href={answerUrls[i]!}
-                      download={`q${i + 1}-${audioFileName(answers[i]!)}`}
-                      className="btn btn-ghost btn-sm"
-                    >
-                      파일 저장
-                    </a>
-                  </div>
-                </>
+                <audio src={answerUrls[i]!} controls className="mt-3 w-full" />
               ) : (
-                <p className="mt-2 text-sm text-secondary">녹음된 답변이 없어요.</p>
+                <p className="mt-2 text-sm text-secondary">녹음된 답변이 없어 분석에서 빠져요.</p>
               )}
+              <AnswerActions
+                hasAnswer={!!answers[i]}
+                failed={failed === i}
+                onRedo={() => redoAnswer(i)}
+                onSkip={() => skipAnswer(i)}
+                download={
+                  answerUrls[i] && answers[i]
+                    ? { href: answerUrls[i]!, name: `q${i + 1}-${audioFileName(answers[i]!)}` }
+                    : undefined
+                }
+              />
             </li>
           ))}
         </ul>
-        {analyzeError && (
+        {analyzeError && failed === null && (
           <div role="alert" className="alert alert-error alert-soft mt-4 text-sm">
             {analyzeError}
           </div>
@@ -411,10 +432,10 @@ export default function OpicExam({ onRestart }: { onRestart: () => void }) {
           <button
             type="button"
             className="btn btn-primary btn-lg flex-[2]"
-            onClick={tx.noSpeech ? onRestart : runAnalyze}
-            disabled={!answers.some(Boolean)}
+            onClick={tx.noSpeech && failed === null ? onRestart : runAnalyze}
+            disabled={!answers.some(Boolean) || failed !== null}
           >
-            {tx.noSpeech
+            {tx.noSpeech && failed === null
               ? "처음부터 다시 응시하기"
               : analyzeError
                 ? "다시 시도하기"
@@ -489,20 +510,10 @@ export default function OpicExam({ onRestart }: { onRestart: () => void }) {
       <section className="flex flex-col items-center gap-3 pt-2 pb-2">
         {phase === "replay" && (
           <>
-            <p
-              key={Math.ceil(replayLeft)}
-              className="animate-tick text-4xl font-semibold tabular-nums tracking-tight"
-            >
+            <p className="text-4xl font-semibold tabular-nums tracking-tight text-secondary">
               {Math.max(0, Math.ceil(replayLeft))}
             </p>
-            {replayEndsAt && (
-              <CountdownBar
-                key={replayEndsAt}
-                leftMs={replayEndsAt - now}
-                totalSec={REPLAY_WINDOW_SEC}
-                className="max-w-60 text-secondary"
-              />
-            )}
+
             <div className="flex w-full gap-2">
               <button
                 type="button"
@@ -534,6 +545,7 @@ export default function OpicExam({ onRestart }: { onRestart: () => void }) {
               key={qi}
               size="md"
               recording={rec.status === "recording"}
+              disabled={rec.status !== "recording"}
               onClick={stopEarly}
             />
             <p className="text-xs text-secondary">
