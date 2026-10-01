@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
-import { Link, useNavigate } from "react-router";
-import { analyze, audioFileName } from "../../api/client";
+import { Link } from "react-router";
+import { audioFileName } from "../../api/client";
+import { useTranscribe } from "../../api/useTranscribe";
 import { LEVEL_LABEL } from "../../api/presentationLevels";
 import AnalyzingView from "../../components/common/AnalyzingView";
 import LevelBars from "../../components/common/LevelBars";
@@ -23,13 +24,13 @@ function mmss(sec: number) {
 
 // 와이어프레임 녹음 화면: (발표 자료) + 마이크 + 파일 업로드 → 분석하기 → /script
 export default function RecordPage() {
-  const navigate = useNavigate();
-  const { settings, setResult } = useAnalysis();
+  const { settings } = useAnalysis();
   const rec = useRecorder(MAX_SEC, { maxTotalSec: MAX_TOTAL_SEC });
   const [material, setMaterial] = useState<File | null>(null);
   const [materialError, setMaterialError] = useState<string | null>(null);
-  const [analyzing, setAnalyzing] = useState(false);
-  const [analyzeError, setAnalyzeError] = useState<string | null>(null);
+  const tx = useTranscribe(); // 녹음 → 대본 → 검토 화면
+  const analyzing = tx.busy;
+  const analyzeError = tx.error;
   const fileRef = useRef<HTMLInputElement>(null);
   const desktop = useMediaQuery(DESKTOP_QUERY);
   // 녹음을 시작한 뒤에는 다른 화면으로 가기 전에 확인
@@ -48,22 +49,13 @@ export default function RecordPage() {
     setMaterial(file);
   }
 
-  async function runAnalyze(audio: Blob[]) {
-    setAnalyzing(true);
-    setAnalyzeError(null);
-    try {
-      const result = await analyze({
-        audio,
-        mode: settings.mode,
-        language: settings.language,
-        level: settings.level,
-      });
-      setResult(result);
-      navigate("/script");
-    } catch (err) {
-      setAnalyzeError(err instanceof Error ? err.message : "분석 요청에 실패했어요.");
-      setAnalyzing(false);
-    }
+  function runAnalyze(audio: Blob[]) {
+    void tx.run({
+      audio,
+      mode: "presentation",
+      language: settings.language,
+      level: settings.level,
+    });
   }
 
   if (analyzing)
@@ -263,7 +255,7 @@ export default function RecordPage() {
                 className="btn btn-primary btn-lg btn-block"
                 onClick={() => void runAnalyze(rec.blobs)}
               >
-                {analyzeError ? "다시 분석하기" : "분석하기"}
+                {analyzeError ? "다시 시도하기" : "대본 만들기"}
               </button>
             )}
           </div>

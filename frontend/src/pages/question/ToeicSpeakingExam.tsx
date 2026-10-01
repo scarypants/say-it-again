@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router";
-import { analyzeSpeaking, audioFileName } from "../../api/client";
+import { Link } from "react-router";
+import { audioFileName } from "../../api/client";
+import { useTranscribe } from "../../api/useTranscribe";
 import AnalyzingView from "../../components/common/AnalyzingView";
 import LevelBars from "../../components/common/LevelBars";
 import MicButton from "../../components/common/MicButton";
 import { useLeaveGuard } from "../../components/common/useLeaveGuard";
 import { useRecorder } from "../../components/common/useRecorder";
-import { useAnalysis } from "../../store/analysis";
 import CafeteriaScene from "./CafeteriaScene";
 import {
   TOEIC_SPEAKING_ITEMS,
@@ -22,6 +22,7 @@ const PHASE_LABEL: Record<Phase["kind"], string> = {
   speak: "답변 시간",
 };
 
+const ANSWER_HARD_MAX_SEC = 60; // 서버가 받는 답변 하나의 최대 길이
 const canSpeak = typeof window !== "undefined" && "speechSynthesis" in window;
 
 function mmss(sec: number) {
@@ -39,9 +40,8 @@ type Stage = "intro" | "running" | "done";
 // 토익 스피킹 모의시험: 질문 듣기/보기 → 준비 → 자동 녹음. 답변 시간이 끝나면 신호음으로 알리고 녹음은 계속한다.
 // 마이크 버튼을 누르면 녹음을 끝내고 다음 문제. 이전 문제로는 돌아갈 수 없다.
 export default function ToeicSpeakingExam() {
-  const navigate = useNavigate();
-  const { setResult } = useAnalysis();
-  const rec = useRecorder(3600); // 답변은 버튼을 누를 때까지 녹음 (시간이 끝나도 계속)
+  // 답변 시간이 끝나도 녹음은 계속하되, 서버 상한(답변당 60초, docs/api.md)에서 멈추고 다음 문제
+  const rec = useRecorder(ANSWER_HARD_MAX_SEC);
 
   const [stage, setStage] = useState<Stage>("intro");
   const [qi, setQi] = useState(0);
@@ -53,8 +53,9 @@ export default function ToeicSpeakingExam() {
   );
   const [answerUrls, setAnswerUrls] = useState<(string | null)[]>([]);
   const [startError, setStartError] = useState<string | null>(null);
-  const [analyzing, setAnalyzing] = useState(false);
-  const [analyzeError, setAnalyzeError] = useState<string | null>(null);
+  const tx = useTranscribe(); // 녹음 → 대본 → 검토 화면
+  const analyzing = tx.busy;
+  const analyzeError = tx.error;
   // 시험을 시작한 뒤에는 다른 화면으로 가기 전에 확인 (답변 녹음이 사라지므로)
   const leaveGuard = useLeaveGuard(stage !== "intro", "지금까지 녹음한 답변이 모두 사라져요.");
 
@@ -195,16 +196,13 @@ export default function ToeicSpeakingExam() {
       answers[i] ? [{ question: toeicSpeakingQuestionText(it), audio: answers[i]! }] : [],
     );
     if (pairs.length === 0) return;
-    setAnalyzing(true);
-    setAnalyzeError(null);
-    try {
-      const result = await analyzeSpeaking({ exam: "TOEIC-Speaking", answers: pairs });
-      setResult(result);
-      navigate("/script");
-    } catch (err) {
-      setAnalyzeError(err instanceof Error ? err.message : "분석 요청에 실패했어요.");
-      setAnalyzing(false);
-    }
+    await tx.run({
+      mode: "speaking",
+      language: "en",
+      exam: "TOEIC-Speaking",
+      questions: pairs.map((p) => p.question),
+      audio: pairs.map((p) => p.audio),
+    });
   }
 
   // 남은 시간 표시용 시계
@@ -262,7 +260,10 @@ export default function ToeicSpeakingExam() {
         </ol>
         <ul className="mt-4 list-disc space-y-1 pl-5 text-sm text-secondary">
           <li>준비가 끝났으면 바로 답하기를 눌러 준비 시간을 건너뛸 수 있어요.</li>
-          <li>답변 시간이 끝나도 녹음은 계속돼요. 마이크 버튼을 눌러야 다음 문제로 넘어가요.</li>
+          <li>
+            답변 시간이 끝나도 녹음은 계속돼요. 마이크 버튼을 누르거나, 녹음이 1분이 되면 다음
+            문제로 넘어가요.
+          </li>
           <li>이전 문제로는 돌아갈 수 없어요.</li>
           <li>소리가 나오니 스피커나 이어폰을 켜 주세요.</li>
         </ul>
@@ -331,7 +332,7 @@ export default function ToeicSpeakingExam() {
             onClick={runAnalyze}
             disabled={!answers.some(Boolean)}
           >
-            {analyzeError ? "다시 분석하기" : "전체 분석하기"}
+            {analyzeError ? "다시 시도하기" : "대본 만들기"}
           </button>
         </div>
       </div>
@@ -439,7 +440,7 @@ export default function ToeicSpeakingExam() {
             <MicButton size="md" recording={rec.status === "recording"} onClick={stopEarly} />
             <p className="text-xs text-secondary">
               {timeUp
-                ? "녹음은 계속돼요. 다 말했으면 버튼을 눌러 다음 문제로"
+                ? `녹음은 계속돼요. 다 말했으면 버튼을 눌러 다음 문제로 (${ANSWER_HARD_MAX_SEC - Math.floor(rec.elapsed)}초 뒤 자동으로 넘어가요)`
                 : "다 말했으면 버튼을 눌러 다음 문제로"}
             </p>
           </>

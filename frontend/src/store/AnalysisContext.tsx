@@ -1,17 +1,20 @@
 import { useState, type ReactNode } from "react";
 import type { AnalyzeResponse } from "../types/api";
-import { AnalysisContext, type Settings } from "./analysis";
+import { AnalysisContext, type Session, type Settings } from "./analysis";
 
-// 페이지 사이에서 공유하는 상태: 입력 설정(홈) → 녹음 → 결과(스크립트/총평)
+// 페이지 사이에서 공유하는 상태: 입력 설정(홈) → 녹음 → 대본 검토 → 결과(스크립트/총평)
 export function AnalysisProvider({ children }: { children: ReactNode }) {
   const [settings, setSettings] = useState<Settings>({
     mode: "presentation",
     language: "ko",
   });
+  const [session, setSession] = useState<Session | null>(null);
   const [result, setResult] = useState<AnalyzeResponse | null>(null);
 
   return (
-    <AnalysisContext.Provider value={{ settings, setSettings, result, setResult }}>
+    <AnalysisContext.Provider
+      value={{ settings, setSettings, session, setSession, result, setResult }}
+    >
       {children}
     </AnalysisContext.Provider>
   );

@@ -38,8 +38,8 @@ export const ROLE_PLAYS: RolePlay[] = rolePlays.situations;
 export const SELF_LEVELS: { level: number; desc: string }[] = selfAssessment.levels;
 const INTRO_QUESTIONS: string[] = intro.questions;
 
-export const ANSWER_GOAL_SEC = 120; // 실제 시험 권장 답변 시간
-export const ANSWER_MAX_SEC = 180; // 넘으면 자동으로 다음 문제 (실제 시험엔 문항별 제한이 없음)
+export const ANSWER_GOAL_SEC = 90; // 권장 답변 시간 (실제 시험은 2분 안팎)
+export const ANSWER_MAX_SEC = 120; // 넘으면 자동으로 다음 문제. 서버 상한이 답변당 2분 (docs/api.md)
 export const REPLAY_WINDOW_SEC = 5; // 처음 들은 뒤 이 시간 안에 한 번 더 들을 수 있다
 export const HARD_LEVEL = 5; // 이 단계 이상이면 롤플레이가 문제 해결형
 

@@ -1,8 +1,8 @@
 import { useEffect, useRef } from "react";
 import { useBlocker } from "react-router";
 
-// 분석이 끝나 결과 화면으로 가는 건 막지 않는다
-const ALLOWED_PATHS = ["/script"];
+// 대본 검토·결과 화면으로 넘어가는 건 막지 않는다
+const ALLOWED_PATHS = ["/review", "/script"];
 
 // when이 true인 동안 다른 화면으로 가거나(로고, 처음으로, 뒤로 가기) 새로고침·창 닫기를 하면 확인을 받는다.
 // 반환한 요소를 화면에 같이 렌더링해야 확인 창이 뜬다

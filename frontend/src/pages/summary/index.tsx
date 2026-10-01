@@ -4,12 +4,12 @@ import sample from "../../mocks/analyze.sample.json";
 import { useAnalysis } from "../../store/analysis";
 import type { AnalyzeResponse } from "../../types/api";
 import { createChartData } from "./chartData";
-import { wordFeedback } from "../script/feedback";
+import { totalDuration } from "../../components/common/scriptFormat";
 const FeedbackChart = lazy(() => import("./components/FeedbackChart"));
 
 const sampleResult = sample as unknown as AnalyzeResponse;
 const canLoadSample = import.meta.env.DEV || import.meta.env.VITE_USE_MOCK === "true";
-const modeNames = { presentation: "발표", speaking: "어학 스피킹", interview: "면접" };
+const modeNames = { presentation: "발표", speaking: "어학 스피킹" };
 function timestamp(seconds: number) {
   const safe = Number.isFinite(seconds) ? Math.max(0, seconds) : 0;
   return `${Math.floor(safe / 60)}:${Math.floor(safe % 60)
@@ -18,7 +18,7 @@ function timestamp(seconds: number) {
 }
 
 export default function SummaryPage() {
-  const { result, setResult, settings } = useAnalysis();
+  const { result, setResult } = useAnalysis();
   const [selection, setSelection] = useState<{
     result: AnalyzeResponse;
     category: "filler" | "repeat";
@@ -30,33 +30,33 @@ export default function SummaryPage() {
   const chart = result ? createChartData(result) : [];
   const improvements =
     result && selected
-      ? result.lines.flatMap((line, lineIndex) => {
-          const words =
-            selected === "filler" ? result.fillers[lineIndex] : result.repeats[lineIndex];
-          const word = words?.find(
-            (index) => Number.isInteger(index) && index >= 0 && index < line.words.length,
-          );
-          if (word === undefined || line.pause) return [];
-          const feedback = wordFeedback(result, lineIndex, word).find(
-            (item) => item.category === selected,
-          );
-          return feedback
-            ? [
+      ? result.parts.flatMap((part, partIndex) =>
+          part.highlight
+            .filter((h) => h.category === selected)
+            .flatMap((h) => {
+              const line = part.script.find(
+                (l) => !l.pause && h.from >= l.offset && h.from < l.offset + l.words.length,
+              );
+              if (!line) return [];
+              return [
                 {
-                  ...feedback,
+                  key: `${partIndex}-${h.from}-${h.to}`,
                   original: line.words.join(" "),
-                  lineIndex,
+                  improved: line.words
+                    .filter((_, i) => line.offset + i < h.from || line.offset + i > h.to)
+                    .join(" "),
+                  partIndex,
                   start: line.start,
                   end: line.end,
-                  word,
+                  word: h.from,
                 },
-              ]
-            : [];
-        })
+              ];
+            }),
+        )
       : [];
   const score =
-    result && Number.isFinite(result.stats.score)
-      ? Math.min(100, Math.max(0, result.stats.score))
+    result && Number.isFinite(result.analysis.score)
+      ? Math.min(100, Math.max(0, result.analysis.score))
       : null;
 
   return (
@@ -89,7 +89,7 @@ export default function SummaryPage() {
           </button>
         </div>
       )}
-      {!result?.lines.length ? (
+      {!result?.parts.length ? (
         <section className="card card-border bg-base-100" aria-labelledby="summary-empty">
           <div className="card-body items-start gap-4">
             <h2 id="summary-empty" className="card-title text-lg">
@@ -112,8 +112,7 @@ export default function SummaryPage() {
                   이번 말하기
                 </h2>
                 <span className="badge badge-outline">
-                  {result === sampleResult ? "발표" : modeNames[settings.mode]} ·{" "}
-                  {timestamp(result.duration)}
+                  {modeNames[result.mode]} · {timestamp(totalDuration(result.parts))}
                 </span>
               </div>
               <p className="tabular-nums">
@@ -121,7 +120,7 @@ export default function SummaryPage() {
                 <span className="ml-2 text-sm text-base-content/70">/ 100점</span>
               </p>
               <p className="text-base leading-relaxed font-semibold wrap-anywhere">
-                {result.summary.headline || "한 줄 총평을 준비하고 있어요."}
+                {result.analysis.summary.headline || "한 줄 총평을 준비하고 있어요."}
               </p>
             </div>
           </section>
@@ -154,7 +153,7 @@ export default function SummaryPage() {
                 {improvements.length ? (
                   improvements.map((item, index) => (
                     <article
-                      key={item.lineIndex}
+                      key={item.key}
                       className={index ? "border-t border-base-300 pt-4" : ""}
                     >
                       <p className="text-xs tabular-nums text-base-content/65">
@@ -169,7 +168,7 @@ export default function SummaryPage() {
                         {item.improved || "이 표현은 생략하고 다음 문장으로 이어 말해보세요."}
                       </p>
                       <Link
-                        to={`/script?line=${item.lineIndex}&word=${item.word}`}
+                        to={`/script?part=${item.partIndex}&word=${item.word}`}
                         className="link mt-3 inline-block text-xs"
                       >
                         대본에서 보기 →
@@ -190,9 +189,9 @@ export default function SummaryPage() {
             <h2 id="priorities-title" className="text-lg font-bold">
               먼저 고칠 3가지
             </h2>
-            {result.summary.topPriorities.length ? (
+            {result.analysis.summary.topPriorities.length ? (
               <ol className="mt-3 divide-y divide-base-300 border-y border-base-300">
-                {result.summary.topPriorities.slice(0, 3).map((priority, index) => (
+                {result.analysis.summary.topPriorities.slice(0, 3).map((priority, index) => (
                   <li key={index} className="flex gap-3 py-4">
                     <span className="badge badge-primary mt-0.5 shrink-0">{index + 1}</span>
                     <p className="min-w-0 text-sm leading-relaxed wrap-anywhere">{priority}</p>
@@ -202,9 +201,9 @@ export default function SummaryPage() {
             ) : (
               <p className="mt-3 text-sm text-base-content/70">추천 개선점을 준비하고 있어요.</p>
             )}
-            {result.summary.modeComment && (
+            {result.analysis.summary.comment && (
               <p className="mt-4 rounded-box bg-base-200 p-4 text-sm leading-relaxed wrap-anywhere">
-                {result.summary.modeComment}
+                {result.analysis.summary.comment}
               </p>
             )}
           </section>

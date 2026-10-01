@@ -3,6 +3,7 @@ import Layout, { type RouteHandle } from "./components/common/Layout";
 import HomePage from "./pages/home";
 import QuestionPage from "./pages/question";
 import RecordPage from "./pages/record";
+import ReviewPage from "./pages/review";
 import ScriptPage from "./pages/script";
 import SummaryPage from "./pages/summary";
 import UploadPage from "./pages/upload";
@@ -20,7 +21,8 @@ const router = createBrowserRouter([
       { path: "/record", element: <RecordPage />, handle: wide }, // 고민준: 녹음
       { path: "/upload", element: <UploadPage /> }, // 고민준: 발표 자료 업로드
       { path: "/question", element: <QuestionPage /> }, // 고민준: 어학 질문
-      { path: "/script", element: <ScriptPage /> }, // 김왁수: 스크립트 하이라이트
+      { path: "/review", element: <ReviewPage /> }, // 고민준: 대본 검토·수정
+      { path: "/script", element: <ScriptPage /> }, // 고민준: 스크립트 하이라이트
       { path: "/summary", element: <SummaryPage /> }, // 김왁수: 총평
     ],
   },
