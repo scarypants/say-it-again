@@ -31,10 +31,6 @@ export default function SummaryPage() {
     (count, words) => count + new Set(words).size,
     0,
   );
-  const alternatives = pauses
-    .filter((line) => result?.panic[line.index]?.altScript?.trim())
-    .sort((a, b) => b.end - b.start - (a.end - a.start))
-    .slice(0, 2);
   const score =
     result && Number.isFinite(result.stats.score)
       ? Math.min(100, Math.max(0, result.stats.score))
@@ -184,54 +180,25 @@ export default function SummaryPage() {
               말이 멈춘 순간
             </h2>
             <p className="mt-2 text-sm text-base-content/70">
-              구간을 누르면 대본의 대안 문장을 팝업으로 볼 수 있어요.
+              말이 멈춘 위치와 시간을 확인해보세요.
             </p>
             {pauses.length ? (
               <ol className="mt-3 flex flex-col gap-2">
                 {pauses.map((line) => (
                   <li key={line.index}>
-                    <Link
-                      to={`/script?line=${line.index}`}
-                      className="btn h-auto min-h-11 w-full justify-between whitespace-normal border-hl-panic/40 bg-hl-panic-soft px-3 py-3 text-base-content hover:border-hl-panic hover:bg-hl-panic-soft"
-                      aria-label={`${timestamp(line.start)} 정지 구간의 대본 보기`}
-                    >
+                    <div className="flex min-h-11 items-center justify-between gap-2 rounded-box border border-hl-panic/40 bg-hl-panic-soft px-3 py-3">
                       <span className="text-sm tabular-nums">
                         {timestamp(line.start)} – {timestamp(line.end)}
                       </span>
                       <span className="text-xs">
-                        {Math.max(0, line.end - line.start).toFixed(1)}초 정지 →
+                        {Math.max(0, line.end - line.start).toFixed(1)}초 정지
                       </span>
-                    </Link>
+                    </div>
                   </li>
                 ))}
               </ol>
             ) : (
               <p className="mt-3 text-sm text-base-content/70">2초 이상 멈춘 구간이 없어요.</p>
-            )}
-          </section>
-
-          <section aria-labelledby="retry-title">
-            <h2 id="retry-title" className="text-lg font-bold">
-              이 문장부터 다시 말해봐요
-            </h2>
-            {alternatives.length ? (
-              alternatives.map((line) => (
-                <article key={line.index} className="mt-3 rounded-box bg-base-200 p-4">
-                  <Link
-                    to={`/script?line=${line.index}`}
-                    className="link text-xs text-base-content/70"
-                  >
-                    {timestamp(line.start)} 구간의 대안 보기
-                  </Link>
-                  <p className="mt-2 font-script text-lg leading-relaxed whitespace-pre-wrap wrap-anywhere">
-                    {result.panic[line.index].altScript}
-                  </p>
-                </article>
-              ))
-            ) : (
-              <p className="mt-3 text-sm text-base-content/70">
-                대안 대본이 준비되면 여기에 표시할게요.
-              </p>
             )}
           </section>
 

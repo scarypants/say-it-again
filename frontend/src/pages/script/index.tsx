@@ -1,9 +1,10 @@
+import { useRef } from "react";
 import { Link, useSearchParams } from "react-router";
 import sample from "../../mocks/analyze.sample.json";
 import { useAnalysis } from "../../store/analysis";
 import type { AnalyzeResponse } from "../../types/api";
-import FeedbackModal from "./components/FeedbackModal";
-import { categories, panicFeedback, wordFeedback } from "./feedback";
+import InlineFeedback from "./components/InlineFeedback";
+import { categories, wordFeedback } from "./feedback";
 
 const sampleResult = sample as unknown as AnalyzeResponse;
 const canLoadSample = import.meta.env.DEV || import.meta.env.VITE_USE_MOCK === "true";
@@ -22,6 +23,7 @@ function silenceDuration(start: number, end: number) {
 // 김왁수 담당. 공용 Layout, dasi 테마, API 타입과 상태를 그대로 사용한다.
 export default function ScriptPage() {
   const { result, setResult } = useAnalysis();
+  const feedbackTrigger = useRef<HTMLButtonElement | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const lineParam = searchParams.get("line");
   const wordParam = searchParams.get("word");
@@ -31,23 +33,23 @@ export default function ScriptPage() {
     lineParam !== null && /^\d+$/.test(lineParam) ? Number(lineParam) : undefined;
   const selectedIndex =
     requestedIndex !== undefined && result?.lines[requestedIndex] ? requestedIndex : undefined;
-  const selectedLine = selectedIndex === undefined ? undefined : result?.lines[selectedIndex];
   const feedback =
-    result && selectedIndex !== undefined
-      ? selectedLine?.pause
-        ? panicFeedback(result, selectedIndex)
-        : selectedWord !== undefined
-          ? wordFeedback(result, selectedIndex, selectedWord)
-          : []
+    result && selectedIndex !== undefined && selectedWord !== undefined
+      ? wordFeedback(result, selectedIndex, selectedWord)
       : [];
   const hasScript = Boolean(result?.lines.length);
   const isSample = result === sampleResult;
-  function selectFeedback(index: number, word?: number) {
+  function selectFeedback(index: number, word: number, trigger: HTMLButtonElement) {
+    feedbackTrigger.current = trigger;
+    if (index === selectedIndex && word === selectedWord) {
+      closeFeedback();
+      return;
+    }
     const next = new URLSearchParams(searchParams);
     next.set("line", String(index));
-    if (word === undefined) next.delete("word");
-    else next.set("word", String(word));
+    next.set("word", String(word));
     setSearchParams(next, { replace: true });
+    feedbackTrigger.current?.focus({ preventScroll: true });
   }
 
   function closeFeedback() {
@@ -55,6 +57,7 @@ export default function ScriptPage() {
     next.delete("line");
     next.delete("word");
     setSearchParams(next, { replace: true });
+    feedbackTrigger.current?.focus({ preventScroll: true });
   }
 
   return (
@@ -65,8 +68,7 @@ export default function ScriptPage() {
           내 말의 흐름을 살펴봐요
         </h1>
         <p className="mt-3 text-sm leading-relaxed text-base-content/70">
-          색이 표시된 표현이나 정지 구간을 눌러보세요. 팝업에서 다시 말할 문장과 피드백을 확인할 수
-          있어요.
+          밑줄 친 표현을 누르면 문장 아래에 피드백이 펼쳐져요. 패닉존은 말이 멈춘 위치만 표시해요.
         </p>
       </header>
 
@@ -130,30 +132,37 @@ export default function ScriptPage() {
 
               <ol className="mt-4 divide-y divide-base-300 border-y border-base-300">
                 {result.lines.map((line, lineIndex) => {
-                  const isSelected = selectedIndex === lineIndex;
+                  const isSelected = selectedIndex === lineIndex && feedback.length > 0;
+                  const feedbackId = `script-feedback-${lineIndex}`;
                   return (
-                    <li key={lineIndex} className="py-4">
+                    <li
+                      key={lineIndex}
+                      className="py-4"
+                      onKeyDown={(event) => {
+                        if (isSelected && event.key === "Escape") {
+                          event.preventDefault();
+                          closeFeedback();
+                        }
+                      }}
+                    >
                       <p className="mb-2 text-xs tabular-nums text-base-content/65">
                         <span className="sr-only">구간 </span>
                         {timestamp(line.start)} – {timestamp(line.end)}
                       </p>
                       {line.pause ? (
-                        <button
-                          type="button"
-                          className={`btn h-auto min-h-11 w-full justify-between gap-2 whitespace-normal border-hl-panic/40 bg-hl-panic-soft px-3 py-3 text-base-content hover:border-hl-panic hover:bg-hl-panic-soft ${isSelected ? "ring-2 ring-hl-panic ring-offset-2" : ""}`}
-                          aria-expanded={isSelected}
-                          aria-haspopup="dialog"
-                          aria-controls="script-feedback"
-                          aria-label={`${timestamp(line.start)}부터 ${silenceDuration(line.start, line.end)}초 정지, 대안 보기`}
-                          onClick={() => selectFeedback(lineIndex)}
-                        >
+                        <div className="flex min-h-11 items-center justify-between gap-2 rounded-box border border-hl-panic/40 bg-hl-panic-soft px-3 py-3 text-sm">
                           <span>{silenceDuration(line.start, line.end)}초 정지</span>
-                          <span className="text-xs font-normal">대안 보기 →</span>
-                        </button>
+                          <span className="text-xs text-base-content/65">패닉존</span>
+                        </div>
                       ) : (
-                        <p className="font-script text-lg leading-loose wrap-anywhere">
+                        <p
+                          className={`font-script text-lg leading-loose wrap-anywhere transition-transform duration-300 ease-out motion-reduce:transition-none motion-reduce:transform-none ${isSelected ? "-translate-y-1" : "translate-y-0"}`}
+                        >
                           {line.words.map((word, wordIndex) => {
                             const issues = wordFeedback(result, lineIndex, wordIndex);
+                            const panic =
+                              result.lines[lineIndex + 1]?.pause &&
+                              wordIndex >= Math.max(0, line.words.length - 3);
                             const labels = [
                               ...new Set(issues.map((item) => categories[item.category].label)),
                             ].join(" · ");
@@ -164,20 +173,38 @@ export default function ScriptPage() {
                                     type="button"
                                     title={labels}
                                     aria-label={`${word}: ${labels} 피드백 보기`}
-                                    aria-haspopup="dialog"
-                                    aria-controls="script-feedback"
-                                    onClick={() => selectFeedback(lineIndex, wordIndex)}
+                                    aria-expanded={isSelected && selectedWord === wordIndex}
+                                    aria-controls={isSelected ? feedbackId : undefined}
+                                    onClick={(event) =>
+                                      selectFeedback(lineIndex, wordIndex, event.currentTarget)
+                                    }
                                     className={`cursor-pointer rounded px-0.5 text-left underline underline-offset-4 hover:brightness-90 ${categories[issues[0].category].style}`}
                                   >
                                     {word}
                                   </button>
                                 ) : (
-                                  word
+                                  <span
+                                    className={
+                                      panic
+                                        ? `rounded px-0.5 underline underline-offset-4 ${categories.panic.style}`
+                                        : undefined
+                                    }
+                                  >
+                                    {word}
+                                  </span>
                                 )}{" "}
                               </span>
                             );
                           })}
                         </p>
+                      )}
+                      {isSelected && (
+                        <InlineFeedback
+                          key={selectedWord}
+                          id={feedbackId}
+                          feedback={feedback}
+                          onClose={closeFeedback}
+                        />
                       )}
                     </li>
                   );
@@ -191,15 +218,6 @@ export default function ScriptPage() {
           </>
         )
       )}
-      <FeedbackModal
-        feedback={feedback}
-        onClose={closeFeedback}
-        time={
-          selectedLine
-            ? `${timestamp(selectedLine.start)} – ${timestamp(selectedLine.end)} 구간`
-            : ""
-        }
-      />
     </div>
   );
 }

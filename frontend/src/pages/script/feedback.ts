@@ -9,21 +9,11 @@ export const categories = {
 };
 
 export type Feedback = {
-  category: keyof typeof categories;
+  category: Exclude<keyof typeof categories, "panic">;
   original: string;
   improved: string;
   reason?: string;
 };
-
-export function panicFeedback(result: AnalyzeResponse, index: number): Feedback[] {
-  return [
-    {
-      category: "panic",
-      original: result.lines[index - 1]?.words.join(" ") || "말이 멈춘 구간",
-      improved: result.panic[index]?.altScript || "대안 문장이 아직 준비되지 않았어요.",
-    },
-  ];
-}
 
 export function wordFeedback(
   result: AnalyzeResponse,
@@ -74,9 +64,6 @@ export function wordFeedback(
         reason,
       });
     }
-  }
-  if (result.lines[lineIndex + 1]?.pause && wordIndex >= Math.max(0, line.words.length - 3)) {
-    feedback.push(...panicFeedback(result, lineIndex + 1));
   }
   return feedback;
 }
