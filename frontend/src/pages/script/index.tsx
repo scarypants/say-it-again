@@ -1,5 +1,5 @@
-import { useRef, useState } from "react";
-import { Link } from "react-router";
+import { useEffect, useRef } from "react";
+import { Link, useSearchParams } from "react-router";
 import sample from "../../mocks/analyze.sample.json";
 import { useAnalysis } from "../../store/analysis";
 import type { AnalyzeResponse } from "../../types/api";
@@ -21,24 +21,39 @@ function silenceDuration(start: number, end: number) {
 // 김왁수 담당. 공용 Layout, dasi 테마, API 타입과 상태를 그대로 사용한다.
 export default function ScriptPage() {
   const { result, setResult } = useAnalysis();
-  const [selection, setSelection] = useState<{ result: AnalyzeResponse; index: number } | null>(
-    null,
-  );
+  const [searchParams, setSearchParams] = useSearchParams();
   const detailHeading = useRef<HTMLHeadingElement>(null);
-  const selectedIndex = selection?.result === result ? selection?.index : undefined;
+  const lineParam = searchParams.get("line");
+  const requestedIndex =
+    lineParam !== null && /^\d+$/.test(lineParam) ? Number(lineParam) : undefined;
+  const selectedIndex =
+    requestedIndex !== undefined && result?.lines[requestedIndex]?.pause
+      ? requestedIndex
+      : undefined;
   const selectedLine = selectedIndex === undefined ? undefined : result?.lines[selectedIndex];
   const selectedPanic = selectedIndex === undefined ? undefined : result?.panic[selectedIndex];
   const hasScript = Boolean(result?.lines.length);
   const isSample = result === sampleResult;
   const pauseCount = result?.lines.filter((line) => line.pause).length ?? 0;
 
+  useEffect(() => {
+    if (selectedIndex === undefined) {
+      window.scrollTo({ top: 0, behavior: "instant" });
+      return;
+    }
+    detailHeading.current?.focus({ preventScroll: true });
+    detailHeading.current?.scrollIntoView({ behavior: "instant", block: "start" });
+  }, [selectedIndex, result]);
+
   function selectPanic(index: number) {
-    if (!result) return;
-    setSelection({ result, index });
-    requestAnimationFrame(() => {
+    if (index === selectedIndex) {
       detailHeading.current?.focus({ preventScroll: true });
       detailHeading.current?.scrollIntoView({ behavior: "instant", block: "start" });
-    });
+      return;
+    }
+    const next = new URLSearchParams(searchParams);
+    next.set("line", String(index));
+    setSearchParams(next, { replace: true });
   }
 
   return (
@@ -61,7 +76,12 @@ export default function ScriptPage() {
           <button
             type="button"
             className="btn btn-outline btn-sm"
-            onClick={() => setResult(sampleResult)}
+            onClick={() => {
+              const next = new URLSearchParams(searchParams);
+              next.delete("line");
+              setSearchParams(next, { replace: true });
+              setResult(sampleResult);
+            }}
           >
             샘플 불러오기
           </button>
