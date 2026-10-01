@@ -54,6 +54,7 @@ test("총평은 정상 비율 대신 서버 점수와 점수 기준을 표시한
   assert.match(html, /패닉존·군말·반복 기준/);
   assert.match(html, /text-4xl[^>]*>80<\/span>/);
   assert.match(html, /문장을 차분히 연결해 보세요/);
+  assert.match(html, /href="\/script\?view=final"[^>]*>전체 대본 보기/);
 });
 
 test("면접의 지난 질문이 있으면 같은 질문 재도전 버튼을 표시한다", () => {

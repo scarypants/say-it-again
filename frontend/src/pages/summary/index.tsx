@@ -246,7 +246,7 @@ export default function SummaryPage() {
                   처음으로
                 </Link>
               )}
-              <Link to="/script" className="btn btn-outline btn-lg btn-block border-base-300 xl:flex-1">
+              <Link to="/script?view=final" className="btn btn-outline btn-lg btn-block border-base-300 xl:flex-1">
                 전체 대본 보기
               </Link>
             </div>
