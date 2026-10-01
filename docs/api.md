@@ -7,25 +7,28 @@ Base URL: `http://localhost:8080/api`
 
 ## 1. 모드와 입력
 
-| | 발표 (`presentation`) | 어학 스피킹 (`speaking`) |
-|---|---|---|
-| 언어 | `ko` 또는 `en` | `en` 고정 |
-| 세부 | `level`: `assignment` \| `exam` \| `keynote` | `exam`: `TOEIC-Speaking` \| `opic` |
-| 녹음 | 5분 단위로 나눈 파일, 1~5개 | 질문별 답변 파일, 1~5개 |
-| 추가 입력 | - | `questions` (질문 문자열 배열) |
+| | 발표 (`presentation`) | 어학 스피킹 (`speaking`) | 면접 (`interview`) |
+|---|---|---|---|
+| 언어 | `ko` 또는 `en` | `en` 고정 | `ko` 또는 `en` (질문·답변 언어) |
+| 세부 | `level`: `assignment` \| `exam` \| `keynote` | `exam`: `TOEIC-Speaking` \| `opic` | - (지원 직무는 `questions` 문자열 안에) |
+| 녹음 | 5분 단위로 나눈 파일, 1~5개 | 질문별 답변 파일, 1~5개 | 질문별 답변 파일, 1~5개 (보통 5개) |
+| 추가 입력 | - | `questions` (질문 문자열 배열) | `questions` (질문 문자열 배열) |
 
 - 파일 하나가 결과의 `parts` 하나가 된다. `audio`를 보낸 순서 = `parts` 순서.
 - `level`은 발표의 성격이다: 과제 발표(`assignment`), 시험 발표(`exam`), 큰 강연(`keynote`).
+- 면접 질문은 `POST /api/interview/questions`(6절)로 지원 직무에 맞춰 서버가 만든다. 그 뒤 흐름(질문별 녹음 → transcribe → 검토 → analyze)은 스피킹과 같다.
 
 ## 2. API 목록
 
 | 순서 | 엔드포인트 | 요청 | 응답 |
 |---|---|---|---|
+| 0 | `POST /api/interview/questions` | JSON: 언어 + 지원 직무 | 면접 질문 5개 (면접만) |
 | 1 | `POST /api/transcribe` | multipart: 녹음 파일 + 모드 정보 | 파트별 문장 단위 대본 (`TranscribeResponse`) |
 | 2 | `POST /api/analyze` | JSON: 모드 정보 + 사용자가 고친 대본 | 분석 결과 (`AnalyzeResponse`) |
 | 3 | `POST /api/retry` | JSON: 2와 같음 + 이전 결과 요약(`previous`) | 재도전 결과 + 전후 비교 (`RetryResponse`) |
 
 ```
+(면접) [0] interview/questions → 질문마다 답변 녹음 ↓
 녹음 → [1] transcribe → 대본을 사용자에게 보여 주고 전사 오류 수정 → [2] analyze → 대본 하이라이트·총평 화면
 재도전 → [1] transcribe → 전사 오류 수정 → [3] retry → 전후 비교·재도전 총평
 ```
@@ -33,7 +36,7 @@ Base URL: `http://localhost:8080/api`
 - 서버는 아무것도 저장하지 않는다. 그래서 2단계 요청에 1단계 응답의 `parts`를 다시 보낸다 (녹음 파일은 다시 보내지 않는다).
 - 사용자가 고칠 수 있는 것은 **문장 안의 `words`뿐**이다. `start`·`end`·`wordTimes`·pause 줄은 받은 그대로 돌려보낸다.
 - 수정 화면에는 "전사가 틀린 부분만 고쳐 주세요. 음·어 같은 말버릇은 지우지 마세요" 같은 안내를 둔다. 지우면 분석에서 빠진다.
-- 질문은 프론트가 가지고 있으므로 질문 생성 API는 없다.
+- 스피킹 질문은 프론트가 가지고 있다. 면접 질문만 서버가 만든다 ([0]).
 
 ## 3. `POST /api/transcribe` (multipart/form-data)
 
@@ -41,14 +44,14 @@ Base URL: `http://localhost:8080/api`
 
 | 필드 | 타입 | 필수 | 설명 |
 |---|---|---|---|
-| `mode` | `"presentation"` \| `"speaking"` | O | 발표 / 어학 스피킹 |
-| `language` | `"ko"` \| `"en"` | O | 발표는 `ko` 또는 `en`, 스피킹은 `en` |
-| `audio` | File[] (1~5개) | O | 보낸 순서대로. 발표는 5분 단위로 나눈 파일, 스피킹은 질문별 답변 |
+| `mode` | `"presentation"` \| `"speaking"` \| `"interview"` | O | 발표 / 어학 스피킹 / 면접 |
+| `language` | `"ko"` \| `"en"` | O | 발표·면접은 `ko` 또는 `en`, 스피킹은 `en` |
+| `audio` | File[] (1~5개) | O | 보낸 순서대로. 발표는 5분 단위로 나눈 파일, 스피킹·면접은 질문별 답변 |
 | `level` | `"assignment"` \| `"exam"` \| `"keynote"` | 발표만 | 발표 성격 |
 | `exam` | `"TOEIC-Speaking"` \| `"opic"` | 스피킹만 | 시험 종류 |
-| `questions` | string (JSON 배열) | 스피킹만 | 질문 문자열 배열. `audio`와 같은 순서·같은 개수 |
+| `questions` | string (JSON 배열) | 스피킹·면접 | 질문 문자열 배열. `audio`와 같은 순서·같은 개수 |
 
-- 예시 — 발표: `audio=part1-recording.webm`, `mode=presentation`, `language=ko`, `level=exam` / 스피킹: `mode=speaking`, `language=en`, `exam=opic`, `questions=[…]`, `audio=q1-recording.webm`
+- 예시 — 발표: `audio=part1-recording.webm`, `mode=presentation`, `language=ko`, `level=exam` / 스피킹: `mode=speaking`, `language=en`, `exam=opic`, `questions=[…]`, `audio=q1-recording.webm` / 면접: `mode=interview`, `language=ko`, `questions=[…]`, `audio=q1-recording.webm` …
 - `audio`는 같은 필드 이름으로 여러 번 붙인다. 서버는 파일 이름이 아니라 **붙인 순서**를 파트 순서로 쓴다. webm과 mp4(Safari)를 허용한다.
 - 발표 자료(PDF)는 받지 않는다. `audio` 외의 파일 필드(예: `material`)가 오면 400이다.
 
@@ -56,7 +59,7 @@ Base URL: `http://localhost:8080/api`
 
 ```ts
 type TranscribeResponse = {
-  mode: "presentation" | "speaking";
+  mode: "presentation" | "speaking" | "interview";
   level?: "assignment" | "exam" | "keynote";
   exam?: "TOEIC-Speaking" | "opic";
   language: "ko" | "en";
@@ -104,11 +107,11 @@ type Line = {
 
 ```ts
 type AnalyzeRequest = {
-  mode: "presentation" | "speaking";
+  mode: "presentation" | "speaking" | "interview";
   level?: "assignment" | "exam" | "keynote";   // 발표
   exam?: "TOEIC-Speaking" | "opic";            // 스피킹
   language: "ko" | "en";
-  questions?: string[];                        // 스피킹. JSON 배열 그대로 (문자열로 바꾸지 않는다)
+  questions?: string[];                        // 스피킹·면접. JSON 배열 그대로 (문자열로 바꾸지 않는다)
   parts: { duration: number; script: Line[] }[];  // transcribe 응답의 parts에서 words만 고쳐서 보낸다
 };
 ```
@@ -121,7 +124,7 @@ type AnalyzeRequest = {
 
 ```ts
 type AnalyzeResponse = {
-  mode: "presentation" | "speaking";
+  mode: "presentation" | "speaking" | "interview";
   level?: "assignment" | "exam" | "keynote";
   exam?: "TOEIC-Speaking" | "opic";
   language: "ko" | "en";
@@ -132,11 +135,11 @@ type AnalyzeResponse = {
 };
 
 type Part = {
-  comment?: string;       // 파트별 한 줄 코멘트 (질문 적합성 등). 스피킹에만 있다
+  comment?: string;       // 파트별 한 줄 코멘트 (질문 적합성 등). 스피킹·면접에만 있다
   duration: number;       // 초
   script: Line[];         // 고친 대본 (offset 다시 계산됨)
   highlight: Highlight[];
-  final: { words: string[] }[];   // 문장 단위 최종 대본. 빈 배열이면 없음 (토익 Part 1)
+  final: { words: string[] }[];   // 문장 단위 최종 대본(면접은 모범 답안). 빈 배열이면 없음 (토익 Part 1)
 };
 
 type Highlight = {
@@ -176,10 +179,10 @@ type Analysis = {
 - `panic` 하이라이트는 pause 줄 직전 문장의 **마지막 3단어**에 붙는다. 이유와 대안 대본(`fixed`)은 LLM이 채운다.
 - 필러는 코드가 찾는다. 확실한 군말(어, 음, um, uh)은 항상, 애매한 말(그, 이제, 그러니까, like, so)은 바로 뒤에 멈칫했거나 다른 필러 바로 뒤일 때만 필러로 본다.
 - 중복 단어(`repeat`)도 코드가 찾는다. ① 같은 말(1~3단어)을 바로 반복("하지만 하지만", "every day every day", "정말 정말 정말")하면 반복된 범위를 묶고 `fixed`에 한 번만 쓴 표현을 넣는다. ② 5문장 안에서 같은 어간(조사를 뗀 형태)이 3번 이상이면 각 단어를 표시한다. 필러와 흔한 말("저는", "있습니다", "the" 등)은 제외한다. `repeatTop`은 어간 기준으로 센다.
-- `categoryRatio`는 단어 기준 비율이다. 한 단어가 여러 카테고리에 걸리면 우선순위가 높은 하나만 세고, 6개 합은 100이다. 발표 모드에서 `grammar`는 항상 0이다.
+- `categoryRatio`는 단어 기준 비율이다. 한 단어가 여러 카테고리에 걸리면 우선순위가 높은 하나만 세고, 6개 합은 100이다. `grammar`는 스피킹과 영어 면접(`interview` + `en`)에서만 나오고, 발표와 한국어 면접에서는 항상 0이다.
 - `repeatTop`·`fillerTop`은 전체 파트의 합산이다(최대 10개).
 - `stats`는 모든 파트의 합산이다. `wpm` = 전체 단어 수 ÷ 발화 시간(분, pause 줄과 문장 사이 간격 제외, 필러 포함). `fillerCount`·`panicCount`·`repeatCount`·`expressionCount`·`grammarCount` = 해당 category의 하이라이트 수. `panicTotalSec` = `pauseSec`의 합.
-- `summary.comment`는 총평 LLM이 쓰는 전체 코멘트이고, `parts[].comment`는 파트별 코멘트(스피킹만)다.
+- `summary.comment`는 총평 LLM이 쓰는 전체 코멘트이고, `parts[].comment`는 파트별 코멘트(스피킹·면접만)다.
 - 용어: 서버가 쓰는 설명 글(`reason`, `comment`, `summary`, `retry`)은 화면과 같은 이름만 쓴다 — 패닉존(`panic`), 군말(`filler`), 반복(`repeat`), 표현 개선(`expression`), 문법(`grammar`), 정상(`normal`). LLM 프롬프트에도 같은 지시가 들어 있다.
 - 총평 화면 5개와의 대응: 카테고리 비율 = `charts.categoryRatio`, 중복 차트 = `charts.repeatTop`, 필러 차트 = `charts.fillerTop`, 분석 총평 = `analysis`, 최종 대본 = `parts[].final`.
 
@@ -254,7 +257,7 @@ type Analysis = {
 ```ts
 type RetryRequest = {
   // AnalyzeRequest와 같다: 새 녹음을 transcribe → 사용자가 고친 대본
-  mode: "presentation" | "speaking";
+  mode: "presentation" | "speaking" | "interview";
   level?: "assignment" | "exam" | "keynote";
   exam?: "TOEIC-Speaking" | "opic";
   language: "ko" | "en";
@@ -273,12 +276,13 @@ type RetryRequest = {
 ```
 
 - 새 녹음의 파일 개수가 이전과 달라도 된다 (비교는 전체 합산으로 한다).
+- 면접도 재도전할 수 있다. 같은 질문(`questions`)으로 다시 답하고, 면접의 `previous.final`은 이전 모범 답안이다.
 
 ### 응답 200
 
 ```ts
 type RetryResponse = {
-  mode: "presentation" | "speaking";
+  mode: "presentation" | "speaking" | "interview";
   level?: "assignment" | "exam" | "keynote";
   exam?: "TOEIC-Speaking" | "opic";
   language: "ko" | "en";
@@ -323,7 +327,7 @@ type Retry = {
 | `highlight` | panic·filler·repeat·expression·grammar | panic·filler·repeat만 |
 | panic 하이라이트 | `reason`·`fixed`·`pauseSec` | `pauseSec`만 (원인·대안 없음) |
 | `parts[].final` | 최종 대본 | 항상 `[]` (이전 결과의 최종 대본을 그대로 쓴다) |
-| `parts[].comment` | 스피킹만 | 없음 |
+| `parts[].comment` | 스피킹·면접만 | 없음 |
 | `analysis.summary` | 총평 LLM | `retry`로 채운다: `headline` = `retry.comment`, `topPriorities` = `retry.remaining`, `comment` = `""` |
 | LLM 호출 | 파트 수 + 1회 | 재도전 총평 1회 |
 
@@ -423,9 +427,60 @@ type Retry = {
 }
 ```
 
-## 6. 공통 규칙
+## 6. `POST /api/interview/questions` (application/json) — 면접 질문 생성
 
-### `questions` (스피킹)
+지원 직무를 받아 LLM이 면접 질문 5개를 만든다. 면접 모드에서 녹음 전에 한 번 부른다.
+
+### 요청
+
+```ts
+type InterviewQuestionsRequest = {
+  language: "ko" | "en";   // 질문 언어 = 답변 언어
+  job: string;             // 지원 직무 (자유 입력). 서버가 앞뒤 공백을 지운 뒤 1~50자. 예: "백엔드 개발자"
+};
+```
+
+### 응답 200
+
+```ts
+type InterviewQuestionType = "intro" | "motivation" | "job" | "experience" | "personality" | "closing";
+
+type InterviewQuestionsResponse = {
+  language: "ko" | "en";
+  job: string;             // 공백을 지운 직무
+  questions: { type: InterviewQuestionType; text: string }[];  // 항상 5개
+  warnings?: string[];     // LLM 실패 시 ["llm_failed"] (아래 기본 질문)
+};
+```
+
+- 순서: `intro`(자기소개) → 가운데 3개(`motivation`·`job`·`experience`·`personality` 중, 직무에 맞게) → `closing`(마무리)
+- 유형: `intro` 자기소개, `motivation` 지원 동기, `job` 직무 지식·역량, `experience` 과거 경험(STAR로 답할 질문), `personality` 인성·협업, `closing` 마지막 한마디
+- `text`는 화면에 그대로 보여 주는 질문 한 문장이다 (`language`로 쓴다).
+- 같은 직무로 다시 부르면 다른 질문이 나올 수 있다 ("질문 다시 만들기").
+- **LLM 실패 시에도 200**으로 직무 이름을 넣은 기본 질문 5개를 돌려주고 `warnings: ["llm_failed"]`를 붙인다. 프론트는 그대로 질문을 보여 주면 된다.
+  - 기본 질문(ko): 자기소개 / "{job} 직무에 지원한 이유는 무엇인가요?" / "{job}로 일하는 데 가장 중요한 역량은 무엇이고, 본인은 그 역량을 어떻게 갖췄나요?" / "팀으로 일하며 갈등이나 어려움을 해결한 경험을 말해 주세요." / 마무리
+
+### 예시
+
+요청: `{ "language": "ko", "job": "백엔드 개발자" }`
+
+```json
+{
+  "language": "ko",
+  "job": "백엔드 개발자",
+  "questions": [
+    { "type": "intro", "text": "1분 동안 자기소개를 해 주세요." },
+    { "type": "motivation", "text": "백엔드 개발자 직무에 지원한 이유는 무엇인가요?" },
+    { "type": "job", "text": "백엔드 개발자로 일하는 데 가장 중요한 역량은 무엇이고, 본인은 어떻게 갖췄나요?" },
+    { "type": "experience", "text": "팀 프로젝트에서 갈등이 생겼을 때 어떻게 해결했는지 말해 주세요." },
+    { "type": "closing", "text": "마지막으로 하고 싶은 말이 있나요?" }
+  ]
+}
+```
+
+## 7. 공통 규칙
+
+### `questions` (스피킹·면접)
 - transcribe(multipart)에서는 `JSON.stringify(questions)` 문자열, analyze·retry(JSON)에서는 배열 그대로 보낸다. `questions[i]`의 답이 `audio[i]`(= `parts[i]`)이고 개수가 같아야 한다.
 - 오픽은 질문 문장 그대로다.
   ```json
@@ -442,10 +497,18 @@ type Retry = {
   ]
   ```
 - 서버는 질문 문자열을 그대로 LLM에 전달한다. 사진 설명과 정보표가 글로 들어 있어서 LLM이 내용의 정확성까지 판단할 수 있다.
+- 면접은 질문 번호·유형, 지원 직무, 질문 문장을 한 문자열에 넣는다 (`job`은 별도 필드로 보내지 않는다). 유형 영어 이름: `intro`=Self-introduction, `motivation`=Motivation, `job`=Job knowledge, `experience`=Past experience (STAR), `personality`=Personality, `closing`=Closing
+  ```json
+  [
+    "Interview Q1 (Self-introduction)\nJob: 백엔드 개발자\nQuestion: 1분 동안 자기소개를 해 주세요.",
+    "Interview Q2 (Motivation)\nJob: 백엔드 개발자\nQuestion: 백엔드 개발자 직무에 지원한 이유는 무엇인가요?"
+  ]
+  ```
 
 ### 검증
-- `mode`와 `language` 조합: 발표는 `ko`·`en`, 스피킹은 `en`만 허용한다.
-- `level`은 발표에서, `exam`·`questions`는 스피킹에서 필수. 스피킹은 `questions` 개수 = 녹음(파트) 개수.
+- `mode`와 `language` 조합: 발표·면접은 `ko`·`en`, 스피킹은 `en`만 허용한다.
+- `level`은 발표에서, `exam`은 스피킹에서, `questions`는 스피킹·면접에서 필수. 스피킹·면접은 `questions` 개수 = 녹음(파트) 개수.
+- interview/questions: `job`이 비었거나 50자를 넘으면, `language`가 `ko`·`en`이 아니면 400.
 - retry는 위 규칙에 더해 `previous`가 필수다. `previous.final`은 빈 배열이어도 된다.
 
 ### 길이 제한 (서버는 +5초 여유로 검증)
@@ -455,6 +518,7 @@ type Retry = {
 | 발표 | 파일당 5분, 최대 5개 (합계 최대 25분) |
 | 오픽 | 답변당 2분 |
 | 토익 스피킹 | 답변당 60초 (가장 긴 문항 기준) |
+| 면접 | 답변당 2분 |
 
 토익은 파트마다 답변 시간이 다르지만 요청에 파트 번호 필드가 없어서 서버는 위 상한만 확인한다. 정확한 파트별 시간 제한은 프론트 녹음 타이머가 담당한다.
 
@@ -465,13 +529,15 @@ transcribe: 검증 → 녹음마다 병렬 STT(whisper) → 문장 단위 분할
 analyze:    검증 → 파트별 코드 분석(패닉존, 필러, 중복) → 파트별 LLM 병렬(패닉 원인, 표현 개선, 문법, 최종 대본)
             → 총평 LLM 1회 → 합산
 retry:      검증 → 파트별 코드 분석(패닉존, 필러, 중복) → 합산 + 전후 비교·대본 일치율 → 재도전 총평 LLM 1회
+interview/questions: 검증 → 질문 생성 LLM 1회 (실패 시 기본 질문)
 ```
 
 - 파트는 서로 독립이다. 파일 사이를 이어 붙이지 않으므로 가짜 패닉존이 생기지 않는다.
-- 발표는 `level` 값을, 스피킹은 해당 파트의 질문 문자열과 `exam`을 LLM 프롬프트에 함께 전달한다.
+- 발표는 `level` 값을, 스피킹은 해당 파트의 질문 문자열과 `exam`을, 면접은 해당 파트의 질문 문자열(직무 포함)을 LLM 프롬프트에 함께 전달한다.
+- 면접 평가 기준: 질문 의도에 맞는 답인지, 결론 먼저(두괄식)인지, 경험 질문은 STAR(상황·과제·행동·결과)를 갖췄는지, 숫자·사례로 구체적인지, 지원 직무와 이어지는지. `parts[].comment`에 질문별 한 줄로 쓰고, `final`은 이 기준으로 다시 짠 모범 답안이다.
 - 토익 Part 1(지문 읽기)은 최종 대본을 만들지 않는다. LLM이 질문 문자열의 파트 이름을 보고 `final`을 빈 배열로 돌려준다.
 
-## 7. 에러
+## 8. 에러
 
 `{ "error": "메시지" }` + 상태 코드
 
@@ -482,6 +548,7 @@ retry:      검증 → 파트별 코드 분석(패닉존, 필러, 중복) → �
 | 음성이 감지되지 않음 (transcribe, 몇 번째 녹음인지 포함) | 422 |
 | STT 실패 (transcribe, 1회 재시도 후, 몇 번째인지 포함) | 502 |
 | LLM 실패 (analyze) | 200. `final`은 빈 배열, `summary`는 빈 문자열·빈 배열로 내려가고 `warnings: ["llm_failed"]`가 붙는다 |
+| LLM 실패 (interview/questions) | 200. 기본 질문 5개 + `warnings: ["llm_failed"]` |
 | LLM 실패 (retry) | 200. `retry`가 없고 `summary`는 빈 문자열·빈 배열, `warnings: ["llm_failed"]`. `compare`는 그대로 온다 |
 
 ## 확인이 필요한 항목
@@ -489,3 +556,4 @@ retry:      검증 → 파트별 코드 분석(패닉존, 필러, 중복) → �
 - 토익 스피킹의 파트별 시간 검증을 서버가 할지 (질문 문자열의 `Part N` 표기를 읽는 방식). 지금은 서버 상한 60초 + 프론트 타이머.
 - 점수가 정상 단어 비율만으로 충분한지 (패닉 길이, 속도 반영 여부는 샘플을 본 뒤 판단).
 - retry의 `RETRY_MATCH_LOW`(기본 40)가 적절한지 (대본을 보고 읽은 샘플과 즉흥 샘플을 녹음해 본 뒤 조정).
+- 면접 꼬리질문(`parts[].followUp`)은 나중에 추가 검토.
