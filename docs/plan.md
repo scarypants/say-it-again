@@ -79,7 +79,7 @@ mode: lecture | language | interview, language: ko | en
 7. "다시 말해보기": 가장 문제 큰 구간의 대안 대본 1~2개
 
 ## 7. 기술 스택
-- client: React(Vite) + TypeScript + TailwindCSS + DaisyUI, MediaRecorder(webm), recharts. 모바일 우선 반응형.
+- frontend: React(Vite) + TypeScript + TailwindCSS + DaisyUI, MediaRecorder(webm), recharts. 모바일 우선 반응형.
 - server: Node.js + Express + TypeScript, multer, cors, dotenv
 - STT: `openai` 패키지, whisper-1, timestamp_granularities ["word","segment"], response_format verbose_json. webm 그대로 전송. 한국어 침묵 검출 초반 실측.
 - LLM: OpenAI API (`openai` 패키지), Structured Outputs(JSON schema)로 구조화 JSON. 모델명은 서버 설정 상수로 관리

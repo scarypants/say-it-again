@@ -1,7 +1,7 @@
 # API 계약 (주인: 윤화영)
 
 > **초안.** 백엔드가 확정하면 이 줄을 지운다. 변경 시 PR 설명 첫 줄에 `[API 변경]`을 적고 팀에 알린다.
-> 프론트는 아래 예시 JSON을 `client/src/mocks/`에 복사해 서버 없이 개발한다.
+> 프론트는 아래 예시 JSON을 `frontend/src/mocks/`에 복사해 서버 없이 개발한다.
 
 Base URL: `http://localhost:8080/api`
 
