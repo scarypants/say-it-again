@@ -145,14 +145,8 @@ export type Retry = {
 export type RetryResponse = AnalyzeResponse & Required<Pick<AnalyzeResponse, "compare">>;
 
 // 면접 질문 생성 (JSON). 지원 직무에 맞춘 질문 5개를 받는다
-// ⚠ #76에 올린 "제안" 계약이다. 윤화영이 docs/api.md에 확정하면 이름·모양을 그대로 맞춘다
-export type InterviewQuestionType =
-  | "intro"
-  | "motivation"
-  | "job"
-  | "experience"
-  | "personality"
-  | "closing";
+// docs/api.md 6절. 질문 5개 = 유형 5개, 순서 고정: intro → motivation → job → experience → closing
+export type InterviewQuestionType = "intro" | "motivation" | "job" | "experience" | "closing";
 
 export type InterviewQuestionsRequest = {
   language: Lang;
