@@ -7,7 +7,7 @@ export default function Logo({ className = "h-10 w-auto", tone = "ink" }: Props)
     <img
       src={tone === "light" ? "/logo-light.png" : "/logo.png"}
       alt="다시, 말해"
-      width={774}
+      width={834}
       height={453}
       className={className}
     />

@@ -1,8 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="-105 -8 470 470">
-<!-- 다시, 말해 로고의 막대 표시. 밝은 탭에선 잉크색, 다크 모드 탭에선 종이색 (styles/index.css 테마와 같은 색) -->
-<style>g{fill:#1e2b4f}@media (prefers-color-scheme:dark){g{fill:#fcfcfd}}</style>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-102 -5 464 464">
+<!-- 다시, 말해 로고의 막대 표시. 작은 탭에서도 보이게 막대를 굵게. 밝은 탭에선 잉크색, 다크 모드 탭에선 종이색 (styles/index.css 테마와 같은 색) -->
+<style>g{fill:#1e2b4f;stroke:#1e2b4f;stroke-width:200;stroke-linejoin:round}@media (prefers-color-scheme:dark){g{fill:#fcfcfd;stroke:#fcfcfd}}</style>
 <g transform="translate(0.000000,452.000000) scale(0.100000,-0.100000)"
-stroke="none">
+>
 <path d="M825 4423 c-14 -15 -25 -37 -25 -48 -1 -11 -5 -54 -10 -95 -8 -66
 -23 -226 -60 -630 -13 -138 -25 -269 -39 -410 -21 -204 -32 -331 -41 -442 -5
 -62 -16 -185 -25 -273 -35 -356 -47 -475 -55 -590 -11 -149 -27 -325 -41 -430
