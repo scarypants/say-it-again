@@ -5,6 +5,7 @@ import { LEVEL_LABEL } from "../../api/presentationLevels";
 import AnalyzingView from "../../components/common/AnalyzingView";
 import LevelBars from "../../components/common/LevelBars";
 import MicButton from "../../components/common/MicButton";
+import { useLeaveGuard } from "../../components/common/useLeaveGuard";
 import { useRecorder } from "../../components/common/useRecorder";
 import { useAnalysis } from "../../store/analysis";
 import { isPdf, MATERIAL_ACCEPT } from "./material";
@@ -29,6 +30,8 @@ export default function RecordPage() {
   const [analyzing, setAnalyzing] = useState(false);
   const [analyzeError, setAnalyzeError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  // 녹음을 시작한 뒤에는 다른 화면으로 가기 전에 확인
+  const leaveGuard = useLeaveGuard(rec.status !== "idle");
 
   // 발표 자료는 PDF만
   function pickMaterial(file: File | null) {
@@ -61,7 +64,13 @@ export default function RecordPage() {
     }
   }
 
-  if (analyzing) return <AnalyzingView />;
+  if (analyzing)
+    return (
+      <>
+        <AnalyzingView />
+        {leaveGuard}
+      </>
+    );
 
   const recording = rec.status === "recording";
   const paused = rec.status === "paused";
@@ -69,6 +78,7 @@ export default function RecordPage() {
 
   return (
     <div className="flex flex-1 flex-col">
+      {leaveGuard}
       <section className="flex items-start justify-between gap-3 pt-2 pb-4">
         <div className="min-w-0">
           <h1 className="text-xl font-bold">발표 연습</h1>

@@ -4,6 +4,7 @@ import { analyzeSpeaking, audioFileName } from "../../api/client";
 import AnalyzingView from "../../components/common/AnalyzingView";
 import LevelBars from "../../components/common/LevelBars";
 import MicButton from "../../components/common/MicButton";
+import { useLeaveGuard } from "../../components/common/useLeaveGuard";
 import { useRecorder } from "../../components/common/useRecorder";
 import { useAnalysis } from "../../store/analysis";
 import CafeteriaScene from "./CafeteriaScene";
@@ -54,6 +55,8 @@ export default function ToeicSpeakingExam() {
   const [startError, setStartError] = useState<string | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
   const [analyzeError, setAnalyzeError] = useState<string | null>(null);
+  // 시험을 시작한 뒤에는 다른 화면으로 가기 전에 확인 (답변 녹음이 사라지므로)
+  const leaveGuard = useLeaveGuard(stage !== "intro", "지금까지 녹음한 답변이 모두 사라져요.");
 
   const timerRef = useRef<number | null>(null);
   const tokenRef = useRef(0); // 단계가 바뀌면 이전 단계의 콜백(타이머·TTS·녹음 종료)을 무시
@@ -223,7 +226,13 @@ export default function ToeicSpeakingExam() {
     [],
   );
 
-  if (analyzing) return <AnalyzingView />;
+  if (analyzing)
+    return (
+      <>
+        <AnalyzingView />
+        {leaveGuard}
+      </>
+    );
 
   if (stage === "intro") {
     return (
@@ -274,6 +283,7 @@ export default function ToeicSpeakingExam() {
   if (stage === "done") {
     return (
       <div className="flex flex-1 flex-col">
+        {leaveGuard}
         <section className="pt-2 pb-4">
           <h1 className="text-xl font-bold">시험이 끝났어요</h1>
           <p className="mt-1 text-sm text-secondary">
@@ -339,6 +349,7 @@ export default function ToeicSpeakingExam() {
 
   return (
     <div className="flex flex-1 flex-col">
+      {leaveGuard}
       {/* 진행 표시: 순서대로만 진행되므로 누를 수 없다 */}
       <div className="flex items-center gap-3 pt-2 pb-3">
         <div className="flex flex-1 gap-1" aria-hidden>
