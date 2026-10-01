@@ -1,6 +1,7 @@
 import { Link } from "react-router";
 import type { AnalyzeResponse } from "../../../types/api";
 import { questionLine } from "../../../components/common/scriptFormat";
+import { partAccuracy } from "../speakingScore";
 
 export default function FollowUpSummary({ result, questions }: { result: AnalyzeResponse; questions?: string[] }) {
   return (
@@ -23,6 +24,9 @@ export default function FollowUpSummary({ result, questions }: { result: Analyze
             <p className="mt-3 text-base leading-relaxed wrap-anywhere">
               {part.comment?.trim() || "이 답변의 개별 코멘트가 제공되지 않았어요. 전체 총평과 대본의 개선점을 확인해 주세요."}
             </p>
+            {result.mode === "speaking" && partAccuracy(part) !== null && (
+              <p className="mt-2 text-sm font-semibold tabular-nums text-accent">답변 정확성 {partAccuracy(part)}점</p>
+            )}
             {part.final.length > 0 && (
               <details className="collapse collapse-arrow mt-3 border border-base-300 bg-base-100">
                 <summary className="collapse-title font-semibold">{result.mode === "interview" ? "모범 답안 보기" : "개선한 답변 보기"}</summary>

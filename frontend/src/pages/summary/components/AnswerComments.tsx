@@ -1,6 +1,7 @@
 import { Link } from "react-router";
 import { partTitle, questionLine } from "../../../components/common/scriptFormat";
 import type { AnalyzeResponse } from "../../../types/api";
+import { partAccuracy } from "../speakingScore";
 
 export default function AnswerComments({ result, questions }: {
   result: AnalyzeResponse;
@@ -23,6 +24,7 @@ export default function AnswerComments({ result, questions }: {
             : partTitle(result.mode, index, part.duration, question);
           const prompt = questionLine(question);
           const comment = part.comment?.trim();
+          const accuracy = result.mode === "speaking" ? partAccuracy(part) : null;
 
           return (
             <div key={index} className="grid gap-3 py-5 xl:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] xl:gap-6">
@@ -33,6 +35,9 @@ export default function AnswerComments({ result, questions }: {
                 )}
               </dt>
               <dd className="min-w-0">
+                {accuracy !== null && (
+                  <p className="mb-2 text-sm font-semibold tabular-nums text-accent">답변 정확성 {accuracy}점</p>
+                )}
                 <p className={`max-w-prose text-base leading-relaxed wrap-anywhere ${comment ? "text-base-content" : "text-secondary"}`}>
                   {comment || "이 답변의 코멘트가 제공되지 않았어요."}
                 </p>

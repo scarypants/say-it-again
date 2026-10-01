@@ -9,6 +9,7 @@ import type { Session, Settings } from "../../store/analysis";
 import type { AnalyzeResponse } from "../../types/api";
 import { partTitle, totalDuration } from "../../components/common/scriptFormat";
 import { isFollowUpSummary } from "./followUp";
+import { accuracyScore, speakingScoreDetail } from "./speakingScore";
 
 // #112: tsconfig.json의 references는 tsx에 JSX 설정을 전달하지 않는다.
 // 실행 위치·CLI 옵션과 관계없이 앱과 같은 react-jsx로 화면과 하위 컴포넌트를 읽는다.
@@ -182,4 +183,37 @@ test("꼬리질문 답변 총평에서는 추가 질문 요청 영역을 숨기�
   const html = render(speaking, [prompt], null, [{ type: "respond", text: "What changed?", prompt }]);
   assert.match(html, /꼬리질문 답변 점수/);
   assert.ok(!html.includes(pending));
+});
+
+test("스피킹은 서버 총점과 습관·정확성 내역 및 파트 정확성을 표시한다", () => {
+  const source = {
+    ...result, mode: "speaking" as const, exam: "opic" as const,
+    analysis: { ...result.analysis, score: 70, scoreDetail: { habit: 80, accuracy: 60 } },
+    parts: [{ ...result.parts[0], accuracy: 60, comment: "질문에 맞는 예시를 추가해 보세요." }],
+  };
+  const html = render(source, ["OPIc Q1\nQuestion: Where do you live?"]);
+  assert.match(html, /text-4xl[^>]*>70<\/span>/);
+  assert.match(html, /말하기 습관 50% · 답변 정확성 50%/);
+  assert.match(html, /말하기 습관 80점 · 답변 정확성 60점/);
+  assert.match(html, /답변 정확성 60점/);
+  const followUp = render(source, ["OPIc Follow-up 1\nQuestion: What changed?"]);
+  assert.match(followUp, /꼬리질문별 피드백/);
+  assert.match(followUp, /답변 정확성 60점/);
+});
+
+test("정확성 필드가 없거나 잘못된 기록은 습관 점수만 표시하고 0점은 유지한다", () => {
+  const speaking = { ...result, mode: "speaking" as const };
+  assert.ok(!render(speaking).includes("답변 정확성"));
+  const zeroResult = {
+    ...speaking,
+    analysis: { ...result.analysis, score: 40, scoreDetail: { habit: 80, accuracy: 0 } },
+    parts: [{ ...result.parts[0], accuracy: 0 }],
+  };
+  const zero = render(zeroResult);
+  assert.match(zero, /말하기 습관 80점 · 답변 정확성 0점/);
+  assert.equal(speakingScoreDetail({ scoreDetail: { habit: 80 } }), null);
+  for (const value of [undefined, null, "50", Number.NaN, Infinity, -1, 101]) {
+    assert.equal(accuracyScore(value), null);
+    assert.equal(speakingScoreDetail({ scoreDetail: { habit: 80, accuracy: value } }), null);
+  }
 });

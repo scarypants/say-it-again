@@ -43,6 +43,13 @@ const after: AnalyzeResponse = {
 };
 const render = (result: AnalyzeResponse) => renderToStaticMarkup(<RetryComparison previous={before} result={result} />);
 
+test("스피킹 재도전은 서버 비교 점수를 말하기 습관 점수로 표시한다", () => {
+  const html = render({ ...after, mode: "speaking" });
+  assert.match(html, /말하기 습관 점수/);
+  assert.ok(html.includes("+13점"));
+  assert.ok(!html.includes("답변 정확성"));
+});
+
 test("이전·이번 수치의 방향과 소수점을 정확히 비교하고 서버 피드백을 표시한다", () => {
   const html = render(after);
   for (const value of ["+13점", "−3회", "−0.2회", "−3.2초", "−1.3회", "40%"]) assert.ok(html.includes(value), value);
