@@ -47,6 +47,21 @@ export type AnalyzeRequest = {
   language: Lang;
   questions?: string[]; // 스피킹. 배열 그대로
   parts: ScriptPart[];
+  previous?: PreviousResult; // "다시, 말해" 재도전일 때만. 이전 결과 요약
+};
+
+// 재도전 비교용 이전 결과 요약 (이전 AnalyzeResponse.analysis에서 꺼낸다)
+export type PreviousResult = {
+  score: number;
+  stats: Analysis["stats"];
+  topPriorities: string[];
+};
+
+// previous를 보냈을 때만 온다. LLM 실패 시 생략 (숫자 비교만 표시)
+export type RetryFeedback = {
+  improved: string[]; // 개선된 점
+  remaining: string[]; // 그래도 개선할 점
+  comment: string; // 재도전 한 줄 총평
 };
 
 export type HighlightCategory = "panic" | "filler" | "repeat" | "expression" | "grammar";
@@ -96,6 +111,7 @@ export type AnalyzeResponse = {
   parts: Part[]; // 요청 parts와 같은 순서
   charts: Charts;
   analysis: Analysis;
+  retry?: RetryFeedback; // 재도전일 때만
   warnings?: string[]; // 예: ["llm_failed"]
 };
 

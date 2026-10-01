@@ -1,4 +1,5 @@
-import { createContext, useContext } from "react";
+import { createContext, useCallback, useContext } from "react";
+import { useNavigate } from "react-router";
 import type {
   AnalyzeResponse,
   Exam,
@@ -26,6 +27,9 @@ type AnalysisState = {
   setSession: (s: Session | null) => void;
   result: AnalyzeResponse | null;
   setResult: (r: AnalyzeResponse | null) => void;
+  // "다시, 말해" 재도전: 비교 기준이 되는 이전 결과. 새 연습을 시작하면 비운다
+  previous: AnalyzeResponse | null;
+  setPrevious: (r: AnalyzeResponse | null) => void;
 };
 
 export const AnalysisContext = createContext<AnalysisState | null>(null);
@@ -35,4 +39,17 @@ export function useAnalysis() {
   const ctx = useContext(AnalysisContext);
   if (!ctx) throw new Error("useAnalysis는 AnalysisProvider 안에서만 사용");
   return ctx;
+}
+
+// "다시, 말해": 지금 결과를 previous로 보관하고 같은 설정으로 녹음 화면에 간다 (발표 모드)
+export function useStartRetry() {
+  const { result, setPrevious, setResult, setSettings } = useAnalysis();
+  const navigate = useNavigate();
+  return useCallback(() => {
+    if (!result) return;
+    setSettings({ mode: result.mode, language: result.language, level: result.level });
+    setPrevious(result);
+    setResult(null);
+    navigate("/record");
+  }, [result, setPrevious, setResult, setSettings, navigate]);
 }

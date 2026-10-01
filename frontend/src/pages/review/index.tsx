@@ -8,7 +8,7 @@ import { mmss, partTitle, questionLine, totalDuration } from "../../components/c
 import { useClipPlayer } from "../../components/common/useClipPlayer";
 import { useLeaveGuard } from "../../components/common/useLeaveGuard";
 import { useAnalysis } from "../../store/analysis";
-import type { ScriptPart, TranscribeResponse } from "../../types/api";
+import type { AnalyzeResponse, ScriptPart, TranscribeResponse } from "../../types/api";
 import EditableWord from "./EditableWord";
 import { isFillerWord } from "./fillers";
 
@@ -19,7 +19,7 @@ const clone = (parts: ScriptPart[]) =>
 
 // 녹음 → [1] 전사 → 이 화면(전사 오류만 고치기) → [2] 분석 → /script
 export default function ReviewPage() {
-  const { session, setSession, setResult } = useAnalysis();
+  const { session, setSession, setResult, previous } = useAnalysis();
 
   if (!session) return <NoSession onSample={canLoadSample ? setSession : undefined} />;
   // 세션이 바뀌면 편집 상태를 새로 시작한다
@@ -30,6 +30,7 @@ export default function ReviewPage() {
       audio={session.audio}
       questions={session.questions}
       setResult={setResult}
+      previous={previous?.mode === session.transcript.mode ? previous : null}
     />
   );
 }
@@ -39,9 +40,10 @@ type ReviewProps = {
   audio: Blob[];
   questions?: string[];
   setResult: ReturnType<typeof useAnalysis>["setResult"];
+  previous: AnalyzeResponse | null; // 재도전이면 이전 결과
 };
 
-function Review({ transcript, audio, questions, setResult }: ReviewProps) {
+function Review({ transcript, audio, questions, setResult, previous }: ReviewProps) {
   const navigate = useNavigate();
   const player = useClipPlayer();
   const [parts, setParts] = useState(() => clone(transcript.parts));
@@ -95,6 +97,14 @@ function Review({ transcript, audio, questions, setResult }: ReviewProps) {
         language: transcript.language,
         questions,
         parts,
+        // 재도전이면 이전 결과 요약을 같이 보내 개선된 점·남은 점을 받는다
+        ...(previous && {
+          previous: {
+            score: previous.analysis.score,
+            stats: previous.analysis.stats,
+            topPriorities: previous.analysis.summary.topPriorities,
+          },
+        }),
       });
       setResult(result);
       navigate("/script");

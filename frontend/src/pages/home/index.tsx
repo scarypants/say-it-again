@@ -24,7 +24,7 @@ const EXAMS: { value: Exam; label: string }[] = [
 // 와이어프레임 "초기화면": 모드 선택 → (발표) 발표 수준 / (어학) 토익 스피킹·오픽 → 시작
 export default function HomePage() {
   const navigate = useNavigate();
-  const { settings, setSettings } = useAnalysis();
+  const { settings, setSettings, setPrevious } = useAnalysis();
   const [mode, setMode] = useState<Choice | null>(null);
   const [level, setLevel] = useState<PresentationLevel | null>(settings.level ?? null);
   // 발표 언어: 어학 모드에서 돌아와도 한국어로 시작
@@ -37,6 +37,7 @@ export default function HomePage() {
     (mode === "presentation" && level !== null) || (mode === "speaking" && exam !== null);
 
   function start() {
+    setPrevious(null); // 새 연습이면 재도전 비교 기준을 비운다
     if (mode === "presentation" && level) {
       setSettings({ mode: "presentation", language: lang, level });
       navigate("/record");

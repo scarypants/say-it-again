@@ -13,6 +13,7 @@ import { useRecorder } from "../../components/common/useRecorder";
 import { useAnalysis } from "../../store/analysis";
 import { isPdf, MATERIAL_ACCEPT } from "./material";
 import MaterialPreview from "./MaterialPreview";
+import RetryScript from "./RetryScript";
 import AudioFileUpload from "./AudioFileUpload";
 
 const MAX_SEC = 300; // 파일 하나 5분. 다 되면 잠깐 멈추고 새 파일로 이어서 녹음할지 고른다
@@ -26,10 +27,13 @@ function mmss(sec: number) {
 
 // 와이어프레임 녹음 화면: (발표 자료) + 마이크 + 파일 업로드 → 분석하기 → /script
 export default function RecordPage() {
-  const { settings } = useAnalysis();
+  const { settings, previous } = useAnalysis();
+  // "다시, 말해" 재도전: 지난 결과의 대안 대본을 띄워 두고 녹음한다
+  const retry = previous?.mode === "presentation" ? previous : null;
   const rec = useRecorder(MAX_SEC, { maxTotalSec: MAX_TOTAL_SEC });
   const [material, setMaterial] = useState<File | null>(null);
   const [materialError, setMaterialError] = useState<string | null>(null);
+  const side = retry !== null || material !== null; // 왼쪽(폰은 위)에 띄울 것: 재도전 대본 또는 발표 자료
   const tx = useTranscribe(); // 녹음 → 대본 → 검토 화면
   const analyzing = tx.busy;
   const analyzeError = tx.error;
@@ -76,14 +80,15 @@ export default function RecordPage() {
     <div className="flex flex-1 flex-col">
       {leaveGuard}
       <PageHeader
-        title="발표 연습"
+        title={retry ? "다시, 말해" : "발표 연습"}
         description={
           (settings.language === "en" ? "영어" : "한국어") +
           (settings.level ? ` 발표, ${LEVEL_LABEL[settings.level]}` : "")
         }
         action={
           !recording &&
-          !paused && (
+          !paused &&
+          !retry && (
             <Link to="/" className="btn btn-ghost btn-sm">
               설정 바꾸기
             </Link>
@@ -95,35 +100,41 @@ export default function RecordPage() {
           PC에선 자료를 왼쪽에 크게 두고 녹음 패널은 오른쪽 */}
       <div
         className={`flex flex-1 flex-col ${
-          material
+          side
             ? "lg:grid lg:grid-cols-[minmax(0,1fr)_22rem] lg:gap-8"
             : "lg:mx-auto lg:w-full lg:max-w-md"
         }`}
       >
-        {material && (
+        {side && (
           <div className="flex min-h-0 flex-1 flex-col lg:sticky lg:top-4 lg:h-[calc(100svh-11rem)] lg:min-h-[28rem]">
-            <MaterialPreview
-              file={material}
-              locked={rec.status !== "idle"}
-              onRemove={() => pickMaterial(null)}
-            />
+            {retry ? (
+              <RetryScript previous={retry} />
+            ) : (
+              material && (
+                <MaterialPreview
+                  file={material}
+                  locked={rec.status !== "idle"}
+                  onRemove={() => pickMaterial(null)}
+                />
+              )
+            )}
           </div>
         )}
 
         <div
           className={`flex flex-col ${
-            material
+            side
               ? "lg:sticky lg:top-4 lg:h-[calc(100svh-11rem)] lg:min-h-[28rem] lg:overflow-y-auto lg:rounded-box lg:border lg:border-base-300 lg:p-5"
               : "flex-1"
           }`}
         >
           <section
             className={`flex flex-col items-center justify-center ${
-              material ? "gap-2 pt-3 lg:flex-1 lg:gap-4 lg:pt-0" : "flex-1 gap-4 py-6"
+              side ? "gap-2 pt-3 lg:flex-1 lg:gap-4 lg:pt-0" : "flex-1 gap-4 py-6"
             }`}
           >
             <p
-              className={`${material && !desktop ? "text-2xl" : "text-4xl"} font-semibold tabular-nums tracking-tight ${
+              className={`${side && !desktop ? "text-2xl" : "text-4xl"} font-semibold tabular-nums tracking-tight ${
                 recording ? "text-base-content" : "text-secondary"
               }`}
               aria-live="off"
@@ -131,7 +142,7 @@ export default function RecordPage() {
               {mmss(rec.elapsed)}
             </p>
 
-            {rec.status !== "recorded" && !paused && (!material || desktop) && (
+            {rec.status !== "recorded" && !paused && (!side || desktop) && (
               <LevelBars levels={rec.levels} />
             )}
 
@@ -179,7 +190,7 @@ export default function RecordPage() {
               </div>
             ) : paused ? null : (
               <MicButton
-                size={material && !desktop ? "md" : "lg"}
+                size={side && !desktop ? "md" : "lg"}
                 recording={recording}
                 disabled={rec.status === "requesting"}
                 onClick={recording ? rec.stop : () => void rec.start()}
@@ -188,9 +199,11 @@ export default function RecordPage() {
 
             <p className="min-h-5 text-sm text-secondary" role="status">
               {rec.status === "idle" &&
-                (material
-                  ? "자료를 보면서 말해 보세요. 버튼을 누르면 녹음이 시작돼요"
-                  : `버튼을 누르면 녹음이 시작돼요. ${MAX_SEC / 60}분마다 이어서 녹음할 수 있어요`)}
+                (retry
+                  ? "대안 대본을 떠올리며 처음부터 다시 발표해요"
+                  : material
+                    ? "자료를 보면서 말해 보세요. 버튼을 누르면 녹음이 시작돼요"
+                    : `버튼을 누르면 녹음이 시작돼요. ${MAX_SEC / 60}분마다 이어서 녹음할 수 있어요`)}
               {rec.status === "requesting" && "마이크 권한을 허용해 주세요"}
               {recording &&
                 (remaining <= 30 && rec.limit < MAX_TOTAL_SEC
@@ -215,7 +228,7 @@ export default function RecordPage() {
 
           <div className="flex flex-col gap-2 pt-2">
             {/* 와이어프레임: 자료는 녹음 전에 올린다. 올리면 이 버튼만 사라진다 */}
-            {!material && rec.status === "idle" && (
+            {!side && rec.status === "idle" && (
               <>
                 <p className="text-center text-xs text-secondary">
                   PDF 발표 자료를 먼저 올리면 화면에 띄워 놓고 보면서 녹음할 수 있어요
