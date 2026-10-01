@@ -52,7 +52,8 @@ export function useRecorder(maxSec = 300) {
     teardown();
   }, [teardown]);
 
-  const start = useCallback(async () => {
+  // onRecorded: 녹음이 끝나 blob이 만들어지면 호출 (시험 모드에서 자동으로 다음 문제로 넘길 때)
+  const start = useCallback(async (onRecorded?: (blob: Blob) => void) => {
     setError(null);
     // http로 휴대폰에서 접속하면 mediaDevices 자체가 없다
     if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
@@ -86,6 +87,7 @@ export function useRecorder(maxSec = 300) {
       setBlob(b);
       setUrl(urlRef.current);
       setStatus("recorded");
+      onRecorded?.(b);
     };
     rec.onerror = () => {
       setError("녹음 중 문제가 생겼어요. 다시 녹음해 주세요.");
@@ -105,6 +107,7 @@ export function useRecorder(maxSec = 300) {
 
     // 입력 음량 → 막대. 조용한 구간이 눈에 보이게
     const ctx = new AudioContext();
+    ctx.resume().catch(() => {}); // 자동 시작(사용자 클릭 없이)일 때 suspended로 시작할 수 있음
     ctxRef.current = ctx;
     const analyser = ctx.createAnalyser();
     analyser.fftSize = 512;

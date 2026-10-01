@@ -135,7 +135,7 @@ export default function RecordPage() {
             size={material ? "md" : "lg"}
             recording={recording}
             disabled={rec.status === "requesting"}
-            onClick={recording ? rec.stop : rec.start}
+            onClick={recording ? rec.stop : () => void rec.start()}
           />
         )}
 
