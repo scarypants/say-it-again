@@ -19,7 +19,7 @@ const EXAM_LABEL = { 'TOEIC-Speaking': '토익 스피킹(TOEIC Speaking)', opic:
  */
 const TERMS = [
   '용어 통일: 사용자에게 보여 줄 글(reason, comment, headline, topPriorities, improved, remaining)에서 항목 이름은 아래 단어만 쓴다.',
-  '- 패닉존: 2초 이상 말이 멈춘 구간',
+  '- 패닉존: 말이 멈춘 구간 (발표·면접 2초, 스피킹 1.5초 이상. 답변 첫마디 전 3초 이상 침묵도 포함)',
   '- 군말: 음·어·그러니까, um·uh 같은 말버릇',
   '- 반복: 같은 말을 되풀이하거나 짧은 구간에서 같은 단어를 여러 번 쓴 것',
   '- 표현 개선: 더 낫게 바꿀 수 있는 표현',
@@ -73,10 +73,11 @@ export function partMessages(input: AnalyzeInput, script: Line[], partIndex: num
   const grammar = checksGrammar(input);
   const system = [
     '너는 대학생의 말하기 연습을 돕는 코치다. 녹음을 전사한 대본을 보고 구체적이고 실천할 수 있는 피드백을 준다.',
-    '대본은 문장마다 [줄 번호]가 있고, 각 단어 앞에 "단어 번호:"가 붙어 있다. "(패닉존 N초)" 줄은 말하다 2초 이상 멈춘 구간이다.',
+    '대본은 문장마다 [줄 번호]가 있고, 각 단어 앞에 "단어 번호:"가 붙어 있다. "(패닉존 N초)" 줄은 말하다 멈춘 구간이다. 대본 맨 앞에 있으면 첫마디를 떼기 전에 멈춘 구간이다.',
     '',
     '해야 할 일:',
     '1. panics: 패닉존 줄마다 하나씩. line은 패닉존 줄 번호. reason에 바로 앞 문장의 흐름을 보고 왜 막혔는지 진단하고, fixed에 막히지 않고 이어 말할 수 있는 대안 대본(1~2문장)을 쓴다.',
+    '   대본 맨 앞의 패닉존은 질문을 듣고 말문을 열지 못한 것이다. reason에 왜 시작이 늦었는지 진단하고, fixed에 바로 꺼낼 수 있는 첫 문장(1~2문장)을 쓴다.',
     `2. issues: 고치면 좋아질 표현을 영향이 큰 순서로 최대 ${MAX_EXPRESSIONS}개. line은 문장 줄 번호, from·to는 그 줄 안의 단어 번호(to 포함). category는 "expression"(모호·약한 표현, 문어체, 어색하거나 부정확한 어휘)` +
       (grammar ? ' 또는 "grammar"(문법 오류).' : '. 이 모드에서는 grammar를 쓰지 않는다.') +
       ' fixed에는 그 범위를 대체할 표현을 쓴다.',
@@ -105,6 +106,9 @@ export function partMessages(input: AnalyzeInput, script: Line[], partIndex: num
       : speaking
         ? '4. comment: 이 답변이 질문에 얼마나 맞게 답했는지, 시험 기준으로 한 줄 평가.'
         : '4. comment: 빈 문자열로 둔다.',
+    speaking
+      ? `5. accuracy: 답변의 정확성 점수(0~100 정수). ${ACCURACY_CRITERIA} 말하기 습관(패닉존·군말·반복)은 다른 점수에서 보므로 여기에 넣지 않는다.`
+      : '5. accuracy: 0으로 둔다.',
     ...(interview ? ['', INTERVIEW_CRITERIA, '패닉존은 준비가 덜 된 지점이라는 관점에서, 무엇을 미리 정리해 두면 막히지 않을지 진단한다.'] : []),
     '',
     `reason과 comment는 한국어로 쓴다. fixed와 final은 대본과 같은 언어(${LANGUAGE_LABEL[input.language]})로 쓴다.`,
@@ -116,6 +120,13 @@ export function partMessages(input: AnalyzeInput, script: Line[], partIndex: num
   const user = `${situation(input, partIndex)}\n\n대본:\n${numberedScript(script)}`;
   return { system, user };
 }
+
+/** 스피킹 정확성 점수 기준 (파트별 accuracy) */
+const ACCURACY_CRITERIA = [
+  '질문이 요구한 것에 맞게 답했는지(과제 수행), 이유·예시로 내용을 충분히 전개했는지, 문법·어휘가 정확한지를 시험 채점 기준처럼 본다.',
+  '토익 스피킹 Part 1(지문 읽기)처럼 주어진 글을 읽는 문제는 지문을 빠뜨리거나 바꿔 읽지 않고 정확히 읽었는지로 본다.',
+  '답변이 질문과 상관없거나 거의 없으면 30점 이하, 요구를 대부분 채웠지만 전개나 정확성이 아쉬우면 60~80점, 시험 만점 답변에 가까우면 90점 이상.',
+].join(' ');
 
 /** 총평: 파트별 요약만 받아 전체 총평을 쓴다 (원문 전체를 다시 넣지 않는다) */
 export function summaryMessages(input: AnalyzeInput, parts: Part[]) {
@@ -137,6 +148,7 @@ export function summaryMessages(input: AnalyzeInput, parts: Part[]) {
     const words = part.script.reduce((n, l) => n + l.words.length, 0);
     return [
       `구간 ${i + 1}: 길이 ${Math.round(part.duration)}초, 단어 ${words}개, 군말 ${count('filler')}개, 반복 ${count('repeat')}개, 패닉존 ${count('panic')}회, 표현 개선 ${count('expression')}개, 문법 ${count('grammar')}개`,
+      part.accuracy !== undefined ? `  답변 정확성: ${part.accuracy}점` : '',
       part.comment ? `  코멘트: ${part.comment}` : '',
       notes,
     ]

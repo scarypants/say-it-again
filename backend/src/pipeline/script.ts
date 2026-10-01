@@ -1,18 +1,30 @@
-import { MAX_WORDS, PANIC_GAP } from '../config';
+import { MAX_WORD_SEC, MAX_WORDS, PANIC_GAP } from '../config';
 import type { Line } from '../types/api';
 import type { Word } from '../types/internal';
 
 /**
  * 단어 목록을 문장 단위 줄로 나눈다.
  * - 문장 끝(whisper segment 끝, 문장부호 . ? !)에서 끊는다
- * - PANIC_GAP초 이상 멈추면 문장 중간이라도 끊고 pause 줄을 넣는다
+ * - rule.gap초(기본 PANIC_GAP) 이상 멈추면 문장 중간이라도 끊고 pause 줄을 넣는다
+ * - rule.lead가 있으면 첫 단어 전 침묵이 그 이상일 때 맨 앞에 pause 줄을 넣는다 (질문을 듣고 말문이 막힌 것)
  * - 한 문장이 MAX_WORDS를 넘으면 끊는다
- * - 녹음 맨 앞·뒤 침묵은 단어가 없으므로 자연히 무시된다
+ * - 녹음 맨 뒤 침묵은 무시한다
+ * - 멈춤을 재기 전에 MAX_WORD_SEC보다 긴 단어를 자른다 (clipLongWords)
  */
-export function splitSentences(words: Word[], segmentEnds: number[] = []): Line[] {
+export function splitSentences(
+  rawWords: Word[],
+  segmentEnds: number[] = [],
+  rule: { gap: number; lead?: number } = { gap: PANIC_GAP },
+): Line[] {
   const lines: Line[] = [];
   const segmentEndSet = new Set(segmentEnds.map((t) => t.toFixed(2)));
+  const sentenceEnds = rawWords.map((w) => endsSentence(w, segmentEndSet)); // 자르기 전 시간으로 판단
+  const words = clipLongWords(rawWords, sentenceEnds);
   let current: Word[] = [];
+
+  if (rule.lead !== undefined && words.length > 0 && words[0].start >= rule.lead) {
+    lines.push({ start: 0, end: words[0].start, offset: 0, words: [], pause: true });
+  }
 
   const flush = () => {
     if (current.length === 0) return;
@@ -29,10 +41,10 @@ export function splitSentences(words: Word[], segmentEnds: number[] = []): Line[
   words.forEach((word, i) => {
     const prev = words[i - 1];
     if (prev) {
-      if (word.start - prev.end >= PANIC_GAP) {
+      if (word.start - prev.end >= rule.gap) {
         flush();
         lines.push({ start: prev.end, end: word.start, offset: 0, words: [], pause: true });
-      } else if (endsSentence(prev, segmentEndSet) || current.length >= MAX_WORDS) {
+      } else if (sentenceEnds[i - 1] || current.length >= MAX_WORDS) {
         flush();
       }
     }
@@ -41,6 +53,19 @@ export function splitSentences(words: Word[], segmentEnds: number[] = []): Line[
   flush();
 
   return withOffsets(lines);
+}
+
+/**
+ * MAX_WORD_SEC보다 긴 단어를 그 길이로 자른다. 침묵이 어느 쪽에 붙었는지는 위치로 짐작한다:
+ * 녹음 첫 단어이거나 앞 단어가 문장 끝이면 앞쪽 침묵(시작을 늦춘다), 아니면 뒤쪽 침묵(끝을 당긴다).
+ */
+function clipLongWords(words: Word[], sentenceEnds: boolean[]): Word[] {
+  return words.map((w, i) => {
+    if (w.end - w.start <= MAX_WORD_SEC) return w;
+    return i === 0 || sentenceEnds[i - 1]
+      ? { ...w, start: w.end - MAX_WORD_SEC }
+      : { ...w, end: w.start + MAX_WORD_SEC };
+  });
 }
 
 function endsSentence(word: Word, segmentEnds: Set<string>): boolean {

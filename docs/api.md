@@ -69,7 +69,7 @@ type TranscribeResponse = {
   parts: { duration: number; script: Line[] }[];   // 녹음 파일 하나당 하나
 };
 
-// 대본의 한 줄 = 한 문장. 2초 이상 정지는 pause 줄로 따로 들어간다.
+// 대본의 한 줄 = 한 문장. 2초(스피킹 1.5초) 이상 정지는 pause 줄로 따로 들어간다.
 type Line = {
   start: number;                   // 초. 해당 파트 녹음 파일의 처음을 0초로 잰 시간
   end: number;
@@ -80,7 +80,9 @@ type Line = {
 };
 ```
 
-- 문장은 whisper의 문장 경계에서 끊고, 2초 이상 멈춘 곳에서는 문장 중간이라도 끊고 pause 줄을 넣는다.
+- 문장은 whisper의 문장 경계에서 끊고, 2초(스피킹은 1.5초) 이상 멈춘 곳에서는 문장 중간이라도 끊고 pause 줄을 넣는다.
+- 스피킹·면접은 첫마디 전 침묵이 3초 이상이면 대본 **맨 앞**에도 pause 줄을 넣는다(`start` = 0, 질문을 듣고 말문이 막힌 것). 발표는 맨 앞 침묵을 무시한다. 녹음 맨 뒤 침묵은 모든 모드에서 무시한다.
+- whisper는 멈춘 시간을 앞뒤 단어에 붙이곤 해서(특히 영어에서 um을 지울 때), 1.5초보다 긴 단어는 1.5초로 잘라 멈춤을 잰다. 첫 단어나 문장 첫 단어는 앞쪽을, 그 외는 뒤쪽을 자른다. 잘린 시간이 `wordTimes`·`start`·`end`에 그대로 들어간다.
 - 단어 `i`의 파트 전체 번호는 `offset + i`다.
 - 시간(`start`, `end`, `wordTimes`)은 파트마다 따로 잰다. 문장 재생은 프론트가 해당 파트의 녹음 파일에서 `start`~`end` 구간을 재생하면 된다 (서버는 오디오를 자르거나 저장하지 않는다). whisper 시간은 조금 어긋날 수 있어 앞뒤 0.2초 정도 여유를 두는 것을 권한다.
 
@@ -139,6 +141,7 @@ type AnalyzeResponse = {
 
 type Part = {
   comment?: string;       // 파트별 한 줄 코멘트 (질문 적합성 등). 스피킹·면접에만 있다
+  accuracy?: number;      // 스피킹만: 답변 정확성 0~100 (LLM). 이 파트의 LLM이 실패하면 없음
   duration: number;       // 초
   script: Line[];         // 고친 대본 (offset 다시 계산됨)
   highlight: Highlight[];
@@ -161,7 +164,8 @@ type Charts = {
 };
 
 type Analysis = {
-  score: number;          // 0~100. 100 − (panic + filler + repeat 비율). 표현 개선·문법은 감점하지 않는다
+  score: number;          // 0~100. 스피킹: (habit + accuracy) ÷ 2, 그 외: 100 − (panic + filler + repeat 비율)
+  scoreDetail?: { habit: number; accuracy: number };  // 스피킹만: 말하기 습관 점수 + 파트별 정확성 평균
   stats: {
     wpm: number;
     fillerCount: number;
@@ -179,12 +183,14 @@ type Analysis = {
 
 ### 규칙
 - 하이라이트는 단어 번호 범위라서 문장을 넘는 구·절도 표시할 수 있다. 겹치는 구간은 그대로 두고, 색 우선순위(빨강 > 노랑 > 보라 > 파랑 > 초록)는 프론트가 적용한다.
-- `panic` 하이라이트는 pause 줄 직전 문장의 **마지막 3단어**에 붙는다. 이유와 대안 대본(`fixed`)은 LLM이 채운다.
+- `panic` 하이라이트는 pause 줄 직전 문장의 **마지막 3단어**에 붙는다. 맨 앞 pause 줄(첫마디 전 침묵)은 바로 뒤 문장의 **처음 3단어**에 붙는다. 이유와 대안 대본(`fixed`)은 LLM이 채운다 (맨 앞이면 바로 꺼낼 수 있는 첫 문장).
 - 필러는 코드가 찾는다. 확실한 군말(어, 음, um, uh)은 항상, 애매한 말(그, 이제, 그러니까, like, so)은 바로 뒤에 멈칫했거나 다른 필러 바로 뒤일 때만 필러로 본다.
-- 중복 단어(`repeat`)도 코드가 찾는다. ① 같은 말(1~3단어)을 바로 반복("하지만 하지만", "every day every day", "정말 정말 정말")하면 반복된 범위를 묶고 `fixed`에 한 번만 쓴 표현을 넣는다. ② 5문장 안에서 같은 어간(조사를 뗀 형태)이 3번 이상이면 각 단어를 표시한다. 필러와 흔한 말("저는", "있습니다", "the" 등)은 제외한다. `repeatTop`은 어간 기준으로 센다.
+- 중복 단어(`repeat`)도 코드가 찾는다. ① 같은 말(1~3단어)을 바로 반복("하지만 하지만", "every day every day", "정말 정말 정말")하면 반복된 범위를 묶고 `fixed`에 한 번만 쓴 표현을 넣는다. ② 5문장 안에서 같은 어간(조사를 뗀 형태)이 3번 이상이면 각 단어를 표시한다. ①로 묶인 말은 한 번만 센다("school school"은 school 1번). 이어지는 표시(서로 5문장 안)는 한 묶음이고, 묶음의 모든 단어 `reason`에 같은 횟수(= 그 묶음의 하이라이트 수)가 들어간다. 필러와 흔한 말("저는", "있습니다", "the" 등)은 제외한다. `repeatTop`은 어간 기준으로 센다.
 - `categoryRatio`는 단어 기준 비율이다. 한 단어가 여러 카테고리에 걸리면 우선순위가 높은 하나만 세고, 6개 합은 100이다. `grammar`는 스피킹과 영어 면접(`interview` + `en`)에서만 나오고, 발표와 한국어 면접에서는 항상 0이다.
 - `repeatTop`·`fillerTop`은 전체 파트의 합산이다(최대 10개).
 - **점수(`score`)** = 100 − (`categoryRatio`의 panic + filler + repeat). 코드가 찾는 말하기 습관(패닉존·군말·반복)만 반영한다. 표현 개선·문법은 LLM이 정해서 실행마다 달라질 수 있으므로 감점하지 않고 하이라이트·비율로만 보여 준다. 그래서 같은 대본이면 점수는 항상 같다.
+  - **스피킹은 답변 정확성을 50% 섞는다**: `score` = round((`scoreDetail.habit` + `scoreDetail.accuracy`) ÷ 2). `habit`은 위 습관 점수, `accuracy`는 파트별 `accuracy`의 평균(반올림)이다. 파트 `accuracy`는 LLM이 시험 채점 기준(질문에 맞게 답했는지, 이유·예시로 전개했는지, 문법·어휘 정확성. 토익 Part 1은 지문을 정확히 읽었는지)으로 매긴다. 말하기 습관은 `accuracy`에 넣지 않는다.
+  - 스피킹은 정확성이 LLM 점수라 같은 대본이어도 실행마다 조금 달라질 수 있다. 모든 파트의 LLM이 실패하면 `scoreDetail` 없이 `score` = 습관 점수다.
   - `categoryRatio.normal`(정상 비율)은 다섯 항목을 모두 뺀 값이라 점수와 다를 수 있다 (점수 ≥ 정상 비율). 화면에서 점수 옆에 "패닉존·군말·반복 기준"이라고 밝혀 둔다.
 - `stats`는 모든 파트의 합산이다. `wpm` = 전체 단어 수 ÷ 발화 시간(분, pause 줄과 문장 사이 간격 제외, 필러 포함). `fillerCount`·`panicCount`·`repeatCount`·`expressionCount`·`grammarCount` = 해당 category의 하이라이트 수. `panicTotalSec` = `pauseSec`의 합.
 - `summary.comment`는 총평 LLM이 쓰는 전체 코멘트이고, `parts[].comment`는 파트별 코멘트(스피킹·면접만)다.
@@ -293,7 +299,7 @@ type RetryResponse = {
   language: "ko" | "en";
   parts: Part[];          // 새 녹음. 아래 "analyze와 다른 점" 참고
   charts: Charts;         // 새 녹음. expression·grammar는 항상 0
-  analysis: Analysis;     // 새 녹음. score = compare.after.score
+  analysis: Analysis;     // 새 녹음. score = compare.after.score (스피킹도 습관 점수, scoreDetail 없음)
   compare: Compare;       // 전후 비교 (서버가 같은 기준으로 계산)
   retry?: Retry;          // 재도전 총평. LLM 실패 시 없음
   warnings?: string[];    // "llm_failed", "script_mismatch"
@@ -340,6 +346,7 @@ type Retry = {
 
 ### 규칙
 - **점수 비교**: 양쪽 모두 analyze와 같은 점수 기준(100 − panic − filler − repeat)이다. 그래서 `before.score`는 이전 총평 화면의 `analysis.score`와 같고, `after.score`는 이 응답의 `analysis.score`와 같다.
+  - 스피킹은 재도전에서 정확성을 다시 매기지 않으므로(파트별 LLM 없음) 비교 점수가 **습관 점수**다. `before.score`는 이전 결과의 `scoreDetail.habit`과 같고 `analysis.score`와는 다르다. 화면에서 "말하기 습관 점수"로 표시한다.
   - `before.score`는 `previous.categoryRatio`로 다시 계산한다. 예전 기준(표현 개선·문법까지 감점)으로 저장된 기록을 보내도 같은 기준으로 비교된다. 우선순위가 panic > filler > repeat > expression > grammar라서 앞의 세 비율은 expression 유무와 상관없이 같다.
 - **길이 보정**: 다시 녹음하면 길이가 달라지므로 필러·패닉·중복은 `*PerMin`(녹음 1분당 횟수 = 횟수 ÷ `durationSec` × 60)으로 비교하는 것을 권한다. 횟수는 보조로 쓴다. `before`의 횟수·`wpm`·`panicTotalSec`은 `previous.stats` 값 그대로다.
 - **대본 일치율(`scriptMatch`)**: 새 녹음이 이전 최종 대본을 얼마나 따라갔는지를 코드로 잰다 (LLM 없음).
@@ -457,7 +464,7 @@ type InitialQuestionsRequest =
   | { kind: "initial"; mode: "speaking"; language: "en"; exam: "TOEIC-Speaking" }
   | { kind: "initial"; mode: "speaking"; language: "en"; exam: "opic";
       opic: {
-        topics: { id: string; label: string }[];  // 서베이에서 고른 주제 (1개 이상)
+        topics: { id: string; label: string }[];  // 서베이에서 고른 주제 (1~3개)
         level: number;                            // 자가 평가 단계 1~6. 5 이상이면 롤플레이가 문제 해결형
       } }
   | { kind: "initial"; mode: "interview"; language: "ko" | "en"; job: string };  // job: 1~50자
@@ -691,7 +698,7 @@ type QuestionImageResponse = {
 ### 검증
 - `mode`와 `language` 조합: 발표·면접은 `ko`·`en`, 스피킹은 `en`만 허용한다.
 - `level`은 발표에서, `exam`은 스피킹에서, `questions`는 스피킹·면접에서 필수. 스피킹·면접은 `questions` 개수 = 녹음(파트) 개수.
-- questions: `kind`·`mode`·`language`·`exam` 조합이 표(6절)와 다르면(예: initial + presentation), 면접 `job`이 비었거나 50자를 넘으면, 오픽 `topics`가 비었거나 `level`이 1~6이 아니면, followUp `answers`가 1~5개가 아니거나 합계 20,000자를 넘으면, `count`가 1~3이 아니면 400.
+- questions: `kind`·`mode`·`language`·`exam` 조합이 표(6절)와 다르면(예: initial + presentation), 면접 `job`이 비었거나 50자를 넘으면, 오픽 `topics`가 1~3개가 아니거나 `level`이 1~6이 아니면, followUp `answers`가 1~5개가 아니거나 합계 20,000자를 넘으면, `count`가 1~3이 아니면 400.
 - retry는 위 규칙에 더해 `previous`가 필수다. `previous.final`은 빈 배열이어도 된다.
 
 ### 길이 제한 (서버는 +5초 여유로 검증)

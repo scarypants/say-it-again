@@ -22,6 +22,8 @@ const STOPWORDS: Record<Language, Set<string>> = {
  * 1) 바로 반복: 같은 말(1~3단어 묶음)이 연달아 나오면("하지만 하지만", "every day every day")
  *    반복된 범위를 묶고, fixed에 한 번만 쓴 표현을 넣는다.
  * 2) 잦은 반복: REPEAT_WINDOW_LINES 문장 안에서 같은 어간이 REPEAT_MIN_COUNT번 이상이면 각 단어를 표시한다.
+ *    바로 반복으로 묶인 말은 한 번만 센다 ("school school"은 school 한 번).
+ *    이어지는 표시는 한 묶음으로 보고, 묶음 안의 모든 단어에 같은 횟수(= 그 묶음의 표시 개수)를 쓴다.
  * 필러와 STOPWORDS는 제외한다.
  */
 export function findRepeats(script: Line[], language: Language): Highlight[] {
@@ -29,6 +31,7 @@ export function findRepeats(script: Line[], language: Language): Highlight[] {
   const stopwords = STOPWORDS[language];
   const sentences = script.filter((line) => !line.pause && line.words.length > 0);
   const highlights: Highlight[] = [];
+  const echoes = new Set<number>(); // 바로 반복에서 마지막 한 번을 뺀 앞쪽 단어 번호 (잦은 반복에서 세지 않는다)
 
   // 1) 바로 반복 (문장 안, 긴 묶음부터 확인)
   for (const line of sentences) {
@@ -39,50 +42,62 @@ export function findRepeats(script: Line[], language: Language): Highlight[] {
       // "정말 정말 정말"처럼 세 번 이상이면 반복된 만큼 모두 묶는다
       let times = 2;
       while (isRepeatedChunk(tokens, i + size * (times - 1), size, fillers)) times++;
+      const last = i + size * (times - 1);
       highlights.push({
         from: line.offset + i,
         to: line.offset + i + size * times - 1,
         category: 'repeat',
         reason: '같은 말을 바로 반복했습니다. 한 번만 말해 보세요.',
-        fixed: line.words.slice(i + size * (times - 1), i + size * times).join(' '),
+        fixed: line.words.slice(last, last + size).join(' '),
       });
+      for (let k = i; k < last; k++) echoes.add(line.offset + k);
       i += size * times - 1;
     }
   }
 
-  // 2) 잦은 반복 (문장 윈도우)
-  const flagged = new Map<number, { key: string; count: number }>(); // 단어 번호 → 표시 정보
-  for (let s = 0; s < sentences.length; s++) {
-    const positions = new Map<string, { index: number; word: string }[]>();
-    for (const line of sentences.slice(s, s + REPEAT_WINDOW_LINES)) {
-      line.words.forEach((word, i) => {
-        const key = stem(word);
-        if (key.length < 2 || /^\d+$/.test(key) || fillers.has(normalize(word)) || stopwords.has(key)) return;
-        if (stopwords.has(normalize(word))) return;
-        const list = positions.get(key) ?? [];
-        list.push({ index: line.offset + i, word });
-        positions.set(key, list);
-      });
+  // 2) 잦은 반복: 어간마다 나온 위치(문장 순서, 단어 번호)를 모은다
+  const occurrences = new Map<string, { sentence: number; index: number }[]>();
+  sentences.forEach((line, s) => {
+    line.words.forEach((word, i) => {
+      const key = stem(word);
+      if (echoes.has(line.offset + i)) return;
+      if (key.length < 2 || /^\d+$/.test(key) || fillers.has(normalize(word)) || stopwords.has(key)) return;
+      if (stopwords.has(normalize(word))) return;
+      const list = occurrences.get(key) ?? [];
+      list.push({ sentence: s, index: line.offset + i });
+      occurrences.set(key, list);
+    });
+  });
+
+  for (const [key, list] of occurrences) {
+    // REPEAT_WINDOW_LINES 문장 안에 REPEAT_MIN_COUNT번 이상 모인 위치만 표시한다
+    const flagged = list.filter((o) =>
+      list.some((start) => {
+        const inWindow = list.filter((x) => x.sentence >= start.sentence && x.sentence < start.sentence + REPEAT_WINDOW_LINES);
+        return inWindow.length >= REPEAT_MIN_COUNT && inWindow.includes(o);
+      }),
+    );
+    // 이웃한 표시끼리 한 윈도우 안이면 같은 묶음
+    const groups: (typeof flagged)[] = [];
+    for (const o of flagged) {
+      const group = groups[groups.length - 1];
+      const prev = group?.[group.length - 1];
+      if (prev && o.sentence - prev.sentence < REPEAT_WINDOW_LINES) group.push(o);
+      else groups.push([o]);
     }
-    for (const list of positions.values()) {
-      if (list.length < REPEAT_MIN_COUNT) continue;
-      for (const { index } of list) {
-        const prev = flagged.get(index);
-        if (!prev || prev.count < list.length) flagged.set(index, { key: stem(list[0].word), count: list.length });
+    for (const group of groups) {
+      for (const { index } of group) {
+        highlights.push({
+          from: index,
+          to: index,
+          category: 'repeat',
+          reason: `반복: '${key}' (짧은 구간에서 ${group.length}번). 다른 표현으로 바꿔 보세요.`,
+        });
       }
     }
   }
 
-  for (const [index, { key, count }] of [...flagged.entries()].sort((a, b) => a[0] - b[0])) {
-    highlights.push({
-      from: index,
-      to: index,
-      category: 'repeat',
-      reason: `반복: '${key}' (짧은 구간에서 ${count}번). 다른 표현으로 바꿔 보세요.`,
-    });
-  }
-
-  return highlights;
+  return highlights.sort((a, b) => a.from - b.from);
 }
 
 /** tokens[i..i+n)과 바로 뒤 tokens[i+n..i+2n)이 같은지. 묶음이 전부 필러거나 빈 토큰이면 반복으로 보지 않는다. */

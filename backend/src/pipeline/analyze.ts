@@ -34,6 +34,7 @@ export async function analyze(input: AnalyzeInput): Promise<AnalyzeResponse> {
         }
         return {
           comment: answersQuestions(input) ? llm.comment : undefined,
+          accuracy: llm.accuracy,
           duration,
           script,
           highlight: [...codeHighlight, ...llm.highlight],
@@ -48,7 +49,10 @@ export async function analyze(input: AnalyzeInput): Promise<AnalyzeResponse> {
   );
 
   const charts = buildCharts(parts);
-  const { score, stats } = buildStats(parts, charts);
+  const { score: habit, stats } = buildStats(parts, charts);
+  const accuracy = averageAccuracy(parts);
+  // 스피킹: 말하기 습관 50 + 답변 정확성 50. 정확성을 하나도 못 받으면(LLM 실패) 습관 점수만
+  const score = accuracy === undefined ? habit : Math.round((habit + accuracy) / 2);
 
   let summary = { headline: '', topPriorities: [] as string[], comment: '' };
   try {
@@ -65,9 +69,15 @@ export async function analyze(input: AnalyzeInput): Promise<AnalyzeResponse> {
     language: input.language,
     parts,
     charts,
-    analysis: { score, stats, summary },
+    analysis: { score, ...(accuracy !== undefined && { scoreDetail: { habit, accuracy } }), stats, summary },
     ...(warnings.length > 0 && { warnings }),
   };
+}
+
+/** 파트별 정확성(스피킹)의 평균. 받은 파트가 없으면 undefined */
+function averageAccuracy(parts: Part[]): number | undefined {
+  const scores = parts.map((p) => p.accuracy).filter((a): a is number => a !== undefined);
+  return scores.length > 0 ? Math.round(scores.reduce((sum, a) => sum + a, 0) / scores.length) : undefined;
 }
 
 /**
