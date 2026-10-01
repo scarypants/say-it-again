@@ -10,14 +10,35 @@ export type ExamItem = {
   label?: string; // 유형 표시 (없으면 interviewTypeName)
   context?: string; // 토익 Part 3 상황
   goalSec?: number; // 권장 답변 시간 (없으면 ANSWER_GOAL_SEC)
+  prepSec?: number; // 질문을 듣고 답하기 전 준비 시간 (토익 연습 문제)
 };
 
-// 결과 화면에서 받은 꼬리질문 → 질문 화면 문항. 토익은 실제 시험 답변 시간(Part 3 30초, Part 5 60초)을 권장으로
+// 결과 화면에서 받은 꼬리질문 → 질문 화면 문항. 토익은 실제 시험의 준비·답변 시간을 쓴다
 export function practiceItem(q: Question, mode: Mode): ExamItem {
-  const label =
-    mode === "interview" ? "꼬리질문" : q.part ? `Part ${q.part}` : (q.topic?.label ?? "연습 질문");
+  const label = isPresentationQna(q.prompt)
+    ? "예상 질문"
+    : mode === "interview"
+      ? "꼬리질문"
+      : q.part
+        ? `Part ${q.part}`
+        : (q.topic?.label ?? "연습 질문");
+  // 실제 시험 시간: Part 3 준비 3초·답변 30초, Part 5 준비 45초·답변 60초
   const goalSec = q.part === 3 ? 30 : q.part === 5 ? 60 : undefined;
-  return { type: q.type, text: q.text, prompt: q.prompt, label, context: q.context, goalSec };
+  const prepSec = q.part === 3 ? 3 : q.part === 5 ? 45 : undefined;
+  return {
+    type: q.type,
+    text: q.text,
+    prompt: q.prompt,
+    label,
+    context: q.context,
+    goalSec,
+    prepSec,
+  };
+}
+
+// 발표 결과에서 받은 예상 질문인지 (질문 문자열 머리말 "Presentation Q&A N")
+export function isPresentationQna(prompt?: string) {
+  return !!prompt?.startsWith("Presentation Q&A");
 }
 
 export const ANSWER_GOAL_SEC = 60; // 권장 답변 시간 (면접 답변은 1분 안팎)

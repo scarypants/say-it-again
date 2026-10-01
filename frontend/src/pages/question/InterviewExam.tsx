@@ -7,6 +7,7 @@ import { failedAnswerIndex } from "./answerRetry";
 import AnalyzingView from "../../components/common/AnalyzingView";
 import LevelBars from "../../components/common/LevelBars";
 import MicButton from "../../components/common/MicButton";
+import RecordedAudio from "../../components/common/RecordedAudio";
 import PageHeader from "../../components/common/PageHeader";
 import { mmss } from "../../components/common/scriptFormat";
 import { useLeaveGuard } from "../../components/common/useLeaveGuard";
@@ -19,18 +20,22 @@ import {
   interviewTypeName,
   parseInterviewQuestion,
   practiceItem,
+  isPresentationQna,
   type ExamItem,
 } from "./interviewItems";
 
 type Stage = "setup" | "running" | "done";
 
+const canSpeak = typeof window !== "undefined" && "speechSynthesis" in window;
+// 준비 시간 계산용 시각 (타이머 안에서만 부른다)
+const clock = () => Date.now();
 const TOEIC_MAX_SEC = 60; // 토익 꼬리질문(Part 3·5) 답변 상한. 서버도 답변당 60초
 
 // 안내 문장용 시간: 30 → "30초", 120 → "2분"
 const secText = (sec: number) => (sec % 60 ? `${sec}초` : `${sec / 60}분`);
 
 // 면접 모의 연습 (#76): 화면을 열면 백엔드가 지원 직무에 맞춘 질문 5개를 만든다.
-// 질문을 화면에 보여 주자마자 신호음과 함께 자동 녹음 (생각할 시간 없음). 어려운 질문은 건너뛸 수 있다.
+// 질문을 소리로 읽어 준 뒤 신호음과 함께 자동 녹음 (생각할 시간 없음). 어려운 질문은 건너뛸 수 있다.
 // 다 말하면 버튼으로 다음 질문. 다섯 질문이 끝나면 한 번에 대본으로 만든다.
 // "다시, 말해" 재도전이면 질문을 새로 만들지 않고 지난번 질문 그대로, 질문마다 지난 모범 답안을 펼쳐 볼 수 있다.
 // 꼬리질문 연습(settings.practice)도 이 화면을 쓴다: 결과 화면에서 받은 질문 1~3개에 같은 방식으로 답한다 (스피킹 포함).
@@ -60,12 +65,22 @@ export default function InterviewExam({ onRestart }: { onRestart: () => void }) 
       retry?.map((r, i) => ({ ...r.question, prompt: settings.retryQuestions![i] })) ??
       [],
   );
-  const kindName = practice ? (isSpeaking ? "연습" : "꼬리질문 연습") : "면접";
+  const qna = isPresentationQna(practice?.[0]?.prompt); // 발표 예상 질문에 답하기
+  const kindName = practice
+    ? isSpeaking
+      ? "연습"
+      : qna
+        ? "예상 질문 연습"
+        : "꼬리질문 연습"
+    : "면접";
   // 질문 생성: 화면을 열자마자 미리 받아 둔다. loadRound를 올리면 다시 받는다
   const [loadRound, setLoadRound] = useState(0);
   const [loading, setLoading] = useState(!retry && !practice);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [qi, setQi] = useState(0);
+  const [listening, setListening] = useState(false); // 질문을 읽어 주는 중 (끝나면 녹음)
+  const [prepLeft, setPrepLeft] = useState<number | null>(null); // 준비 시간 남은 초 (토익 연습 문제)
+  const prepRef = useRef<{ id: number; go: () => void } | null>(null);
   const [answers, setAnswers] = useState<(Blob | null)[]>([]);
   const [answerUrls, setAnswerUrls] = useState<(string | null)[]>([]);
   const [startError, setStartError] = useState<string | null>(null);
@@ -78,6 +93,7 @@ export default function InterviewExam({ onRestart }: { onRestart: () => void }) 
   const answersRef = useRef<(Blob | null)[]>([]);
   const urlsRef = useRef<string[]>([]);
   const beepCtxRef = useRef<AudioContext | null>(null);
+  const timerRef = useRef<number | null>(null);
   const redoRef = useRef(false); // 끝난 뒤 한 질문만 다시 녹음 중: 그 질문이 끝나면 목록으로
 
   function beep() {
@@ -93,8 +109,47 @@ export default function InterviewExam({ onRestart }: { onRestart: () => void }) 
     osc.stop(ctx.currentTime + 0.25);
   }
 
+  function stopSpeech() {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = null;
+    if (canSpeak) speechSynthesis.cancel();
+    setListening(false);
+    if (prepRef.current) clearInterval(prepRef.current.id);
+    prepRef.current = null;
+    setPrepLeft(null);
+  }
+
+  // 질문을 문장마다 나눠 읽고 끝나면 onEnd. 소리를 못 내면 읽을 시간만 준다
+  function speakThen(text: string, token: number, onEnd: () => void) {
+    const words = text.split(/\s+/).length;
+    const done = () => {
+      if (tokenRef.current !== token) return;
+      stopSpeech();
+      onEnd();
+    };
+    if (!canSpeak) {
+      timerRef.current = window.setTimeout(done, Math.min(8000, Math.max(2000, words * 300)));
+      return;
+    }
+    speechSynthesis.cancel();
+    const sentences = text.match(/[^.?!]+[.?!]+/g) ?? [text];
+    sentences.forEach((s, i) => {
+      const u = new SpeechSynthesisUtterance(s.trim());
+      u.lang = language === "en" ? "en-US" : "ko-KR";
+      u.rate = 1;
+      if (i === sentences.length - 1) {
+        u.onend = done;
+        u.onerror = done;
+      }
+      speechSynthesis.speak(u);
+    });
+    // onend가 안 오는 브라우저 대비 안전 타이머
+    timerRef.current = window.setTimeout(done, words * 500 + sentences.length * 500 + 2000);
+  }
+
   function finish() {
     tokenRef.current++;
+    stopSpeech();
     redoRef.current = false;
     urlsRef.current.forEach((u) => URL.revokeObjectURL(u));
     const urls = answersRef.current.map((b) => (b ? URL.createObjectURL(b) : null));
@@ -116,6 +171,7 @@ export default function InterviewExam({ onRestart }: { onRestart: () => void }) 
       return;
     }
     tokenRef.current++;
+    stopSpeech();
     answersRef.current = answersRef.current.map((b, i) => (i === q ? null : b));
     setAnswers(answersRef.current);
     nextQuestion(q);
@@ -127,13 +183,32 @@ export default function InterviewExam({ onRestart }: { onRestart: () => void }) 
     const token = ++tokenRef.current;
     skippedRef.current = false;
     setQi(q);
-    beep();
-    void rec.start((blob) => {
+    setListening(true);
+    const startAnswer = () => {
       if (tokenRef.current !== token) return;
-      const answer = skippedRef.current ? null : blob;
-      answersRef.current = answersRef.current.map((b, i) => (i === q ? answer : b));
-      setAnswers(answersRef.current);
-      nextQuestion(q);
+      stopSpeech();
+      beep();
+      void rec.start((blob) => {
+        if (tokenRef.current !== token) return;
+        const answer = skippedRef.current ? null : blob;
+        answersRef.current = answersRef.current.map((b, i) => (i === q ? answer : b));
+        setAnswers(answersRef.current);
+        nextQuestion(q);
+      });
+    };
+    const prep = itemsRef.current[q].prepSec;
+    speakThen(itemsRef.current[q].text, token, () => {
+      if (!prep) return startAnswer();
+      // 준비 시간: 신호음 → 남은 초 → 끝나면 신호음과 함께 녹음
+      beep();
+      const end = clock() + prep * 1000;
+      setPrepLeft(prep);
+      const id = window.setInterval(() => {
+        const left = (end - clock()) / 1000;
+        if (left <= 0) startAnswer();
+        else setPrepLeft(left);
+      }, 200);
+      prepRef.current = { id, go: startAnswer };
     });
   }
 
@@ -220,6 +295,9 @@ export default function InterviewExam({ onRestart }: { onRestart: () => void }) 
   useEffect(
     () => () => {
       tokenRef.current++;
+      if (timerRef.current) clearTimeout(timerRef.current);
+      if (prepRef.current) clearInterval(prepRef.current.id);
+      if (canSpeak) speechSynthesis.cancel();
       beepCtxRef.current?.close().catch(() => {});
       urlsRef.current.forEach((u) => URL.revokeObjectURL(u));
     },
@@ -254,11 +332,6 @@ export default function InterviewExam({ onRestart }: { onRestart: () => void }) 
         <PageHeader
           title={retry ? "다시, 말해" : practice ? kindName : "면접 연습"}
           description={`${job ? `${job} · ` : ""}${language === "en" ? "영어" : "한국어"}로 답해요`}
-          action={
-            <Link to="/" className="btn btn-ghost btn-sm">
-              설정 바꾸기
-            </Link>
-          }
         />
         <p className="text-[0.9375rem] leading-relaxed">
           {practice
@@ -266,7 +339,7 @@ export default function InterviewExam({ onRestart }: { onRestart: () => void }) 
             : retry
               ? `지난번과 같은 질문 ${items.length}개에 다시 답해요. 질문마다 지난번 모범 답안을 펼쳐 볼 수 있고, 끝나면 지난번과 비교해 드려요.`
               : `AI가 ${job} 직무에 맞춰 만든 다섯 질문에 답해요. 자기소개로 시작해 마무리로 끝나요.`}{" "}
-          질문이 나오면 신호음과 함께 바로 녹음돼요.
+          질문을 소리로 읽어 준 뒤 신호음과 함께 바로 녹음돼요.
         </p>
         <ul className="mt-5 list-disc space-y-1 pl-5 text-sm text-secondary">
           <li>
@@ -280,6 +353,7 @@ export default function InterviewExam({ onRestart }: { onRestart: () => void }) 
           </li>
           <li>답하기 어려운 질문은 건너뛸 수 있어요. 건너뛴 질문은 분석에서 빠져요.</li>
           <li>이전 질문으로는 돌아갈 수 없어요.</li>
+          <li>소리가 나오니 스피커나 이어폰을 켜 주세요.</li>
         </ul>
         {loadError && (
           <div role="alert" className="alert alert-error alert-soft mt-4 text-sm">
@@ -346,7 +420,7 @@ export default function InterviewExam({ onRestart }: { onRestart: () => void }) 
                 {it.text}
               </p>
               {answerUrls[i] ? (
-                <audio src={answerUrls[i]!} controls className="mt-3 w-full" />
+                <RecordedAudio src={answerUrls[i]!} className="mt-3" />
               ) : (
                 <p className="mt-2 text-sm text-secondary">건너뛴 질문이라 분석에서 빠져요.</p>
               )}
@@ -451,7 +525,13 @@ export default function InterviewExam({ onRestart }: { onRestart: () => void }) 
 
       <section className="flex flex-col items-center gap-3 pt-2 pb-2" aria-live="polite">
         <p className="text-sm font-semibold">
-          {rec.status === "recording" ? "답변 녹음 중" : "녹음 준비 중"}
+          {rec.status === "recording"
+            ? "답변 녹음 중"
+            : prepLeft !== null
+              ? `준비 시간 ${Math.ceil(prepLeft)}초`
+              : listening
+                ? "질문 듣는 중"
+                : "녹음 준비 중"}
         </p>
         <p className="-mt-2 text-sm font-semibold text-accent">
           {language === "en" ? "영어" : "한국어"}로 답해 주세요
@@ -473,6 +553,15 @@ export default function InterviewExam({ onRestart }: { onRestart: () => void }) 
             ? `권장 시간이 지났어요. ${mmss(maxSec - rec.elapsed)} 뒤 다음 질문으로 넘어가요`
             : "다 말했으면 버튼을 눌러 다음 질문으로"}
         </p>
+        {prepLeft !== null && (
+          <button
+            type="button"
+            className="btn btn-outline btn-sm border-base-300"
+            onClick={() => prepRef.current?.go()}
+          >
+            준비 끝, 바로 답하기
+          </button>
+        )}
         {skipButton}
 
         {rec.error && (

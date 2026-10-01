@@ -200,3 +200,9 @@ body {
     scroll-behavior: auto !important;
   }
 }
+
+/* 차트를 마우스로 누르면 브라우저 기본 포커스 테두리가 생긴다. 키보드 포커스 표시는 남긴다 */
+.recharts-wrapper :focus:not(:focus-visible),
+.recharts-wrapper:focus:not(:focus-visible) {
+  outline: none;
+}

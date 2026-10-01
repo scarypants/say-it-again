@@ -6,6 +6,7 @@ import { useTranscribe } from "../../api/useTranscribe";
 import AnalyzingView from "../../components/common/AnalyzingView";
 import LevelBars from "../../components/common/LevelBars";
 import MicButton from "../../components/common/MicButton";
+import RecordedAudio from "../../components/common/RecordedAudio";
 import { useLeaveGuard } from "../../components/common/useLeaveGuard";
 import { useRecorder } from "../../components/common/useRecorder";
 import CafeteriaScene from "./CafeteriaScene";
@@ -88,6 +89,7 @@ export default function ToeicSpeakingExam({ onRestart }: { onRestart: () => void
   const answersRef = useRef<(Blob | null)[]>(answers);
   const urlsRef = useRef<string[]>([]);
   const beepCtxRef = useRef<AudioContext | null>(null);
+  const skippedRef = useRef(false); // 건너뛰기로 멈춘 녹음은 답변으로 저장하지 않는다
   const redoRef = useRef(false); // 끝난 뒤 한 문제만 다시 녹음 중: 그 문제가 끝나면 목록으로
 
   function clearTimer() {
@@ -195,20 +197,31 @@ export default function ToeicSpeakingExam({ onRestart }: { onRestart: () => void
       return;
     }
 
-    const t = clock();
-    setEndsAt(t + ph.sec * 1000);
-    setNow(t);
-
     if (ph.kind === "speak") {
+      // 답변 시간은 마이크가 실제로 켜진 뒤부터 센다 (켜지는 동안 초가 먼저 줄지 않게)
+      setEndsAt(null);
       beep();
-      void rec.start((blob) => {
-        if (tokenRef.current !== token) return;
-        answersRef.current = answersRef.current.map((b, i) => (i === q ? blob : b));
-        setAnswers(answersRef.current);
-        nextQuestion(q);
-      });
-      timerRef.current = window.setTimeout(() => beep(440), ph.sec * 1000);
+      void rec
+        .start((blob) => {
+          if (tokenRef.current !== token) return;
+          answersRef.current = answersRef.current.map((b, i) =>
+            i === q ? (skippedRef.current ? null : blob) : b,
+          );
+          skippedRef.current = false;
+          setAnswers(answersRef.current);
+          nextQuestion(q);
+        })
+        .then(() => {
+          if (tokenRef.current !== token) return;
+          const t = clock();
+          setEndsAt(t + ph.sec * 1000);
+          setNow(t);
+          timerRef.current = window.setTimeout(() => beep(440), ph.sec * 1000);
+        });
     } else {
+      const t = clock();
+      setEndsAt(t + ph.sec * 1000);
+      setNow(t);
       if (ph.kind === "prep") beep();
       timerRef.current = window.setTimeout(next, ph.sec * 1000);
     }
@@ -242,6 +255,21 @@ export default function ToeicSpeakingExam({ onRestart }: { onRestart: () => void
   }
 
   // 답변 중 마이크 버튼 = 지금 답변을 끝내고 바로 다음 문제
+  // 건너뛰기: 이 문제는 답하지 않고(분석에서 빠진다) 다음 문제로. 녹음 중이면 멈춰서 버린다
+  function skipCurrent() {
+    clearTimer();
+    if (rec.status === "recording") {
+      skippedRef.current = true;
+      rec.stop();
+      return;
+    }
+    tokenRef.current++;
+    if (canSpeak) speechSynthesis.cancel();
+    answersRef.current = answersRef.current.map((b, i) => (i === qi ? null : b));
+    setAnswers(answersRef.current);
+    nextQuestion(qi);
+  }
+
   function stopEarly() {
     clearTimer();
     rec.stop();
@@ -354,14 +382,7 @@ export default function ToeicSpeakingExam({ onRestart }: { onRestart: () => void
   if (stage === "intro") {
     return (
       <div className="flex flex-1 flex-col">
-        <PageHeader
-          title="토익 스피킹 모의시험"
-          action={
-            <Link to="/" className="btn btn-ghost btn-sm">
-              설정 바꾸기
-            </Link>
-          }
-        />
+        <PageHeader title="토익 스피킹 모의시험" />
         <p className="text-[0.9375rem] leading-relaxed">
           실제 시험처럼 Part 1부터 5까지 한 문제씩 이어서 진행해요. 준비 시간이 끝나면 신호음과 함께
           자동으로 녹음돼요. 답변 시간이 끝나면 알려 드리고, 버튼을 누르면 다음 문제로 넘어가요.
@@ -431,7 +452,7 @@ export default function ToeicSpeakingExam({ onRestart }: { onRestart: () => void
                 <span className="text-secondary">{it.name}</span>
               </p>
               {answerUrls[i] ? (
-                <audio src={answerUrls[i]!} controls className="mt-3 w-full" />
+                <RecordedAudio src={answerUrls[i]!} className="mt-3" />
               ) : (
                 <p className="mt-2 text-sm text-secondary">녹음된 답변이 없어 분석에서 빠져요.</p>
               )}
@@ -631,6 +652,10 @@ export default function ToeicSpeakingExam({ onRestart }: { onRestart: () => void
             )}
           </>
         )}
+
+        <button type="button" className="btn btn-ghost btn-sm" onClick={skipCurrent}>
+          {qi + 1 < items.length ? "이 문제 건너뛰기" : "건너뛰고 끝내기"}
+        </button>
 
         {rec.error && (
           <div role="alert" className="alert alert-error alert-soft w-full text-sm">

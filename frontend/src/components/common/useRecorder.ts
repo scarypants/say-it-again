@@ -77,7 +77,10 @@ export function useRecorder(maxSec = 300, { maxTotalSec = maxSec }: { maxTotalSe
   const finalize = useCallback(() => {
     setStatus("recorded");
     const all = blobsRef.current;
-    if (all.length) onRecordedRef.current?.(all[all.length - 1], all);
+    // 한 번만 부른다. 정지 버튼을 두 번 눌러도 다음 문제로 두 번 넘어가지 않게
+    const onRecorded = onRecordedRef.current;
+    onRecordedRef.current = undefined;
+    if (all.length) onRecorded?.(all[all.length - 1], all);
   }, []);
 
   // 파일 하나를 새로 녹음 (처음 시작할 때, 이어서 녹음할 때)
