@@ -206,7 +206,7 @@ export default function RecordPage() {
             <p className="min-h-5 text-sm text-secondary" role="status">
               {rec.status === "idle" &&
                 (retry
-                  ? "대안 대본을 떠올리며 처음부터 다시 발표해요"
+                  ? "다듬은 대본을 보며 처음부터 다시 발표해요"
                   : material
                     ? "자료를 보면서 말해 보세요. 버튼을 누르면 녹음이 시작돼요"
                     : `버튼을 누르면 녹음이 시작돼요. ${MAX_SEC / 60}분마다 이어서 녹음할 수 있어요`)}
