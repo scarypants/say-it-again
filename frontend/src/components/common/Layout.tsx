@@ -23,10 +23,20 @@ export default function Layout() {
           {/* 기록: 지난 연습을 이 기기(localStorage)에서 다시 본다 */}
           <button
             type="button"
-            className="btn btn-ghost btn-sm"
+            className="btn gap-1.5 px-3 text-[0.9375rem] btn-ghost"
             aria-haspopup="dialog"
             onClick={() => setHistoryOpen(true)}
           >
+            <svg viewBox="0 0 24 24" className="size-5" aria-hidden="true">
+              <path
+                d="M3 12a9 9 0 1 0 3-6.7M3 4v4h4M12 7v5l3 2"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
             기록
           </button>
         </div>
