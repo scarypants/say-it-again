@@ -148,28 +148,28 @@
           "from": 1,
           "to": 1,
           "category": "filler",
-          "reason": "군말(필러)입니다. 빼고 말해 보세요.",
+          "reason": "군말입니다. 빼고 말해 보세요.",
           "fixed": ""
         },
         {
           "from": 13,
           "to": 13,
           "category": "filler",
-          "reason": "군말(필러)입니다. 빼고 말해 보세요.",
+          "reason": "군말입니다. 빼고 말해 보세요.",
           "fixed": ""
         },
         {
           "from": 14,
           "to": 14,
           "category": "filler",
-          "reason": "군말(필러)입니다. 빼고 말해 보세요.",
+          "reason": "군말입니다. 빼고 말해 보세요.",
           "fixed": ""
         },
         {
           "from": 39,
           "to": 40,
           "category": "filler",
-          "reason": "군말(필러)입니다. 빼고 말해 보세요.",
+          "reason": "군말입니다. 빼고 말해 보세요.",
           "fixed": ""
         },
         {
@@ -291,7 +291,7 @@
           "from": 10,
           "to": 10,
           "category": "filler",
-          "reason": "군말(필러)입니다. 빼고 말해 보세요.",
+          "reason": "군말입니다. 빼고 말해 보세요.",
           "fixed": ""
         },
         {
@@ -373,7 +373,7 @@
     ]
   },
   "analysis": {
-    "score": 59,
+    "score": 75,
     "stats": {
       "wpm": 118,
       "fillerCount": 6,

@@ -20,12 +20,12 @@ export default function WordFrequency({
           {sorted.map((row) => (
             <li
               key={row.word}
-              className="grid grid-cols-[minmax(0,5rem)_minmax(0,1fr)_2.5rem] items-center gap-3 text-sm"
+              className="grid grid-cols-[minmax(0,5rem)_minmax(0,1fr)_max-content] items-center gap-3 text-sm"
             >
               <span className="min-w-0 break-words font-medium">{row.word}</span>
               <div className="h-3 overflow-hidden rounded-full bg-base-200" aria-hidden="true">
                 <div
-                  className="h-full rounded-full"
+                  className="h-full origin-left animate-bar rounded-full transition-[width,background-color] duration-300 ease-soft"
                   style={{
                     width: `${(row.count / max) * 100}%`,
                     backgroundColor: `var(--color-hl-${category})`,

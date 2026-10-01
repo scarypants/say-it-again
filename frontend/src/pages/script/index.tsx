@@ -54,7 +54,10 @@ export default function ScriptPage() {
     if (linkPart === null || linkWord === null) return;
     document
       .querySelector(`[data-word="${linkPart}:${linkWord}"]`)
-      ?.scrollIntoView({ block: "center", behavior: "smooth" });
+      ?.scrollIntoView({
+        block: "center",
+        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth",
+      });
   }, [linkPart, linkWord]);
   useEffect(() => {
     if (!selected) return;
@@ -70,7 +73,14 @@ export default function ScriptPage() {
   const counts = countByCategory(result.parts);
   // 발표·면접은 0개여도 색 설명을 다 보여 준다 (스피킹은 나온 것만)
   const legend = DISPLAY_CATEGORIES.filter((c) => counts[c] > 0 || result.mode !== "speaking");
-  const close = () => setSelected(null);
+  const close = () => {
+    if (selected) {
+      document
+        .querySelector<HTMLButtonElement>(`button[data-word="${selected.part}:${selected.first}"]`)
+        ?.focus({ preventScroll: true });
+    }
+    setSelected(null);
+  };
   const summaryButton = (
     <Link to="/summary" className="btn btn-primary btn-lg btn-block">
       총평 보기
@@ -85,7 +95,7 @@ export default function ScriptPage() {
           description={`총 ${mmss(totalDuration(result.parts))} · 색칠된 부분을 누르면 원인과 고칠 말이 나와요`}
         />
         <section className="pb-3">
-          <ul className="flex flex-wrap gap-x-4 gap-y-1.5 text-xs" aria-label="색 설명">
+          <ul className="flex flex-wrap gap-x-4 gap-y-2 text-sm" aria-label="색 설명">
             {legend.map((c) => (
               <li key={c} className="flex items-center gap-1.5" title={CATEGORY[c].desc}>
                 <span className={`h-2.5 w-2.5 rounded-full ${CATEGORY[c].dot}`} aria-hidden />
@@ -106,12 +116,12 @@ export default function ScriptPage() {
           {result.parts.map((part, pi) => (
             <section
               key={pi}
-              aria-label={partTitle(result.mode, pi, part.duration, questions?.[pi])}
+              aria-label={partTitle(result.mode, pi, part.duration, questions?.[pi], totalDuration(result.parts.slice(0, pi)))}
             >
               {(result.parts.length > 1 || result.mode !== "presentation") && (
                 <header className="mb-2 border-b border-base-300 pb-2">
                   <h2 className="text-sm font-semibold tabular-nums">
-                    {partTitle(result.mode, pi, part.duration, questions?.[pi])}
+                    {partTitle(result.mode, pi, part.duration, questions?.[pi], totalDuration(result.parts.slice(0, pi)))}
                   </h2>
                   {questionLine(questions?.[pi]) && (
                     <p className="mt-0.5 text-sm text-secondary">{questionLine(questions?.[pi])}</p>
@@ -166,7 +176,7 @@ export default function ScriptPage() {
                                     type="button"
                                     data-word={`${pi}:${run.first}`}
                                     aria-expanded={isSelected}
-                                    className={`box-decoration-clone rounded-[4px] px-1 py-0.5 text-left outline-2 outline-offset-1 transition-[outline-color] duration-150 ${
+                                    className={`box-decoration-clone rounded-[4px] px-1 py-0.5 text-left outline-2 outline-offset-1 transition-[outline-color] duration-200 ease-soft focus-visible:outline-accent ${
                                       CATEGORY[run.top.category].mark
                                     } ${isSelected ? "outline-base-content" : "outline-transparent"}`}
                                     aria-label={`${run.text} — ${[
@@ -241,7 +251,7 @@ export default function ScriptPage() {
         )}
         {!audio.length && (
           <p className="mt-3 text-xs text-secondary">
-            예시 결과라 녹음이 없어서 문장 듣기는 꺼져 있어요.
+            연결된 녹음 파일이 없어 문장 듣기를 사용할 수 없어요.
           </p>
         )}
 

@@ -1,6 +1,6 @@
-import { lazy, Suspense, useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
-import { useAnalysis, useStartRetry } from "../../store/analysis";
+import { canRetry, useAnalysis, useStartRetry } from "../../store/analysis";
 import type { AnalyzeResponse } from "../../types/api";
 import { createChartData } from "./chartData";
 import { feedbackRows } from "./feedbackRows";
@@ -10,7 +10,7 @@ import { comparablePrevious, retryReference } from "./retryComparison";
 import { totalDuration } from "../../components/common/scriptFormat";
 const FeedbackChart = lazy(() => import("./components/FeedbackChart"));
 
-const modeNames = { presentation: "발표", speaking: "어학 스피킹" };
+const modeNames = { presentation: "발표", speaking: "어학 스피킹", interview: "면접" };
 function timestamp(seconds: number) {
   const safe = Number.isFinite(seconds) ? Math.max(0, seconds) : 0;
   return `${Math.floor(safe / 60)}:${Math.floor(safe % 60)
@@ -19,8 +19,9 @@ function timestamp(seconds: number) {
 }
 
 export default function SummaryPage() {
-  const { result, previous, setPrevious } = useAnalysis();
+  const { result, previous, setPrevious, session } = useAnalysis();
   const startRetry = useStartRetry();
+  const feedbackRef = useRef<HTMLElement>(null);
   const [selection, setSelection] = useState<{
     result: AnalyzeResponse;
     category: "filler" | "repeat";
@@ -29,6 +30,14 @@ export default function SummaryPage() {
     window.scrollTo({ top: 0, behavior: "instant" });
   }, []);
   const selected = selection?.result === result ? selection.category : null;
+  useEffect(() => {
+    if (selected && !window.matchMedia("(min-width: 1024px)").matches) {
+      feedbackRef.current?.scrollIntoView({
+        block: "start",
+        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth",
+      });
+    }
+  }, [selected]);
   const chart = result ? createChartData(result) : [];
   const improvements = result && selected ? feedbackRows(result, selected) : [];
   const comparison = result ? comparablePrevious(result, previous) : null;
@@ -41,7 +50,7 @@ export default function SummaryPage() {
   return (
     <div className="flex flex-1 flex-col gap-6 pt-8 font-sans sm:gap-8">
       <header>
-        <p className="text-sm font-semibold tracking-wide text-primary">
+        <p className="text-sm font-semibold text-secondary">
           {result ? "이 녹음의 한 줄 요약" : "말하기 분석"}
         </p>
         <h1 className="mt-3 max-w-[28ch] text-[1.75rem] leading-snug font-bold tracking-tight text-balance break-keep sm:text-4xl lg:max-w-[36ch]">
@@ -66,28 +75,33 @@ export default function SummaryPage() {
         </section>
       ) : (
         <div className="grid min-w-0 gap-7 lg:grid-cols-[24rem_minmax(0,1fr)] lg:items-start lg:gap-10">
-          <div className="flex min-w-0 flex-col gap-7 lg:sticky lg:top-6 lg:max-h-[calc(100svh-3rem)] lg:overflow-y-auto lg:overscroll-contain">
+          <div className="flex min-w-0 flex-col gap-7">
             <section className="rounded-box bg-base-200" aria-labelledby="score-title">
-              <div className="flex items-center justify-between gap-4 p-6 sm:p-7">
+              <div className="flex items-center justify-between gap-3 p-5 sm:p-6">
                 <div className="flex flex-col items-start gap-2">
-                  <h2 id="score-title" className="card-title text-xl">
+                  <h2 id="score-title" className="text-lg font-bold sm:text-xl">
                     {isRetry ? "재도전 점수" : "말하기 점수"}
                   </h2>
+                  <p className="text-sm leading-relaxed text-secondary">
+                    패닉존·군말·반복 기준
+                  </p>
                   <span className="badge badge-outline">
                     {modeNames[result.mode]} · {timestamp(totalDuration(result.parts))}
                   </span>
                 </div>
                 <p className="shrink-0 tabular-nums">
-                  <span className="text-5xl font-bold sm:text-6xl">{score ?? "—"}</span>
+                  <span className="text-4xl font-bold sm:text-5xl">{score ?? "—"}</span>
                   <span className="ml-1 text-sm text-base-content/70">/ 100점</span>
                 </p>
               </div>
             </section>
             <Suspense
               fallback={
-                <p role="status" className="text-sm text-base-content/70">
-                  그래프를 준비하고 있어요.
-                </p>
+                <div role="status" className="min-h-[32rem]">
+                  <p className="text-sm text-secondary">그래프를 준비하고 있어요.</p>
+                  <div aria-hidden="true" className="skeleton mx-auto mt-4 aspect-square w-full max-w-72 rounded-full" />
+                  <div aria-hidden="true" className="skeleton mt-4 h-36 w-full rounded-box" />
+                </div>
               }
             >
               <FeedbackChart
@@ -103,14 +117,28 @@ export default function SummaryPage() {
             {isRetry && <RetryComparison previous={comparison} result={result} />}
             {selected && (
               <section
+                key={selected}
+                ref={feedbackRef}
+                id="summary-improvements"
                 aria-labelledby="improvements-title"
-                className="rounded-box border border-base-300 bg-base-100 p-5 sm:p-6"
+                className="animate-reveal scroll-mt-5 rounded-box border border-base-300 bg-base-100 p-5 sm:p-6"
               >
-                <h2 id="improvements-title" className="text-xl font-bold">
-                  {selected
-                    ? `${selected === "filler" ? "군말" : "반복"} 표현 개선안`
-                    : "색상을 눌러 개선안을 확인하세요"}
-                </h2>
+                <div className="flex items-start justify-between gap-3">
+                  <h2 id="improvements-title" className="text-xl font-bold">
+                    {selected === "filler" ? "군말" : "반복"} 표현 개선안
+                  </h2>
+                  <button
+                    type="button"
+                    className="btn btn-circle btn-ghost btn-sm shrink-0"
+                    aria-label="피드백 닫기"
+                    onClick={() => {
+                      document.getElementById(`category-${selected}`)?.focus({ preventScroll: true });
+                      setSelection(null);
+                    }}
+                  >
+                    <span aria-hidden="true" className="text-xl leading-none">×</span>
+                  </button>
+                </div>
                 {selected && (
                   <WordFrequency
                     category={selected}
@@ -157,7 +185,7 @@ export default function SummaryPage() {
                           </p>
                           <Link
                             to={`/script?part=${item.partIndex}&word=${item.word}`}
-                            className="link mt-3 inline-flex min-h-10 items-center text-sm"
+                            className="btn btn-ghost mt-3 min-h-10 text-sm text-accent"
                           >
                             대본에서 보기
                           </Link>
@@ -197,7 +225,7 @@ export default function SummaryPage() {
               )}
             </section>}
             <div className="flex flex-col gap-2 xl:flex-row">
-              {result.mode === "presentation" ? (
+              {canRetry(result, session?.questions) ? (
                 <button type="button" onClick={() => {
                   const reference = retryReference(result, previous);
                   startRetry();
@@ -206,11 +234,11 @@ export default function SummaryPage() {
                   다시, 말해
                 </button>
               ) : (
-                <Link to="/record" className="btn btn-primary btn-lg btn-block xl:flex-1">
-                  다시 말해보기
+                <Link to="/" className="btn btn-primary btn-lg btn-block xl:flex-1">
+                  처음으로
                 </Link>
               )}
-              <Link to="/script" className="btn btn-outline btn-lg btn-block xl:flex-1">
+              <Link to="/script" className="btn btn-outline btn-lg btn-block border-base-300 xl:flex-1">
                 전체 대본 보기
               </Link>
             </div>
