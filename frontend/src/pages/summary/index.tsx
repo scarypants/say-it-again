@@ -9,6 +9,7 @@ import RetryComparison from "./components/RetryComparison";
 import { comparablePrevious, retryReference } from "./retryComparison";
 import { totalDuration } from "../../components/common/scriptFormat";
 import FollowUpSummary from "./components/FollowUpSummary";
+import AnswerComments from "./components/AnswerComments";
 import { isFollowUpSummary } from "./followUp";
 const FeedbackChart = lazy(() => import("./components/FeedbackChart"));
 const FollowUpQuestions = lazy(() => import("../../components/common/FollowUpQuestions"));
@@ -232,6 +233,9 @@ export default function SummaryPage() {
               )}
             </section>}
             {isFollowUp && <FollowUpSummary result={result} questions={session?.questions} />}
+            {!isFollowUp && !result.compare && result.mode !== "presentation" && (
+              <AnswerComments result={result} questions={session?.questions} />
+            )}
             <div className="flex flex-col gap-2 xl:flex-row">
               {canRetry(result, session?.questions) ? (
                 <button type="button" onClick={() => {
