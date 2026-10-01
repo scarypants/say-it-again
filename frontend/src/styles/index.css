@@ -46,8 +46,8 @@
 @theme {
   --font-sans:
     "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-  /* 말한 내용(원고)은 바탕체 — 스크립트·예시 문장에 font-script */
-  --font-script: "Gowun Batang", "Nanum Myeongjo", serif;
+  /* 글꼴은 Pretendard 하나로 통일. font-script는 기존 클래스 호환용 별칭 */
+  --font-script: var(--font-sans);
 
   /* 하이라이트 5색 (docs/plan.md 6-1). bg-hl-panic, decoration-hl-filler 처럼 사용 */
   --color-hl-panic: #e0533d; /* 막힌 지점 */

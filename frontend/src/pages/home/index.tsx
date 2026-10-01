@@ -1,35 +1,37 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
-import { useAnalysis, type Exam } from "../../store/analysis";
+import { PRESENTATION_LEVELS } from "../../api/presentationLevels";
+import { useAnalysis, type Exam, type PresentationLevel } from "../../store/analysis";
 
-type Choice = "lecture" | "language";
+type Choice = "presentation" | "speaking";
 
 const MODES: { value: Choice; title: string; desc: string }[] = [
-  { value: "lecture", title: "발표", desc: "강의·과제 발표를 소리 내어 연습해요" },
-  { value: "language", title: "어학 스피킹", desc: "토스·오픽 질문에 영어로 답해요" },
+  { value: "presentation", title: "발표", desc: "강의·과제 발표를 소리 내어 연습해요" },
+  { value: "speaking", title: "어학 스피킹", desc: "토익 스피킹·오픽 질문에 영어로 답해요" },
 ];
 
 const EXAMS: { value: Exam; label: string }[] = [
-  { value: "toss", label: "토스" },
+  { value: "TOEIC-Speaking", label: "토익 스피킹" },
   { value: "opic", label: "오픽" },
 ];
 
-// 와이어프레임 "초기화면": 모드 선택 → (발표) 키워드 / (어학) 토스·오픽 → 시작
+// 와이어프레임 "초기화면": 모드 선택 → (발표) 발표 수준 / (어학) 토익 스피킹·오픽 → 시작
 export default function HomePage() {
   const navigate = useNavigate();
   const { settings, setSettings } = useAnalysis();
   const [mode, setMode] = useState<Choice | null>(null);
-  const [keywords, setKeywords] = useState(settings.keywords);
+  const [level, setLevel] = useState<PresentationLevel | null>(settings.level ?? null);
   const [exam, setExam] = useState<Exam | null>(settings.exam ?? null);
 
-  const ready = mode === "lecture" || (mode === "language" && exam !== null);
+  const ready =
+    (mode === "presentation" && level !== null) || (mode === "speaking" && exam !== null);
 
   function start() {
-    if (mode === "lecture") {
-      setSettings({ mode: "lecture", language: "ko", keywords: keywords.trim() });
+    if (mode === "presentation" && level) {
+      setSettings({ mode: "presentation", language: "ko", level });
       navigate("/record");
-    } else if (mode === "language" && exam) {
-      setSettings({ mode: "language", language: "en", keywords: "", exam });
+    } else if (mode === "speaking" && exam) {
+      setSettings({ mode: "speaking", language: "en", exam });
       navigate("/question");
     }
   }
@@ -75,27 +77,32 @@ export default function HomePage() {
                 </span>
               </label>
 
-              {selected && m.value === "lecture" && (
+              {selected && m.value === "presentation" && (
                 <div className="border-t border-base-300 px-4 pt-3 pb-4">
-                  <label className="flex flex-col gap-1.5">
-                    <span className="text-sm font-medium">
-                      발표 키워드
-                    </span>
-                    <input
-                      type="text"
-                      className="input w-full"
-                      placeholder="예: 학생식당, 점심 대기 시간"
-                      value={keywords}
-                      onChange={(e) => setKeywords(e.target.value)}
-                    />
-                    <span className="text-xs text-secondary">
-                      발표에 꼭 들어가야 할 단어를 쉼표로 구분해 적어요. AI가 실제 발표와 비교해 봐요.
-                    </span>
-                  </label>
+                  <span className="mb-2 block text-sm font-medium">발표 수준</span>
+                  <div className="join w-full" role="radiogroup" aria-label="발표 수준">
+                    {PRESENTATION_LEVELS.map((l) => (
+                      <button
+                        key={l.value}
+                        type="button"
+                        role="radio"
+                        aria-checked={level === l.value}
+                        className={`btn join-item flex-1 px-2 ${
+                          level === l.value ? "btn-primary" : "btn-outline border-base-300"
+                        }`}
+                        onClick={() => setLevel(l.value)}
+                      >
+                        {l.label}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="mt-2 text-xs text-secondary">
+                    어떤 자리의 발표인지에 맞춰 AI가 기준을 달리해 봐요.
+                  </p>
                 </div>
               )}
 
-              {selected && m.value === "language" && (
+              {selected && m.value === "speaking" && (
                 <div className="border-t border-base-300 px-4 pt-3 pb-4">
                   <span className="mb-2 block text-sm font-medium">시험 종류</span>
                   <div className="join w-full" role="radiogroup" aria-label="시험 종류">
@@ -128,10 +135,13 @@ export default function HomePage() {
           disabled={!ready}
           onClick={start}
         >
-          {mode === "language" ? "질문 받고 시작하기" : "녹음하러 가기"}
+          {mode === "speaking" ? "질문 받고 시작하기" : "녹음하러 가기"}
         </button>
-        {mode === "language" && !exam && (
+        {mode === "speaking" && !exam && (
           <p className="mt-2 text-center text-xs text-secondary">시험 종류를 골라 주세요</p>
+        )}
+        {mode === "presentation" && !level && (
+          <p className="mt-2 text-center text-xs text-secondary">발표 수준을 골라 주세요</p>
         )}
       </div>
     </div>

@@ -1,14 +1,19 @@
 import { useRef, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { analyze, audioFileName } from "../../api/client";
+import { LEVEL_LABEL } from "../../api/presentationLevels";
+import AnalyzingView from "../../components/common/AnalyzingView";
+import LevelBars from "../../components/common/LevelBars";
 import MicButton from "../../components/common/MicButton";
+import { useLeaveGuard } from "../../components/common/useLeaveGuard";
+import { useRecorder } from "../../components/common/useRecorder";
 import { useAnalysis } from "../../store/analysis";
-import LevelBars from "./LevelBars";
-import { isMaterialFile, MATERIAL_ACCEPT } from "./material";
+import { isPdf, MATERIAL_ACCEPT } from "./material";
 import MaterialPreview from "./MaterialPreview";
-import { useRecorder } from "./useRecorder";
 
-const MAX_SEC = 300;
+const MAX_SEC = 300; // 파일 하나 5분. 다 되면 잠깐 멈추고 새 파일로 이어서 녹음할지 고른다
+const MAX_FILES = 5;
+const MAX_TOTAL_SEC = MAX_SEC * MAX_FILES; // 최대 25분
 
 function mmss(sec: number) {
   const s = Math.floor(sec);
@@ -19,40 +24,37 @@ function mmss(sec: number) {
 export default function RecordPage() {
   const navigate = useNavigate();
   const { settings, setResult } = useAnalysis();
-  const rec = useRecorder(MAX_SEC);
+  const rec = useRecorder(MAX_SEC, { maxTotalSec: MAX_TOTAL_SEC });
   const [material, setMaterial] = useState<File | null>(null);
   const [materialError, setMaterialError] = useState<string | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
   const [analyzeError, setAnalyzeError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  // 녹음을 시작한 뒤에는 다른 화면으로 가기 전에 확인
+  const leaveGuard = useLeaveGuard(rec.status !== "idle");
 
-  // 발표 자료는 PDF·PPT만
+  // 발표 자료는 PDF만
   function pickMaterial(file: File | null) {
     if (fileRef.current) fileRef.current.value = ""; // 같은 파일을 다시 골라도 반응하게
-    if (file && !isMaterialFile(file)) {
-      setMaterialError("발표 자료는 PDF나 PPT 파일만 올릴 수 있어요.");
+    if (file && !isPdf(file)) {
+      setMaterialError(
+        "발표 자료는 PDF 파일만 올릴 수 있어요. PowerPoint는 PDF로 저장해서 올려 주세요.",
+      );
       return;
     }
     setMaterialError(null);
     setMaterial(file);
   }
 
-  const keywords = settings.keywords
-    .split(",")
-    .map((k) => k.trim())
-    .filter(Boolean);
-
-  async function runAnalyze() {
-    if (!rec.blob) return;
+  async function runAnalyze(audio: Blob[]) {
     setAnalyzing(true);
     setAnalyzeError(null);
     try {
       const result = await analyze({
-        audio: rec.blob,
+        audio,
         mode: settings.mode,
         language: settings.language,
-        keywords: settings.keywords || undefined,
-        material: material ?? undefined,
+        level: settings.level,
       });
       setResult(result);
       navigate("/script");
@@ -62,40 +64,29 @@ export default function RecordPage() {
     }
   }
 
-  if (analyzing) {
+  if (analyzing)
     return (
-      <div className="flex flex-1 flex-col items-center justify-center gap-5 text-center">
-        <span className="loading loading-dots loading-lg text-primary" />
-        <div>
-          <p className="text-lg font-semibold">녹음을 분석하고 있어요</p>
-          <p className="mt-2 text-sm leading-relaxed text-secondary">
-            말을 글로 옮기고, 막힌 구간과 그 이유를 찾는 중이에요.
-            <br />
-            보통 30초 안팎 걸려요.
-          </p>
-        </div>
-      </div>
+      <>
+        <AnalyzingView />
+        {leaveGuard}
+      </>
     );
-  }
 
   const recording = rec.status === "recording";
+  const paused = rec.status === "paused";
+  const remaining = rec.limit - rec.elapsed;
 
   return (
     <div className="flex flex-1 flex-col">
+      {leaveGuard}
       <section className="flex items-start justify-between gap-3 pt-2 pb-4">
         <div className="min-w-0">
           <h1 className="text-xl font-bold">발표 연습</h1>
-          {keywords.length > 0 && (
-            <ul className="mt-2 flex flex-wrap gap-1.5" aria-label="발표 키워드">
-              {keywords.map((k) => (
-                <li key={k} className="badge badge-outline border-base-300 badge-sm">
-                  {k}
-                </li>
-              ))}
-            </ul>
+          {settings.level && (
+            <p className="mt-0.5 text-sm text-secondary">{LEVEL_LABEL[settings.level]}</p>
           )}
         </div>
-        {!recording && (
+        {!recording && !paused && (
           <Link to="/" className="btn btn-ghost btn-sm shrink-0">
             설정 바꾸기
           </Link>
@@ -125,30 +116,56 @@ export default function RecordPage() {
           {mmss(rec.elapsed)}
         </p>
 
-        {rec.status !== "recorded" && !material && <LevelBars levels={rec.levels} />}
+        {rec.status !== "recorded" && !paused && !material && <LevelBars levels={rec.levels} />}
 
-        {rec.status === "recorded" && rec.url ? (
+        {rec.status === "recorded" && rec.urls.length > 0 ? (
           <div className="flex w-full flex-col items-center gap-3">
-            <audio src={rec.url} controls className="w-full" />
+            {rec.urls.length === 1 ? (
+              <audio src={rec.urls[0]} controls className="w-full" />
+            ) : (
+              // 5분짜리 파일 여러 개: 녹음 순서대로, 각 파일이 전체에서 몇 분 몇 초 구간인지
+              <ol className="flex w-full flex-col gap-2" aria-label="녹음 파일">
+                {rec.urls.map((u, i) => (
+                  <li key={u} className="flex flex-col gap-1">
+                    <div className="flex items-center justify-between text-xs text-secondary tabular-nums">
+                      <span>
+                        {mmss(i * MAX_SEC)} –{" "}
+                        {mmss(i === rec.urls.length - 1 ? rec.elapsed : (i + 1) * MAX_SEC)}
+                      </span>
+                      <a
+                        href={u}
+                        download={`part${i + 1}-${audioFileName(rec.blobs[i])}`}
+                        className="link link-hover"
+                      >
+                        파일 저장
+                      </a>
+                    </div>
+                    <audio src={u} controls className="w-full" />
+                  </li>
+                ))}
+              </ol>
+            )}
             <div className="flex gap-2">
               <button type="button" className="btn btn-ghost btn-sm" onClick={rec.reset}>
                 다시 녹음
               </button>
-              <a
-                href={rec.url}
-                download={rec.blob ? audioFileName(rec.blob) : "recording.webm"}
-                className="btn btn-ghost btn-sm"
-              >
-                파일 저장
-              </a>
+              {rec.urls.length === 1 && rec.blob && (
+                <a
+                  href={rec.urls[0]}
+                  download={audioFileName(rec.blob)}
+                  className="btn btn-ghost btn-sm"
+                >
+                  파일 저장
+                </a>
+              )}
             </div>
           </div>
-        ) : (
+        ) : paused ? null : (
           <MicButton
             size={material ? "md" : "lg"}
             recording={recording}
             disabled={rec.status === "requesting"}
-            onClick={recording ? rec.stop : rec.start}
+            onClick={recording ? rec.stop : () => void rec.start()}
           />
         )}
 
@@ -156,9 +173,16 @@ export default function RecordPage() {
           {rec.status === "idle" &&
             (material
               ? "자료를 보면서 말해 보세요. 버튼을 누르면 녹음이 시작돼요"
-              : `버튼을 누르면 녹음이 시작돼요. 최대 ${MAX_SEC / 60}분`)}
+              : `버튼을 누르면 녹음이 시작돼요. ${MAX_SEC / 60}분마다 이어서 녹음할 수 있어요`)}
           {rec.status === "requesting" && "마이크 권한을 허용해 주세요"}
-          {recording && "다 말했으면 버튼을 눌러 멈춰요"}
+          {recording &&
+            (remaining <= 30 && rec.limit < MAX_TOTAL_SEC
+              ? `${Math.ceil(remaining)}초 뒤 잠깐 멈춰요. 이어서 녹음할 수 있어요`
+              : remaining <= 30
+                ? `최대 ${MAX_TOTAL_SEC / 60}분이에요. ${Math.ceil(remaining)}초 뒤 녹음이 끝나요`
+                : "다 말했으면 버튼을 눌러 멈춰요")}
+          {paused &&
+            `${rec.limit / 60}분이 지나 잠깐 멈췄어요. 이어서 녹음하면 새 파일로 저장돼요 (${rec.blobs.length}/${MAX_FILES})`}
           {rec.status === "recorded" && "들어 보고 괜찮으면 분석을 시작해요"}
         </p>
 
@@ -174,7 +198,7 @@ export default function RecordPage() {
         {!material && rec.status === "idle" && (
           <>
             <p className="text-center text-xs text-secondary">
-              발표 자료를 먼저 올리면 화면에 띄워 놓고 보면서 녹음할 수 있어요
+              PDF 발표 자료를 먼저 올리면 화면에 띄워 놓고 보면서 녹음할 수 있어요
             </p>
             <input
               ref={fileRef}
@@ -192,8 +216,31 @@ export default function RecordPage() {
             </button>
           </>
         )}
-        {rec.status === "recorded" && (
-          <button type="button" className="btn btn-primary btn-lg btn-block" onClick={runAnalyze}>
+        {/* 5분이 다 되면: 새 파일로 이어서 녹음하거나, 여기까지 바로 분석 */}
+        {paused && (
+          <div className="flex gap-2">
+            <button
+              type="button"
+              className="btn btn-outline btn-lg flex-1 border-base-300"
+              onClick={rec.resume}
+            >
+              이어서 녹음하기
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary btn-lg flex-1"
+              onClick={() => rec.finish((_, all) => void runAnalyze(all))}
+            >
+              분석하기
+            </button>
+          </div>
+        )}
+        {rec.status === "recorded" && rec.blobs.length > 0 && (
+          <button
+            type="button"
+            className="btn btn-primary btn-lg btn-block"
+            onClick={() => void runAnalyze(rec.blobs)}
+          >
             {analyzeError ? "다시 분석하기" : "분석하기"}
           </button>
         )}

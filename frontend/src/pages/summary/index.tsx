@@ -9,7 +9,7 @@ const FeedbackChart = lazy(() => import("./components/FeedbackChart"));
 
 const sampleResult = sample as unknown as AnalyzeResponse;
 const canLoadSample = import.meta.env.DEV || import.meta.env.VITE_USE_MOCK === "true";
-const modeNames = { lecture: "발표", language: "어학 스피킹", interview: "면접" };
+const modeNames = { presentation: "발표", speaking: "어학 스피킹", interview: "면접" };
 function timestamp(seconds: number) {
   const safe = Number.isFinite(seconds) ? Math.max(0, seconds) : 0;
   return `${Math.floor(safe / 60)}:${Math.floor(safe % 60)

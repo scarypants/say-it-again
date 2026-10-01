@@ -1,9 +1,9 @@
 import { createContext, useContext } from "react";
-import type { AnalyzeResponse, Lang, Mode } from "../types/api";
+import type { AnalyzeResponse, Exam, Lang, Mode, PresentationLevel } from "../types/api";
 
-export type Exam = "toss" | "opic"; // 어학 모드: 토익 스피킹 / 오픽
+export type { Exam, PresentationLevel } from "../types/api";
 
-export type Settings = { mode: Mode; language: Lang; keywords: string; exam?: Exam };
+export type Settings = { mode: Mode; language: Lang; level?: PresentationLevel; exam?: Exam };
 
 type AnalysisState = {
   settings: Settings;
