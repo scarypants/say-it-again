@@ -131,24 +131,10 @@ export type RetryResponse = AnalyzeResponse & {
   retry?: Retry;
 };
 
-// ---- POST /api/interview/questions (면접 질문 생성) ----
-
-/** 질문 5개 = 유형 5개, 이 순서로 하나씩 */
-export type InterviewQuestionType = 'intro' | 'motivation' | 'job' | 'experience' | 'closing';
-
-export type InterviewQuestionsRequest = {
-  language: Language; // 질문 언어 = 답변 언어
-  job: string; // 지원 직무 (자유 입력, 앞뒤 공백 제거 후 1~50자)
-};
-
-export type InterviewQuestionsResponse = {
-  language: Language;
-  job: string;
-  questions: { type: InterviewQuestionType; text: string }[]; // 항상 5개: intro → motivation → job → experience → closing
-  warnings?: string[]; // LLM 실패 시 ["llm_failed"] + 기본 질문
-};
-
 // ---- POST /api/questions (질문 생성: 처음 질문 · 꼬리질문) ----
+
+/** 면접 처음 질문 5개 = 유형 5개, 이 순서로 하나씩 */
+export type InterviewQuestionType = 'intro' | 'motivation' | 'job' | 'experience' | 'closing';
 
 export type QuestionKind = 'initial' | 'followUp';
 

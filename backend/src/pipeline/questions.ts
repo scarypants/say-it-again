@@ -92,7 +92,23 @@ function toeicPrompt(part: ToeicPart, lines: string[]): string {
 }
 
 const opinionText = (statement: string) =>
-  `Do you agree or disagree with the following statement? ${statement} Use specific reasons and examples to support your answer.`;
+  `Do you agree or disagree with the following statement? ${toStatement(statement)} Use specific reasons and examples to support your answer.`;
+
+/**
+ * LLM이 진술 자리에 질문 문장을 통째로 넣어도 감싼 문구가 두 번 나오지 않게 진술만 남긴다.
+ * 예: "Do you agree or disagree that students should …?" → "Students should …."
+ */
+function toStatement(text: string): string {
+  let s = text
+    .trim()
+    .replace(/^do you agree or disagree\b(?: with)?(?: (?:the|this)(?: following)? statement)?(?: that)?\s*[?:.,]?\s*/i, '')
+    .replace(/\s*use specific reasons and examples to support your answer\.?$/i, '')
+    .trim();
+  if (!s) return text.trim();
+  s = s.replace(/^["']|["']$/g, '').trim();
+  s = s[0].toUpperCase() + s.slice(1);
+  return /[.!?]$/.test(s) ? s.replace(/\?$/, '.') : `${s}.`;
+}
 
 /** 비어 있으면 실패로 본다 (질문 하나라도 비면 시험이 성립하지 않으므로 전체를 llm_failed로) */
 function required(value: string | undefined, what: string): string {
@@ -241,7 +257,9 @@ function toFollowUp(input: FollowUpQuestionsRequest, q: FollowUpOutput['question
     return { type: 'expected', text, prompt: `Presentation Q&A ${n}\nQuestion: ${text}`, ...extra };
   }
   if (input.mode === 'interview') {
-    const head = `Interview Follow-up ${n}${about !== undefined ? ` (about Q${about + 1})` : ''}`;
+    // 머리말 번호는 answers 순서가 아니라 원래 질문 번호 (건너뛴 질문이 있어도 맞도록)
+    const qn = about !== undefined ? (/Q(\d+)/.exec(input.answers[about].question ?? '')?.[1] ?? about + 1) : undefined;
+    const head = `Interview Follow-up ${n}${qn !== undefined ? ` (about Q${qn})` : ''}`;
     const prompt = [head, input.job ? `Job: ${input.job}` : '', `Question: ${text}`].filter(Boolean).join('\n');
     return { type: 'followUp', text, prompt, ...extra };
   }

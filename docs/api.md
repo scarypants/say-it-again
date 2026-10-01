@@ -445,7 +445,7 @@ type Retry = {
   - 발표: 발표를 마친 뒤 **청중(학우·교수님 등 누구나)에게 받을 법한 예상 질문**과 답변 방향(`hint`)
   - 스피킹: 같은 시험 형식의 **추가 연습 질문** (토익은 그림·표가 필요 없는 Part 3·5 형식, 오픽은 같은 주제의 연관 질문)
   - 면접: 답변 내용을 파고드는 **꼬리질문** (어느 답변에서 나온 질문인지 `about`)
-- 기존 `POST /api/interview/questions`는 이 API(`kind: "initial"`, `mode: "interview"`)로 대체한다. 프론트가 옮길 때까지 같은 동작으로 남겨 두고, 옮긴 뒤 삭제한다.
+- 예전 `POST /api/interview/questions`는 이 API(`kind: "initial"`, `mode: "interview"`)로 대체되어 삭제했다.
 
 ### 요청
 
@@ -516,7 +516,7 @@ type Question = {
   topic?: { id: string; label: string };  // 처음 질문의 묘사·루틴·경험·롤플레이
   // 꼬리질문
   hint?: string;             // 발표: 답변 방향 한 줄 / 면접: 이 질문의 의도 한 줄 (한국어)
-  about?: number;            // 면접·스피킹 꼬리질문: 이어지는 답변 번호(answers 기준, 0부터)
+  about?: number;            // 면접·스피킹 꼬리질문: 이어지는 답변 번호(answers 기준, 0부터). 면접 prompt 머리말의 QM은 이 답변의 원래 질문 번호
 };
 ```
 
@@ -686,7 +686,7 @@ type QuestionImageResponse = {
     "Interview Q2 (Motivation)\nJob: 백엔드 개발자\nQuestion: 백엔드 개발자 직무에 지원한 이유는 무엇인가요?"
   ]
   ```
-- 꼬리질문은 머리말만 다르다: 면접 `Interview Follow-up N (about QM)`, 오픽 `OPIc Follow-up N (topic: …)`, 토익 `TOEIC Speaking Part 3/5 (…)` (처음 질문과 같은 형식), 발표 예상 질문 `Presentation Q&A N`.
+- 꼬리질문은 머리말만 다르다: 면접 `Interview Follow-up N (about QM)` (M은 `answers[about].question`의 원래 질문 번호. 없으면 `about + 1`), 오픽 `OPIc Follow-up N (topic: …)`, 토익 `TOEIC Speaking Part 3/5 (…)` (처음 질문과 같은 형식), 발표 예상 질문 `Presentation Q&A N`.
 
 ### 검증
 - `mode`와 `language` 조합: 발표·면접은 `ko`·`en`, 스피킹은 `en`만 허용한다.

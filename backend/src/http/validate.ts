@@ -16,7 +16,6 @@ import type {
   Exam,
   FollowUpQuestionsRequest,
   InitialQuestionsRequest,
-  InterviewQuestionsRequest,
   Level,
   Line,
   OpicTopic,
@@ -128,13 +127,6 @@ function parseModeInfo(body: Record<string, unknown>, count: number): ModeInfo {
   }
 
   throw new HttpError(400, 'mode가 올바르지 않습니다.');
-}
-
-/** POST /api/interview/questions (JSON): 언어와 지원 직무(자유 입력)를 검증한다. 실패하면 400. */
-export function parseInterviewQuestionsRequest(req: Request): InterviewQuestionsRequest {
-  const { language, job } = (req.body ?? {}) as Record<string, unknown>;
-  if (language !== 'ko' && language !== 'en') throw new HttpError(400, 'language는 ko 또는 en이어야 합니다.');
-  return { language, job: parseJob(job) };
 }
 
 /** 지원 직무: 줄바꿈 등은 공백 하나로 (질문 문자열·프롬프트 안에 한 줄로 들어간다), 1~MAX_JOB_LENGTH자 */
