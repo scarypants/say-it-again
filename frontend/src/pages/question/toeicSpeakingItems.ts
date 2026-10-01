@@ -8,7 +8,7 @@ export type Phase =
 
 export type ScheduleRow = { time: string; session: string; speaker: string };
 
-export type TossItem = {
+export type ToeicSpeakingItem = {
   part: 1 | 2 | 3 | 4 | 5;
   name: string; // 화면 표시용 한글 이름
   directions: string;
@@ -20,7 +20,7 @@ export type TossItem = {
   phases: Phase[];
 };
 
-export const TOSS_ITEMS: TossItem[] = [
+export const TOEIC_SPEAKING_ITEMS: ToeicSpeakingItem[] = [
   {
     part: 1,
     name: "지문 읽기",
@@ -101,7 +101,7 @@ export const TOSS_ITEMS: TossItem[] = [
 ];
 
 // 백엔드(LLM)에 넘길 질문 문장. 사진·자료처럼 화면에만 있는 정보도 글로 풀어 넣는다
-export function tossQuestionText(item: TossItem) {
+export function toeicSpeakingQuestionText(item: ToeicSpeakingItem) {
   const parts = [`TOEIC Speaking Part ${item.part} (${item.name})`];
   if (item.context) parts.push(`Situation: ${item.context}`);
   if (item.picture === "cafeteria")

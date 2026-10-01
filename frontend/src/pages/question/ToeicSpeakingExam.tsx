@@ -7,7 +7,12 @@ import MicButton from "../../components/common/MicButton";
 import { useRecorder } from "../../components/common/useRecorder";
 import { useAnalysis } from "../../store/analysis";
 import CafeteriaScene from "./CafeteriaScene";
-import { TOSS_ITEMS, tossQuestionText, type Phase, type TossItem } from "./tossItems";
+import {
+  TOEIC_SPEAKING_ITEMS,
+  toeicSpeakingQuestionText,
+  type Phase,
+  type ToeicSpeakingItem,
+} from "./toeicSpeakingItems";
 
 const PHASE_LABEL: Record<Phase["kind"], string> = {
   read: "자료 읽기",
@@ -23,7 +28,7 @@ function mmss(sec: number) {
   return `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
 }
 
-function totalSec(item: TossItem, kind: "prep" | "speak") {
+function totalSec(item: ToeicSpeakingItem, kind: "prep" | "speak") {
   const p = item.phases.find((x) => x.kind === kind);
   return p && "sec" in p ? p.sec : 0;
 }
@@ -32,7 +37,7 @@ type Stage = "intro" | "running" | "done";
 
 // 토익 스피킹 모의시험: 질문 듣기/보기 → 준비 → 자동 녹음 → 시간이 지나면 자동으로 다음 문제.
 // 답변 중 마이크 버튼을 누르면 바로 다음 문제. 이전 문제로는 돌아갈 수 없다.
-export default function TossExam() {
+export default function ToeicSpeakingExam() {
   const navigate = useNavigate();
   const { setResult } = useAnalysis();
   const rec = useRecorder(3600); // 답변 시간은 이 화면이 직접 끊는다
@@ -42,7 +47,9 @@ export default function TossExam() {
   const [phase, setPhase] = useState<Phase | null>(null);
   const [endsAt, setEndsAt] = useState<number | null>(null);
   const [now, setNow] = useState(() => Date.now());
-  const [answers, setAnswers] = useState<(Blob | null)[]>(() => TOSS_ITEMS.map(() => null));
+  const [answers, setAnswers] = useState<(Blob | null)[]>(() =>
+    TOEIC_SPEAKING_ITEMS.map(() => null),
+  );
   const [answerUrls, setAnswerUrls] = useState<(string | null)[]>([]);
   const [startError, setStartError] = useState<string | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
@@ -106,14 +113,14 @@ export default function TossExam() {
   }
 
   function nextQuestion(q: number) {
-    if (q + 1 < TOSS_ITEMS.length) runPhase(q + 1, 0);
+    if (q + 1 < TOEIC_SPEAKING_ITEMS.length) runPhase(q + 1, 0);
     else finishExam();
   }
 
   function runPhase(q: number, p: number) {
     clearTimer();
     const token = ++tokenRef.current;
-    const item = TOSS_ITEMS[q];
+    const item = TOEIC_SPEAKING_ITEMS[q];
     const ph = item.phases[p];
     if (!ph) return nextQuestion(q);
 
@@ -181,14 +188,14 @@ export default function TossExam() {
 
   // 질문과 답변을 모두 한 번에 백엔드로 (녹음이 없는 문제는 빼고 순서 유지)
   async function runAnalyze() {
-    const pairs = TOSS_ITEMS.flatMap((it, i) =>
-      answers[i] ? [{ question: tossQuestionText(it), audio: answers[i]! }] : [],
+    const pairs = TOEIC_SPEAKING_ITEMS.flatMap((it, i) =>
+      answers[i] ? [{ question: toeicSpeakingQuestionText(it), audio: answers[i]! }] : [],
     );
     if (pairs.length === 0) return;
     setAnalyzing(true);
     setAnalyzeError(null);
     try {
-      const result = await analyzeSpeaking({ exam: "toss", answers: pairs });
+      const result = await analyzeSpeaking({ exam: "TOEIC-Speaking", answers: pairs });
       setResult(result);
       navigate("/script");
     } catch (err) {
@@ -232,7 +239,7 @@ export default function TossExam() {
           자동으로 녹음되고, 답변 시간이 지나면 다음 문제로 넘어가요.
         </p>
         <ol className="mt-5 divide-y divide-base-300 rounded-box border border-base-300">
-          {TOSS_ITEMS.map((it) => (
+          {TOEIC_SPEAKING_ITEMS.map((it) => (
             <li key={it.part} className="flex items-center justify-between gap-3 px-4 py-3">
               <span>
                 <span className="font-semibold">Part {it.part}</span>{" "}
@@ -274,7 +281,7 @@ export default function TossExam() {
           </p>
         </section>
         <ul className="flex flex-col gap-3">
-          {TOSS_ITEMS.map((it, i) => (
+          {TOEIC_SPEAKING_ITEMS.map((it, i) => (
             <li key={it.part} className="rounded-box border border-base-300 p-4">
               <p>
                 <span className="font-semibold">Part {it.part}</span>{" "}
@@ -321,7 +328,7 @@ export default function TossExam() {
     );
   }
 
-  const item = TOSS_ITEMS[qi];
+  const item = TOEIC_SPEAKING_ITEMS[qi];
   const kind = phase?.kind;
   const remaining = endsAt ? (endsAt - now) / 1000 : null;
   const phaseTotal = phase && "sec" in phase ? phase.sec : 0;
@@ -333,7 +340,7 @@ export default function TossExam() {
       {/* 진행 표시: 순서대로만 진행되므로 누를 수 없다 */}
       <div className="flex items-center gap-3 pt-2 pb-3">
         <div className="flex flex-1 gap-1" aria-hidden>
-          {TOSS_ITEMS.map((_, i) => (
+          {TOEIC_SPEAKING_ITEMS.map((_, i) => (
             <span
               key={i}
               className={`h-1.5 flex-1 rounded-full ${i <= qi ? "bg-primary" : "bg-base-300"}`}
@@ -341,7 +348,7 @@ export default function TossExam() {
           ))}
         </div>
         <span className="text-sm tabular-nums text-secondary">
-          {qi + 1} / {TOSS_ITEMS.length}
+          {qi + 1} / {TOEIC_SPEAKING_ITEMS.length}
         </span>
       </div>
 

@@ -6,15 +6,15 @@ type Choice = "lecture" | "language";
 
 const MODES: { value: Choice; title: string; desc: string }[] = [
   { value: "lecture", title: "발표", desc: "강의·과제 발표를 소리 내어 연습해요" },
-  { value: "language", title: "어학 스피킹", desc: "토스·오픽 질문에 영어로 답해요" },
+  { value: "language", title: "어학 스피킹", desc: "토익 스피킹·오픽 질문에 영어로 답해요" },
 ];
 
 const EXAMS: { value: Exam; label: string }[] = [
-  { value: "toss", label: "토스" },
+  { value: "TOEIC-Speaking", label: "토익 스피킹" },
   { value: "opic", label: "오픽" },
 ];
 
-// 와이어프레임 "초기화면": 모드 선택 → (발표) 키워드 / (어학) 토스·오픽 → 시작
+// 와이어프레임 "초기화면": 모드 선택 → (발표) 키워드 / (어학) 토익 스피킹·오픽 → 시작
 export default function HomePage() {
   const navigate = useNavigate();
   const { settings, setSettings } = useAnalysis();
@@ -78,9 +78,7 @@ export default function HomePage() {
               {selected && m.value === "lecture" && (
                 <div className="border-t border-base-300 px-4 pt-3 pb-4">
                   <label className="flex flex-col gap-1.5">
-                    <span className="text-sm font-medium">
-                      발표 키워드
-                    </span>
+                    <span className="text-sm font-medium">발표 키워드</span>
                     <input
                       type="text"
                       className="input w-full"
@@ -89,7 +87,8 @@ export default function HomePage() {
                       onChange={(e) => setKeywords(e.target.value)}
                     />
                     <span className="text-xs text-secondary">
-                      발표에 꼭 들어가야 할 단어를 쉼표로 구분해 적어요. AI가 실제 발표와 비교해 봐요.
+                      발표에 꼭 들어가야 할 단어를 쉼표로 구분해 적어요. AI가 실제 발표와 비교해
+                      봐요.
                     </span>
                   </label>
                 </div>

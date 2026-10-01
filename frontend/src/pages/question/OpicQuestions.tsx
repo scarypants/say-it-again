@@ -8,7 +8,7 @@ import MicButton from "../../components/common/MicButton";
 import { useRecorder } from "../../components/common/useRecorder";
 import { useAnalysis } from "../../store/analysis";
 
-const EXAM_NAME = { toss: "토익 스피킹", opic: "오픽" } as const;
+const EXAM_NAME = { "TOEIC-Speaking": "토익 스피킹", opic: "오픽" } as const;
 
 function mmss(sec: number) {
   const s = Math.floor(sec);

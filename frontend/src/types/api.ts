@@ -11,7 +11,7 @@ export type AnalyzeRequest = {
   material?: File;
 };
 
-export type Exam = "toss" | "opic"; // 토익 스피킹 / 오픽
+export type Exam = "TOEIC-Speaking" | "opic"; // 토익 스피킹 / 오픽
 
 // 어학 스피킹 분석 요청: 질문과 답변 녹음을 같은 순서로 한 번에
 export type SpeakingAnalyzeRequest = {
