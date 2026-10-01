@@ -12,10 +12,23 @@ const USE_MOCK = import.meta.env.VITE_USE_MOCK === "true";
 // 녹음 형식에 맞는 확장자 (Safari는 mp4, 그 외 webm)
 export function audioFileName(blob: Blob) {
   // 올린 파일은 원래 확장자를 쓴다 (서버·whisper가 확장자로 형식을 본다)
-  const own = blob instanceof File ? blob.name.match(/.(w+)$/)?.[1]?.toLowerCase() : undefined;
+  const own = blob instanceof File ? blob.name.match(/\.(\w+)$/)?.[1]?.toLowerCase() : undefined;
   const ext =
     own ?? (blob.type.includes("mp4") ? "mp4" : blob.type.includes("ogg") ? "ogg" : "webm");
   return `recording.${ext}`;
+}
+
+// 안드로이드 녹음 앱의 .m4a는 속이 3gp 형식(ftyp 3gp4)이라 whisper가 거절한다.
+// 오디오는 같은 AAC라서 앞의 형식 표시만 M4A로 바꾸면 읽힌다
+async function fix3gp(blob: Blob): Promise<Blob> {
+  const head = new Uint8Array(await blob.slice(0, 24).arrayBuffer());
+  const brand = String.fromCharCode(...head.slice(8, 11));
+  if (brand !== "3gp") return blob;
+  const m4a = [0x4d, 0x34, 0x41, 0x20]; // "M4A "
+  head.set(m4a, 8);
+  head.set([0x69, 0x73, 0x6f, 0x6d], 16); // "isom"
+  if (head.length >= 24) head.set(m4a, 20);
+  return new Blob([head, blob.slice(24)], { type: "audio/mp4" });
 }
 
 // [1] 녹음 → 문장 단위 대본. audio 필드를 녹음 순서대로 여러 번 붙인다 (서버는 붙인 순서를 파트 순서로 씀)
@@ -29,7 +42,10 @@ export async function transcribe(req: TranscribeRequest): Promise<TranscribeResp
   if (req.exam) form.append("exam", req.exam);
   if (req.questions) form.append("questions", JSON.stringify(req.questions));
   const prefix = req.mode === "speaking" ? "q" : "part";
-  req.audio.forEach((a, i) => form.append("audio", a, `${prefix}${i + 1}-${audioFileName(a)}`));
+  const audio = await Promise.all(req.audio.map(fix3gp));
+  audio.forEach((a, i) =>
+    form.append("audio", a, `${prefix}${i + 1}-${audioFileName(req.audio[i])}`),
+  );
 
   return post<TranscribeResponse>("/api/transcribe", { method: "POST", body: form });
 }
