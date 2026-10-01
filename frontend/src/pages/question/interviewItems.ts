@@ -2,7 +2,6 @@
 // 순서: Q1 자기소개 → Q2~4 지원 동기·직무·경험·인성 → Q5 마무리
 import type { InterviewQuestion, InterviewQuestionType } from "../../types/api";
 
-export const PREP_SEC = 15; // 질문을 보고 생각할 시간. 지나면 신호음과 함께 녹음
 export const ANSWER_GOAL_SEC = 60; // 권장 답변 시간 (면접 답변은 1분 안팎)
 export const ANSWER_MAX_SEC = 120; // 넘으면 자동으로 다음 질문. 서버 상한이 답변당 2분
 export const JOB_MAX_LENGTH = 50; // 지원 직무 입력 길이 상한

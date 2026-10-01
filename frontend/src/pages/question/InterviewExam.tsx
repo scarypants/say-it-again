@@ -16,15 +16,12 @@ import {
   ANSWER_MAX_SEC,
   interviewQuestionText,
   interviewTypeName,
-  PREP_SEC,
 } from "./interviewItems";
 
 type Stage = "setup" | "running" | "done";
-// prep: 질문을 보고 생각하는 시간 / speak: 답변 녹음
-type Phase = "prep" | "speak";
 
 // 면접 모의 연습 (#76): 화면을 열면 백엔드가 지원 직무에 맞춘 질문 5개를 만든다.
-// 질문을 화면에 보여 주고 → 준비 시간 → 신호음과 함께 자동 녹음.
+// 질문을 화면에 보여 주자마자 신호음과 함께 자동 녹음 (생각할 시간 없음). 어려운 질문은 건너뛸 수 있다.
 // 다 말하면 버튼으로 다음 질문. 다섯 질문이 끝나면 한 번에 대본으로 만든다.
 // onRestart: 음성이 감지되지 않았을 때 처음부터 다시 (부모가 새로 그린다)
 export default function InterviewExam({ onRestart }: { onRestart: () => void }) {
@@ -40,26 +37,18 @@ export default function InterviewExam({ onRestart }: { onRestart: () => void }) 
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [qi, setQi] = useState(0);
-  const [phase, setPhase] = useState<Phase>("prep");
-  const [prepEndsAt, setPrepEndsAt] = useState<number | null>(null);
-  const [now, setNow] = useState(() => Date.now());
   const [answers, setAnswers] = useState<(Blob | null)[]>([]);
   const [answerUrls, setAnswerUrls] = useState<(string | null)[]>([]);
   const [startError, setStartError] = useState<string | null>(null);
   const tx = useTranscribe(); // 녹음 → 대본 → 검토 화면
   const leaveGuard = useLeaveGuard(stage !== "setup", "지금까지 녹음한 답변이 모두 사라져요.");
 
-  const timerRef = useRef<number | null>(null);
+  const skippedRef = useRef(false); // 건너뛰기로 멈춘 녹음은 답변으로 저장하지 않는다
   const tokenRef = useRef(0); // 질문·단계가 바뀌면 이전 콜백(타이머·녹음 종료)을 무시
   const itemsRef = useRef<InterviewQuestion[]>([]);
   const answersRef = useRef<(Blob | null)[]>([]);
   const urlsRef = useRef<string[]>([]);
   const beepCtxRef = useRef<AudioContext | null>(null);
-
-  function clearTimer() {
-    if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = null;
-  }
 
   function beep() {
     const ctx = beepCtxRef.current;
@@ -75,7 +64,6 @@ export default function InterviewExam({ onRestart }: { onRestart: () => void }) 
   }
 
   function finish() {
-    clearTimer();
     tokenRef.current++;
     const urls = answersRef.current.map((b) => (b ? URL.createObjectURL(b) : null));
     urlsRef.current = urls.filter((u): u is string => u !== null);
@@ -88,31 +76,33 @@ export default function InterviewExam({ onRestart }: { onRestart: () => void }) 
     else finish();
   }
 
-  function startSpeaking(q: number) {
-    clearTimer();
+  // 건너뛰기: 이 질문의 답변은 비워 두고(분석에서 빠진다) 다음 질문으로. 녹음 중이면 멈춰서 버린다
+  function skipQuestion(q: number) {
+    if (rec.status === "recording") {
+      skippedRef.current = true;
+      rec.stop(); // 녹음 종료 콜백에서 비운 채로 다음 질문
+      return;
+    }
+    tokenRef.current++;
+    answersRef.current = answersRef.current.map((b, i) => (i === q ? null : b));
+    setAnswers(answersRef.current);
+    nextQuestion(q);
+  }
+
+  // 질문을 보여 주자마자 신호음과 함께 녹음한다 (생각할 시간 없음, docs/api.md 면접)
+  function askQuestion(q: number) {
+    rec.reset();
     const token = ++tokenRef.current;
-    setPrepEndsAt(null);
-    setPhase("speak");
+    skippedRef.current = false;
+    setQi(q);
     beep();
     void rec.start((blob) => {
       if (tokenRef.current !== token) return;
-      answersRef.current = answersRef.current.map((b, i) => (i === q ? blob : b));
+      const answer = skippedRef.current ? null : blob;
+      answersRef.current = answersRef.current.map((b, i) => (i === q ? answer : b));
       setAnswers(answersRef.current);
       nextQuestion(q);
     });
-  }
-
-  function askQuestion(q: number) {
-    clearTimer();
-    rec.reset();
-    const token = ++tokenRef.current;
-    setQi(q);
-    setPhase("prep");
-    setPrepEndsAt(Date.now() + PREP_SEC * 1000);
-    setNow(Date.now());
-    timerRef.current = window.setTimeout(() => {
-      if (tokenRef.current === token) startSpeaking(q);
-    }, PREP_SEC * 1000);
   }
 
   async function start() {
@@ -174,18 +164,10 @@ export default function InterviewExam({ onRestart }: { onRestart: () => void }) 
     };
   }, [language, job, loadRound]);
 
-  // 준비 시간 남은 초 표시용 시계
-  useEffect(() => {
-    if (phase !== "prep" || stage !== "running") return;
-    const id = window.setInterval(() => setNow(Date.now()), 200);
-    return () => clearInterval(id);
-  }, [phase, stage]);
-
   // 화면을 떠나면 진행 중인 단계·녹음 URL 정리
   useEffect(
     () => () => {
       tokenRef.current++;
-      if (timerRef.current) clearTimeout(timerRef.current);
       beepCtxRef.current?.close().catch(() => {});
       urlsRef.current.forEach((u) => URL.revokeObjectURL(u));
     },
@@ -227,16 +209,16 @@ export default function InterviewExam({ onRestart }: { onRestart: () => void }) 
           }
         />
         <p className="text-[0.9375rem] leading-relaxed">
-          AI가 {job} 직무에 맞춰 만든 다섯 질문에 답해요. 자기소개로 시작해 마무리로 끝나요. 질문을
-          보고 생각한 뒤 신호음이 울리면 자동으로 녹음돼요.
+          AI가 {job} 직무에 맞춰 만든 다섯 질문에 답해요. 자기소개로 시작해 마무리로 끝나요. 질문이
+          나오면 신호음과 함께 바로 녹음돼요.
         </p>
         <ul className="mt-5 list-disc space-y-1 pl-5 text-sm text-secondary">
-          <li>질문마다 {PREP_SEC}초 동안 생각할 수 있어요. 준비되면 바로 답해도 돼요.</li>
           <li>
             답변은 {ANSWER_GOAL_SEC / 60}분 안팎을 권해요. {ANSWER_MAX_SEC / 60}분이 되면 다음
             질문으로 넘어가요.
           </li>
           <li>결론을 먼저 말하고, 구체적인 경험으로 뒷받침해 보세요.</li>
+          <li>답하기 어려운 질문은 건너뛸 수 있어요. 건너뛴 질문은 분석에서 빠져요.</li>
           <li>이전 질문으로는 돌아갈 수 없어요.</li>
         </ul>
         {loadError && (
@@ -316,11 +298,16 @@ export default function InterviewExam({ onRestart }: { onRestart: () => void }) 
                   </div>
                 </>
               ) : (
-                <p className="mt-2 text-sm text-secondary">녹음된 답변이 없어요.</p>
+                <p className="mt-2 text-sm text-secondary">건너뛴 질문이라 분석에서 빠져요.</p>
               )}
             </li>
           ))}
         </ul>
+        {!answers.some(Boolean) && (
+          <p className="mt-4 text-sm text-secondary">
+            모든 질문을 건너뛰어 분석할 답변이 없어요. 처음부터 다시 해 보세요.
+          </p>
+        )}
         {tx.error && (
           <div role="alert" className="alert alert-error alert-soft mt-4 text-sm">
             {tx.error}
@@ -344,9 +331,12 @@ export default function InterviewExam({ onRestart }: { onRestart: () => void }) 
   }
 
   const item = items[qi];
-  const speaking = phase === "speak";
-  const prepLeft = prepEndsAt ? (prepEndsAt - now) / 1000 : 0;
   const overGoal = rec.elapsed >= ANSWER_GOAL_SEC;
+  const skipButton = (
+    <button type="button" className="btn btn-ghost btn-sm" onClick={() => skipQuestion(qi)}>
+      {qi + 1 < items.length ? "이 질문 건너뛰기" : "건너뛰고 끝내기"}
+    </button>
+  );
 
   return (
     <div className="flex flex-1 flex-col">
@@ -377,43 +367,21 @@ export default function InterviewExam({ onRestart }: { onRestart: () => void }) 
       </section>
 
       <section className="flex flex-col items-center gap-3 pt-2 pb-2" aria-live="polite">
-        {!speaking && (
-          <>
-            <p className="text-sm font-semibold">생각할 시간</p>
-            <p className="text-4xl font-semibold tabular-nums tracking-tight">
-              {Math.max(0, Math.ceil(prepLeft))}
-            </p>
-            <button
-              type="button"
-              className="btn btn-primary btn-lg btn-block"
-              onClick={() => startSpeaking(qi)}
-            >
-              바로 답하기
-            </button>
-            <p className="text-xs text-secondary">시간이 지나면 신호음과 함께 녹음이 시작돼요</p>
-          </>
-        )}
-
-        {speaking && (
-          <>
-            <p className="text-sm font-semibold">답변 녹음 중</p>
-            <p className="text-4xl font-semibold tabular-nums tracking-tight">
-              {mmss(rec.elapsed)}
-              <span className="text-lg font-medium text-secondary"> / {mmss(ANSWER_GOAL_SEC)}</span>
-            </p>
-            <LevelBars levels={rec.levels} />
-            <MicButton
-              size="md"
-              recording={rec.status === "recording"}
-              onClick={() => rec.stop()}
-            />
-            <p className="text-xs text-secondary">
-              {overGoal
-                ? `권장 시간이 지났어요. ${mmss(ANSWER_MAX_SEC - rec.elapsed)} 뒤 다음 질문으로 넘어가요`
-                : "다 말했으면 버튼을 눌러 다음 질문으로"}
-            </p>
-          </>
-        )}
+        <p className="text-sm font-semibold">
+          {rec.status === "recording" ? "답변 녹음 중" : "녹음 준비 중"}
+        </p>
+        <p className="text-4xl font-semibold tabular-nums tracking-tight">
+          {mmss(rec.elapsed)}
+          <span className="text-lg font-medium text-secondary"> / {mmss(ANSWER_GOAL_SEC)}</span>
+        </p>
+        <LevelBars levels={rec.levels} />
+        <MicButton size="md" recording={rec.status === "recording"} onClick={() => rec.stop()} />
+        <p className="text-xs text-secondary">
+          {overGoal
+            ? `권장 시간이 지났어요. ${mmss(ANSWER_MAX_SEC - rec.elapsed)} 뒤 다음 질문으로 넘어가요`
+            : "다 말했으면 버튼을 눌러 다음 질문으로"}
+        </p>
+        {skipButton}
 
         {rec.error && (
           <div role="alert" className="alert alert-error alert-soft w-full text-sm">
