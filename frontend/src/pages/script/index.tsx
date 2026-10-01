@@ -2,6 +2,7 @@ import PageHeader from "../../components/common/PageHeader";
 import { Fragment, useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import Collapse from "../../components/common/Collapse";
+import FollowUpQuestions from "../../components/common/FollowUpQuestions";
 import PlayLineButton from "../../components/common/PlayLineButton";
 import { mmss, partTitle, questionLine, totalDuration } from "../../components/common/scriptFormat";
 import { useClipPlayer } from "../../components/common/useClipPlayer";
@@ -253,6 +254,13 @@ export default function ScriptPage() {
           <p className="mt-3 text-xs text-secondary">
             연결된 녹음 파일이 없어 문장 듣기를 사용할 수 없어요.
           </p>
+        )}
+
+        {/* 꼬리질문: 대본을 다 본 뒤 버튼을 눌렀을 때만 받는다. 재도전 결과는 원래 결과에서 받는다 */}
+        {!result.compare && (
+          <div className="mt-8">
+            <FollowUpQuestions key={result.analysis.summary.headline} result={result} questions={questions} />
+          </div>
         )}
 
         <div className="sticky bottom-0 mt-auto bg-base-100 pt-4 pb-2 lg:hidden">

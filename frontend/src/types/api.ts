@@ -162,4 +162,40 @@ export type InterviewQuestionsResponse = {
   questions: InterviewQuestion[]; // 5개. 자기소개 → 지원 동기·직무·경험·인성 → 마무리
 };
 
+// [0] 질문 생성 (JSON) POST /api/questions — 꼬리질문 (docs/api.md 6절)
+// 결과 화면에서 사용자가 버튼을 눌렀을 때만 받는다. 1~3개.
+// 처음 질문(kind: "initial")은 아직 위 /api/interview/questions를 쓴다 (서버 구현 후 옮긴다)
+export type FollowUpQuestionsRequest = {
+  kind: "followUp";
+  mode: Mode;
+  language: Lang;
+  level?: PresentationLevel; // 발표
+  exam?: Exam; // 스피킹
+  job?: string; // 면접
+  count?: 1 | 2 | 3; // 기본 3
+  answers: { question?: string; text: string }[]; // 원래 연습의 파트마다 하나. text는 실제로 말한 대본
+  asked?: string[]; // 이미 받은 꼬리질문 text (중복 방지)
+};
+
+export type Question = {
+  type: string; // 꼬리질문: 발표 expected, 토익 respond·opinion, 오픽·면접 followUp
+  text: string; // 화면에 보여 주는 질문 한 문장
+  prompt: string; // transcribe·analyze·retry의 questions[i]로 그대로 보낸다
+  part?: 1 | 2 | 3 | 4 | 5; // 토익
+  context?: string; // 토익 Part 3 상황
+  topic?: { id: string; label: string }; // 오픽
+  hint?: string; // 발표: 답변 방향 / 면접: 질문 의도 (한국어)
+  about?: number; // 이어지는 답변 번호 (answers 기준, 0부터)
+};
+
+export type QuestionsResponse = {
+  kind: "initial" | "followUp";
+  mode: Mode;
+  language: Lang;
+  exam?: Exam;
+  job?: string;
+  questions: Question[];
+  warnings?: string[]; // "llm_failed"면 questions가 비어 있다
+};
+
 export type ApiError = { error: string };

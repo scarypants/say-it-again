@@ -4,9 +4,11 @@ import type {
   AnalyzeResponse,
   RetryRequest,
   Exam,
+  FollowUpQuestionsRequest,
   Lang,
   InputMode,
   PresentationLevel,
+  Question,
   TranscribeResponse,
 } from "../types/api";
 import { loadAudio, recordTranscript, type HistoryRecord } from "./history";
@@ -20,6 +22,7 @@ export type Settings = {
   exam?: Exam;
   job?: string; // 면접만. 지원 직무
   retryQuestions?: string[]; // 면접 재도전: 지난번에 답한 질문 문자열 그대로 (같은 질문으로 다시 답한다)
+  practice?: Question[]; // 꼬리질문 연습(스피킹·면접): 결과 화면에서 받은 질문으로 다시 답한다
 };
 
 // 한 번의 연습: 녹음 파일(문장 재생용)과 질문, 1단계 전사 결과. 검토 화면과 결과 화면이 같이 쓴다
@@ -86,6 +89,49 @@ export function useRetryFrom() {
       setResult(null);
       setSession(null);
       navigate(interview ? "/question" : "/record");
+    },
+    [setPrevious, setResult, setSession, setSettings, navigate],
+  );
+}
+
+// 꼬리질문 요청 (docs/api.md 6절): 파트마다 질문과 실제로 말한 대본(모범 답안 final이 아님).
+// 면접 직무는 질문 문자열의 "Job:" 줄에 있다
+export function followUpRequest(
+  r: AnalyzeResponse,
+  questions: string[] | undefined,
+  asked: string[],
+): FollowUpQuestionsRequest {
+  const job = questions?.[0]?.match(/^Job: (.*)$/m)?.[1];
+  return {
+    kind: "followUp",
+    mode: r.mode,
+    language: r.language,
+    level: r.level,
+    exam: r.exam,
+    job: isInterview(r) ? job : undefined,
+    count: 3,
+    answers: r.parts.map((p, i) => ({
+      question: r.mode === "presentation" ? undefined : questions?.[i],
+      text: p.script
+        .flatMap((l) => l.words)
+        .join(" ")
+        .slice(0, 4000), // 합계 20,000자 상한 (파트 최대 5개)
+    })),
+    asked: asked.length ? asked : undefined,
+  };
+}
+
+// 꼬리질문으로 연습(스피킹·면접): 받은 질문의 prompt로 같은 모드 질문 화면에서 다시 답한다
+export function usePracticeFollowUp() {
+  const { setPrevious, setResult, setSession, setSettings } = useAnalysis();
+  const navigate = useNavigate();
+  return useCallback(
+    (from: AnalyzeResponse, practice: Question[], job?: string) => {
+      setSettings({ mode: from.mode, language: from.language, exam: from.exam, job, practice });
+      setPrevious(null);
+      setResult(null);
+      setSession(null);
+      navigate("/question");
     },
     [setPrevious, setResult, setSession, setSettings, navigate],
   );
