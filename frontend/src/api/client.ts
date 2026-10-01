@@ -5,12 +5,13 @@ import type {
   CompareStats,
   Exam,
   FollowUpQuestionsRequest,
-  InterviewQuestionsRequest,
-  InterviewQuestionsResponse,
+  InitialQuestionsRequest,
+  InterviewQuestionType,
   Lang,
   Mode,
   PresentationLevel,
   Question,
+  QuestionImageResponse,
   QuestionsResponse,
   RetryRequest,
   RetryResponse,
@@ -43,51 +44,79 @@ async function fix3gp(blob: Blob): Promise<Blob> {
   return new Blob([head, blob.slice(24)], { type: "audio/mp4" });
 }
 
-// 면접 질문 생성: 지원 직무 → 질문 5개 (면접 모드에서 녹음 전에 부른다)
-export async function interviewQuestions(
-  req: InterviewQuestionsRequest,
-): Promise<InterviewQuestionsResponse> {
-  if (USE_MOCK) return mockInterviewQuestions(req);
+// [0] 처음 질문: 녹음 전 질문 화면에서 부른다 (면접은 지원 직무, 오픽은 서베이 주제·단계로).
+// 스피킹은 LLM이 실패하면 빈 목록이 오고, 화면이 가진 문항 데이터로 낸다
+export async function initialQuestions(req: InitialQuestionsRequest): Promise<QuestionsResponse> {
+  if (USE_MOCK) return mockInitialQuestions(req);
 
-  return post<InterviewQuestionsResponse>("/api/interview/questions", {
+  return post<QuestionsResponse>("/api/questions", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(req),
   });
 }
 
-// mock 면접 질문: 서버 없이 화면을 확인하려고 직무만 끼워 넣은 고정 질문
-async function mockInterviewQuestions({
-  language,
-  job,
-}: InterviewQuestionsRequest): Promise<InterviewQuestionsResponse> {
+// 토익 Part 2 사진 생성 (10~30초). 질문을 받자마자 뒤에서 부른다. 실패하면 오류 → 기본 사진
+export async function questionImage(scene: string, signal?: AbortSignal): Promise<string> {
+  const res = await post<QuestionImageResponse>("/api/questions/image", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ scene }),
+    signal,
+  });
+  return res.image;
+}
+
+// mock 처음 질문: 면접은 직무만 끼워 넣은 고정 질문, 스피킹은 LLM 실패처럼 빈 목록 (화면의 문항 데이터로 낸다)
+async function mockInitialQuestions(req: InitialQuestionsRequest): Promise<QuestionsResponse> {
   await new Promise((r) => setTimeout(r, 800));
-  const questions: InterviewQuestionsResponse["questions"] =
+  if (req.mode === "speaking")
+    return {
+      kind: "initial",
+      mode: "speaking",
+      language: "en",
+      exam: req.exam,
+      questions: [],
+      warnings: ["llm_failed"],
+    };
+  const { language, job } = req;
+  const items: [InterviewQuestionType, string][] =
     language === "en"
       ? [
-          { type: "intro", text: "Please introduce yourself in about one minute." },
-          { type: "motivation", text: `Why do you want to work as a ${job}?` },
-          { type: "job", text: `What skills make you a good fit for the ${job} role?` },
-          {
-            type: "experience",
-            text: "Tell me about a time you had a conflict with a teammate and how you resolved it.",
-          },
-          { type: "closing", text: "Is there anything else you would like to tell us?" },
+          ["intro", "Please introduce yourself in about one minute."],
+          ["motivation", `Why do you want to work as a ${job}?`],
+          ["job", `What skills make you a good fit for the ${job} role?`],
+          [
+            "experience",
+            "Tell me about a time you had a conflict with a teammate and how you resolved it.",
+          ],
+          ["closing", "Is there anything else you would like to tell us?"],
         ]
       : [
-          { type: "intro", text: "1분 동안 자기소개를 해 주세요." },
-          { type: "motivation", text: `${job} 직무에 지원한 이유는 무엇인가요?` },
-          {
-            type: "job",
-            text: `${job}로 일하는 데 가장 중요한 역량은 무엇이고, 본인은 어떻게 갖췄나요?`,
-          },
-          {
-            type: "experience",
-            text: "팀 프로젝트에서 갈등이 생겼을 때 어떻게 해결했는지 말해 주세요.",
-          },
-          { type: "closing", text: "마지막으로 하고 싶은 말이 있나요?" },
+          ["intro", "1분 동안 자기소개를 해 주세요."],
+          ["motivation", `${job} 직무에 지원한 이유는 무엇인가요?`],
+          ["job", `${job}로 일하는 데 가장 중요한 역량은 무엇이고, 본인은 어떻게 갖췄나요?`],
+          ["experience", "팀 프로젝트에서 갈등이 생겼을 때 어떻게 해결했는지 말해 주세요."],
+          ["closing", "마지막으로 하고 싶은 말이 있나요?"],
         ];
-  return { language, job, questions };
+  const typeEn: Record<InterviewQuestionType, string> = {
+    intro: "Self-introduction",
+    motivation: "Motivation",
+    job: "Job knowledge",
+    experience: "Past experience (STAR)",
+    closing: "Closing",
+  };
+  return {
+    kind: "initial",
+    mode: "interview",
+    language,
+    job,
+    questions: items.map(([type, text], i) => ({
+      type,
+      text,
+      prompt: `Interview Q${i + 1} (${typeEn[type]})\nJob: ${job}\nQuestion: ${text}`,
+    })),
+  };
 }
 
 // [0] 꼬리질문: 결과 화면에서 버튼을 누르면 실제로 말한 대본으로 질문 1~3개를 받는다 (docs/api.md 6절)
@@ -135,7 +164,9 @@ async function mockFollowUp(req: FollowUpQuestionsRequest): Promise<QuestionsRes
           },
           {
             type: "expected",
-            text: en ? "Who benefits most from this idea?" : "이 제안으로 가장 큰 도움을 받는 사람은 누구인가요?",
+            text: en
+              ? "Who benefits most from this idea?"
+              : "이 제안으로 가장 큰 도움을 받는 사람은 누구인가요?",
             hint: "대상을 좁혀 말하고, 그들이 얻는 변화를 숫자로 보여 주세요.",
           },
         ]
@@ -184,7 +215,8 @@ async function mockFollowUp(req: FollowUpQuestionsRequest): Promise<QuestionsRes
               {
                 type: "respond",
                 part: 3,
-                context: "A marketing firm is doing research in your area about weekend activities.",
+                context:
+                  "A marketing firm is doing research in your area about weekend activities.",
                 text: "Where do you usually go on weekends, and why?",
               },
               {
@@ -257,9 +289,11 @@ async function mockFollowUp(req: FollowUpQuestionsRequest): Promise<QuestionsRes
 // [1] 녹음 → 문장 단위 대본. audio 필드를 녹음 순서대로 여러 번 붙인다 (서버는 붙인 순서를 파트 순서로 씀)
 export async function transcribe(req: TranscribeRequest): Promise<TranscribeResponse> {
   if (USE_MOCK) {
-    const sample = await mock<TranscribeResponse>(() => req.mode === "speaking"
-      ? import("../mocks/transcribe.speaking.sample.json")
-      : import("../mocks/transcribe.sample.json"));
+    const sample = await mock<TranscribeResponse>(() =>
+      req.mode === "speaking"
+        ? import("../mocks/transcribe.speaking.sample.json")
+        : import("../mocks/transcribe.sample.json"),
+    );
     return { ...sample, ...echo(req), parts: fit(sample.parts, req.audio.length) };
   }
 
@@ -281,13 +315,18 @@ export async function transcribe(req: TranscribeRequest): Promise<TranscribeResp
 // [2] 검토·수정한 대본 → 분석. 녹음 파일은 다시 보내지 않는다
 export async function analyze(req: AnalyzeRequest): Promise<AnalyzeResponse> {
   if (USE_MOCK) {
-    const sample = await mock<AnalyzeResponse>(() => req.mode === "speaking"
-      ? import("../mocks/analyze.speaking.sample.json")
-      : import("../mocks/analyze.sample.json"));
+    const sample = await mock<AnalyzeResponse>(() =>
+      req.mode === "speaking"
+        ? import("../mocks/analyze.speaking.sample.json")
+        : import("../mocks/analyze.sample.json"),
+    );
     const parts = fit(sample.parts, req.parts.length).map((part, index) =>
-      req.mode === "speaking" && req.exam === "TOEIC-Speaking" && /^TOEIC Speaking Part 1\b/.test(req.questions?.[index] ?? "")
+      req.mode === "speaking" &&
+      req.exam === "TOEIC-Speaking" &&
+      /^TOEIC Speaking Part 1\b/.test(req.questions?.[index] ?? "")
         ? { ...part, final: [] }
-        : part);
+        : part,
+    );
     return { ...sample, ...echo(req), parts };
   }
 

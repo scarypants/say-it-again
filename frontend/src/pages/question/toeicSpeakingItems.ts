@@ -1,3 +1,5 @@
+import type { Question } from "../../types/api";
+
 // 토익 스피킹 모의시험: 실제 시험 Part 1~5에서 한 문제씩 (Part마다 여러 세트 중 무작위)
 // read = 자료 읽기, listen = 질문 듣기(TTS), prep = 준비, speak = 답변(자동 녹음)
 export type Phase =
@@ -18,6 +20,8 @@ export type ToeicSpeakingItem = {
   picture?: "cafeteria"; // Part 2 사진
   schedule?: { title: string; rows: ScheduleRow[] }; // Part 4 자료
   phases: Phase[];
+  serverPrompt?: string; // 서버가 만든 질문 문자열 (Part 2는 기본 사진용). 있으면 분석에 그대로 보낸다
+  pictureReq?: NonNullable<Question["picture"]>; // 서버 문제의 Part 2: 사진을 따로 생성한다
 };
 
 // 실제 시험의 Part별 형식·시간을 따르고, 자주 나오는 상황(공지·광고 읽기, 전화 설문, 일정표 문의,
@@ -197,8 +201,28 @@ export function buildToeicExam(): ToeicSpeakingItem[] {
   return [pick(PART1), pick(PART2), pick(PART3), pick(PART4), pick(PART5)];
 }
 
+// 서버가 만든 문제(POST /api/questions) → 시험 문항. 시간·안내문은 Part 번호로 프론트가 정한다 (docs/api.md 6절)
+export function toeicItemFromServer(q: Question): ToeicSpeakingItem {
+  const base: ToeicSpeakingItem =
+    q.part === 1
+      ? readAloud(q.context ?? q.text)
+      : q.part === 2
+        ? { ...PART2[0], pictureReq: q.picture }
+        : q.part === 3
+          ? answer(q.context ?? "", q.text)
+          : q.part === 4 && q.schedule
+            ? { ...info(q.schedule, "", q.text), listenText: q.text }
+            : { ...opinion(""), prompt: q.text, listenText: q.text };
+  // Part 2는 어떤 사진을 낼지 정해진 뒤에 prompt를 고른다. 그 전까지는 기본 사진용
+  return {
+    ...base,
+    serverPrompt: q.part === 2 ? (q.picture?.fallback.prompt ?? q.prompt) : q.prompt,
+  };
+}
+
 // 백엔드(LLM)에 넘길 질문 문장. 사진·자료처럼 화면에만 있는 정보도 글로 풀어 넣는다
 export function toeicSpeakingQuestionText(item: ToeicSpeakingItem) {
+  if (item.serverPrompt) return item.serverPrompt;
   const parts = [`TOEIC Speaking Part ${item.part} (${item.name})`];
   if (item.context) parts.push(`Situation: ${item.context}`);
   if (item.picture === "cafeteria")
