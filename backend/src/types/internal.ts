@@ -1,4 +1,4 @@
-import type { Exam, Highlight, Language, Level, Mode, TranscriptPart } from './api';
+import type { Exam, Highlight, Language, Level, Mode, RetryPrevious, TranscriptPart } from './api';
 
 // ---- 서버 내부 전용 타입 ----
 
@@ -16,6 +16,8 @@ export type ModeInfo = {
 export type TranscribeInput = ModeInfo & { audio: Express.Multer.File[] };
 
 export type AnalyzeInput = ModeInfo & { parts: TranscriptPart[] };
+
+export type RetryInput = AnalyzeInput & { previous: RetryPrevious };
 
 /** LLM이 파트 하나에 대해 돌려주는 결과 (코드가 찾은 필러·중복은 포함하지 않는다) */
 export type LlmPartResult = {
