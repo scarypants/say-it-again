@@ -8,7 +8,10 @@ import WordFrequency from "./components/WordFrequency";
 import RetryComparison from "./components/RetryComparison";
 import { comparablePrevious, retryReference } from "./retryComparison";
 import { totalDuration } from "../../components/common/scriptFormat";
+import FollowUpSummary from "./components/FollowUpSummary";
+import { isFollowUpSummary } from "./followUp";
 const FeedbackChart = lazy(() => import("./components/FeedbackChart"));
+const FollowUpQuestions = lazy(() => import("../../components/common/FollowUpQuestions"));
 
 const modeNames = { presentation: "발표", speaking: "어학 스피킹", interview: "면접" };
 function timestamp(seconds: number) {
@@ -19,7 +22,7 @@ function timestamp(seconds: number) {
 }
 
 export default function SummaryPage() {
-  const { result, previous, setPrevious, session } = useAnalysis();
+  const { result, previous, setPrevious, session, settings } = useAnalysis();
   const startRetry = useStartRetry();
   const feedbackRef = useRef<HTMLElement>(null);
   const [selection, setSelection] = useState<{
@@ -40,7 +43,11 @@ export default function SummaryPage() {
   }, [selected]);
   const chart = result ? createChartData(result) : [];
   const improvements = result && selected ? feedbackRows(result, selected) : [];
-  const comparison = result ? comparablePrevious(result, previous) : null;
+  const isFollowUp = Boolean(
+    result && session?.questions?.length === result.parts.length &&
+    isFollowUpSummary(session.questions, settings),
+  );
+  const comparison = result && !isFollowUp ? comparablePrevious(result, previous) : null;
   const isRetry = Boolean(result?.compare || comparison);
   const score =
     result && Number.isFinite(result.analysis.score)
@@ -51,7 +58,7 @@ export default function SummaryPage() {
     <div className="flex flex-1 flex-col gap-6 pt-8 font-sans sm:gap-8">
       <header>
         <p className="text-sm font-semibold text-secondary">
-          {result ? "이 녹음의 한 줄 요약" : "말하기 분석"}
+          {result ? isFollowUp ? "꼬리질문 답변의 한 줄 요약" : "이 녹음의 한 줄 요약" : "말하기 분석"}
         </p>
         <h1 className="mt-3 max-w-[28ch] text-[1.75rem] leading-snug font-bold tracking-tight text-balance break-keep sm:text-4xl lg:max-w-[36ch]">
           {result?.analysis.summary.headline || "이번 말하기를 돌아봐요"}
@@ -80,7 +87,7 @@ export default function SummaryPage() {
               <div className="flex items-center justify-between gap-3 p-5 sm:p-6">
                 <div className="flex flex-col items-start gap-2">
                   <h2 id="score-title" className="text-lg font-bold sm:text-xl">
-                    {isRetry ? "재도전 점수" : "말하기 점수"}
+                    {isRetry ? "재도전 점수" : isFollowUp ? "꼬리질문 답변 점수" : "말하기 점수"}
                   </h2>
                   <p className="text-sm leading-relaxed text-secondary">
                     패닉존·군말·반복 기준
@@ -224,6 +231,7 @@ export default function SummaryPage() {
                 </p>
               )}
             </section>}
+            {isFollowUp && <FollowUpSummary result={result} questions={session?.questions} />}
             <div className="flex flex-col gap-2 xl:flex-row">
               {canRetry(result, session?.questions) ? (
                 <button type="button" onClick={() => {
@@ -242,6 +250,11 @@ export default function SummaryPage() {
                 전체 대본 보기
               </Link>
             </div>
+            {!result.compare && (
+              <Suspense fallback={<p role="status" className="text-sm text-secondary">추가 질문 기능을 불러오고 있어요.</p>}>
+                <FollowUpQuestions result={result} questions={session?.questions} />
+              </Suspense>
+            )}
           </div>
         </div>
       )}
