@@ -1,9 +1,9 @@
 import { LLM_MODEL, LLM_REASONING_EFFORT, LLM_TIMEOUT_MS, MAX_EXPRESSIONS, MOCK_LLM } from '../config';
 import { mockDelay, readFixture } from '../mock';
 import { getOpenAI } from '../openai';
-import type { Analysis, Highlight, Line, Part } from '../types/api';
-import type { AnalyzeInput, LlmPartResult } from '../types/internal';
-import { partMessages, summaryMessages } from './prompts';
+import type { Analysis, Charts, Compare, Highlight, Line, Part, Retry } from '../types/api';
+import type { AnalyzeInput, LlmPartResult, RetryInput } from '../types/internal';
+import { partMessages, retryMessages, summaryMessages } from './prompts';
 
 // ---- 응답 JSON schema (Structured Outputs, strict) ----
 
@@ -60,6 +60,17 @@ const SUMMARY_SCHEMA = {
   },
 };
 
+const RETRY_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['improved', 'remaining', 'comment'],
+  properties: {
+    improved: { type: 'array', items: { type: 'string' } },
+    remaining: { type: 'array', items: { type: 'string' } },
+    comment: { type: 'string' },
+  },
+};
+
 /**
  * 파트 하나에 대해 패닉 원인·대안, expression / grammar 하이라이트, 최종 대본, 코멘트를 받는다.
  * LLM의 줄·단어 번호는 파트 전체 단어 번호(offset 기준)로 바꾸고, 범위를 벗어나면 버린다.
@@ -101,6 +112,20 @@ export async function analyzePart(input: AnalyzeInput, script: Line[], partIndex
 export async function summarize(input: AnalyzeInput, parts: Part[]): Promise<Analysis['summary']> {
   const out = await requestSummaryOutput(input, parts);
   return { headline: out.headline, topPriorities: out.topPriorities.slice(0, 3), comment: out.comment };
+}
+
+/** 재도전 총평: 전후 비교 수치로 개선된 점·남은 점·한 줄 총평을 받는다. mock 모드에서는 저장된 응답을 쓴다. */
+export async function summarizeRetry(
+  input: RetryInput,
+  parts: Part[],
+  charts: Charts,
+  compare: Compare,
+  mismatch: boolean,
+): Promise<Retry> {
+  const out = MOCK_LLM
+    ? await mockDelay(500).then(() => readFixture<Retry>(`llm-retry-${input.language}.json`))
+    : await callJson<Retry>('retry_summary', RETRY_SCHEMA, retryMessages(input, parts, charts, compare, mismatch));
+  return { improved: out.improved.slice(0, 3), remaining: out.remaining.slice(0, 3), comment: out.comment };
 }
 
 /**

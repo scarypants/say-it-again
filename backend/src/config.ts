@@ -46,6 +46,9 @@ export const REPEAT_MIN_COUNT = 3;
 /** 하이라이트 우선순위 (categoryRatio 계산 시 겹치면 앞쪽 하나만 센다) */
 export const CATEGORY_PRIORITY: Category[] = ['panic', 'filler', 'repeat', 'expression', 'grammar'];
 
+/** 재도전: 이전 최종 대본과의 일치율(%)이 이보다 낮으면 script_mismatch 경고 (비교는 참고용) */
+export const RETRY_MATCH_LOW = 40;
+
 /** 차트 Top N */
 export const TOP_N = 10;
 

@@ -2,7 +2,7 @@ import { findFillers } from '../detectors/fillers';
 import { findPanics } from '../detectors/panics';
 import { findRepeats } from '../detectors/repeats';
 import { analyzePart, summarize } from '../llm/requests';
-import type { AnalyzeResponse, Part } from '../types/api';
+import type { AnalyzeResponse, Highlight, Language, Line, Part } from '../types/api';
 import type { AnalyzeInput } from '../types/internal';
 import { toWords, withOffsets } from './script';
 import { buildCharts, buildStats } from './stats';
@@ -23,14 +23,7 @@ export async function analyze(input: AnalyzeInput): Promise<AnalyzeResponse> {
   // 파트별 코드 분석 + 파트별 LLM (병렬)
   const parts: Part[] = await Promise.all(
     input.parts.map(async ({ duration, script: edited }, i) => {
-      const script = withOffsets(edited); // 단어를 고쳤으면 단어 수가 바뀌므로 offset을 다시 계산
-      const words = toWords(script);
-      const panics = findPanics(script);
-      const codeHighlight = [
-        ...panics.map((p) => p.highlight),
-        ...findFillers(words, input.language),
-        ...findRepeats(script, input.language),
-      ];
+      const { script, panics, codeHighlight } = analyzeByCode(edited, input.language);
       try {
         const llm = await analyzePart(input, script, i);
         // 코드가 만든 panic 하이라이트에 LLM의 원인·대안을 채운다 (pause 줄 번호로 매칭)
@@ -74,4 +67,19 @@ export async function analyze(input: AnalyzeInput): Promise<AnalyzeResponse> {
     analysis: { score, stats, summary },
     ...(warnings.length > 0 && { warnings }),
   };
+}
+
+/**
+ * LLM 없이 코드로만 하는 분석: offset 재계산 → 패닉존, 필러, 중복 하이라이트.
+ * panic 하이라이트에는 pauseSec만 있고 reason / fixed는 LLM이 채운다 (retry는 비워 둔다).
+ */
+export function analyzeByCode(edited: Line[], language: Language) {
+  const script = withOffsets(edited); // 단어를 고쳤으면 단어 수가 바뀌므로 offset을 다시 계산
+  const panics = findPanics(script);
+  const codeHighlight: Highlight[] = [
+    ...panics.map((p) => p.highlight),
+    ...findFillers(toWords(script), language),
+    ...findRepeats(script, language),
+  ];
+  return { script, panics, codeHighlight };
 }
