@@ -11,7 +11,6 @@ const TYPE_NAME: Record<InterviewQuestionType, string> = {
   motivation: "지원 동기",
   job: "직무",
   experience: "경험",
-  personality: "인성",
   closing: "마무리",
 };
 
@@ -20,7 +19,6 @@ const TYPE_EN: Record<InterviewQuestionType, string> = {
   motivation: "Motivation",
   job: "Job knowledge",
   experience: "Past experience (STAR)",
-  personality: "Personality",
   closing: "Closing",
 };
 
