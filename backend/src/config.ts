@@ -16,6 +16,15 @@ export const EXTRA_ORIGINS: string[] = (process.env.CORS_ORIGIN ?? '')
 
 /** 문장 분할: whisper segment(문장) 끝에서 끊고, PANIC_GAP초 이상 멈추면 pause 줄을 넣는다 */
 export const PANIC_GAP = 2.0;
+/** 스피킹은 답변이 30~60초로 짧아 1.5초만 멈춰도 티가 난다 */
+export const SPEAKING_PANIC_GAP = 1.5;
+/** 질문에 답하는 모드(스피킹·면접): 녹음 시작 후 첫마디까지 이 이상 걸리면 패닉존 (말문이 막힌 것) */
+export const LEAD_PANIC_SEC = 3.0;
+/**
+ * 한 단어가 이보다 길면 whisper가 침묵을 단어에 붙인 것으로 보고 이 길이로 자른다.
+ * (영어에서 um 같은 소리를 지우면서 그 시간을 앞뒤 단어에 붙이는 경우가 많아, 그대로 두면 멈춤이 사라진다)
+ */
+export const MAX_WORD_SEC = 1.5;
 export const MAX_WORDS = 40; // 한 문장 최대 단어 수 (whisper가 아주 긴 segment를 줄 때 대비)
 
 // 업로드 제한
@@ -39,7 +48,7 @@ export const MAX_FOLLOW_UPS = 3; // 꼬리질문 최대 개수 (기본값도 이
 export const MAX_ANSWER_CHARS = 20_000; // 꼬리질문 재료(answers[].text) 합계 글자 수 상한
 export const MAX_QUESTION_CHARS = 2_000; // answers[].question 하나의 글자 수 상한
 export const MAX_ASKED = 30; // asked(이미 받은 꼬리질문) 개수 상한
-export const MAX_OPIC_TOPICS = 20; // 오픽 서베이 주제 개수 상한
+export const MAX_OPIC_TOPICS = 3; // 오픽 서베이 주제 개수 상한 (프론트에서도 최대 3개)
 export const OPIC_HARD_LEVEL = 5; // 오픽 자가 평가 이 단계 이상이면 롤플레이가 문제 해결형 (프론트와 같은 값)
 
 /** 단어가 이보다 적으면 음성이 없는 것으로 본다 (422) */

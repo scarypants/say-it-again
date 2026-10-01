@@ -31,7 +31,7 @@ import {
 const PART_SCHEMA = {
   type: 'object',
   additionalProperties: false,
-  required: ['panics', 'issues', 'final', 'comment'],
+  required: ['panics', 'issues', 'final', 'comment', 'accuracy'],
   properties: {
     panics: {
       type: 'array',
@@ -60,6 +60,7 @@ const PART_SCHEMA = {
     },
     final: { type: 'array', items: { type: 'string' } },
     comment: { type: 'string' },
+    accuracy: { type: 'integer' },
   },
 };
 
@@ -68,6 +69,7 @@ export type PartOutput = {
   issues: { line: number; from: number; to: number; category: 'expression' | 'grammar'; reason: string; fixed: string }[];
   final: string[];
   comment: string;
+  accuracy?: number; // 스피킹만 (mock fixture에는 없을 수 있다)
 };
 
 const SUMMARY_SCHEMA = {
@@ -142,6 +144,8 @@ export async function analyzePart(input: AnalyzeInput, script: Line[], partIndex
       .map((sentence) => ({ words: sentence.trim().split(/\s+/).filter(Boolean) }))
       .filter((s) => s.words.length > 0),
     comment: toScreenTerms(out.comment) || undefined,
+    ...(input.mode === 'speaking' &&
+      Number.isFinite(out.accuracy) && { accuracy: Math.min(100, Math.max(0, Math.round(out.accuracy as number))) }),
   };
 }
 

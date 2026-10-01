@@ -153,7 +153,13 @@ function Review({ transcript, audio, questions, setResult, previous }: ReviewPro
               {parts.length > 1 || transcript.mode !== "presentation" ? (
                 <header className="mb-2 border-b border-base-300 pb-2">
                   <h2 id={`part-${pi}`} className="text-sm font-semibold tabular-nums">
-                    {partTitle(transcript.mode, pi, part.duration, questions?.[pi], totalDuration(parts.slice(0, pi)))}
+                    {partTitle(
+                      transcript.mode,
+                      pi,
+                      part.duration,
+                      questions?.[pi],
+                      totalDuration(parts.slice(0, pi)),
+                    )}
                   </h2>
                   {questionLine(questions?.[pi]) && (
                     <p className="mt-0.5 text-sm text-secondary">{questionLine(questions?.[pi])}</p>
@@ -169,7 +175,7 @@ function Review({ transcript, audio, questions, setResult, previous }: ReviewPro
                   const key = `${pi}:${li}`;
                   if (line.pause)
                     return (
-                      <li key={key} className="py-1 pl-10 text-xs text-hl-panic tabular-nums">
+                      <li key={key} className="py-1 text-xs text-hl-panic tabular-nums">
                         {(line.end - line.start).toFixed(1)}초 멈춤
                       </li>
                     );
@@ -177,16 +183,10 @@ function Review({ transcript, audio, questions, setResult, previous }: ReviewPro
                   return (
                     <li
                       key={key}
-                      className={`flex items-start gap-1 rounded-field py-1 pr-1 ${
+                      className={`flex items-start gap-1 rounded-field py-1 pl-1 ${
                         player.playing === key ? "bg-base-200" : ""
                       }`}
                     >
-                      <PlayLineButton
-                        playing={player.playing === key}
-                        disabled={!audio[pi]}
-                        label={`${li + 1}번째 문장`}
-                        onClick={() => void player.play(key, audio[pi], line.start, line.end)}
-                      />
                       <p className="min-w-0 flex-1 py-1 text-[1.0625rem] leading-8">
                         {line.words.map((w, wi) => (
                           <EditableWord
@@ -206,6 +206,12 @@ function Review({ transcript, audio, questions, setResult, previous }: ReviewPro
                           되돌리기
                         </button>
                       )}
+                      <PlayLineButton
+                        playing={player.playing === key}
+                        disabled={!audio[pi]}
+                        label={`${li + 1}번째 문장`}
+                        onClick={() => void player.play(key, audio[pi], line.start, line.end)}
+                      />
                     </li>
                   );
                 })}
