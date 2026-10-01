@@ -1,4 +1,5 @@
-import { LLM_MODEL, LLM_REASONING_EFFORT, LLM_TIMEOUT_MS, MAX_EXPRESSIONS } from '../config';
+import { LLM_MODEL, LLM_REASONING_EFFORT, LLM_TIMEOUT_MS, MAX_EXPRESSIONS, MOCK_LLM } from '../config';
+import { mockDelay, readFixture } from '../mock';
 import { getOpenAI } from '../openai';
 import type { Analysis, Highlight, Line, Part } from '../types/api';
 import type { AnalyzeInput, LlmPartResult } from '../types/internal';
@@ -41,7 +42,7 @@ const PART_SCHEMA = {
   },
 };
 
-type PartOutput = {
+export type PartOutput = {
   panics: { line: number; reason: string; fixed: string }[];
   issues: { line: number; from: number; to: number; category: 'expression' | 'grammar'; reason: string; fixed: string }[];
   final: string[];
@@ -62,7 +63,7 @@ const SUMMARY_SCHEMA = {
 // 파트 하나에 대해 패닉 원인·대안, expression / grammar 하이라이트, 최종 대본, 코멘트를 받는다.
 // LLM의 줄·단어 번호는 파트 전체 단어 번호(offset 기준)로 바꾸고, 범위를 벗어나면 버린다.
 export async function analyzePart(input: AnalyzeInput, script: Line[], partIndex: number): Promise<LlmPartResult> {
-  const out = await callJson<PartOutput>('part_analysis', PART_SCHEMA, partMessages(input, script, partIndex));
+  const out = await requestPartOutput(input, script, partIndex);
 
   const highlight: Highlight[] = [];
   let expressions = 0;
@@ -96,8 +97,26 @@ export async function analyzePart(input: AnalyzeInput, script: Line[], partIndex
 
 // 파트별 결과의 요약본으로 전체 총평(summary)을 받는다.
 export async function summarize(input: AnalyzeInput, parts: Part[]): Promise<Analysis['summary']> {
-  const out = await callJson<Analysis['summary']>('summary', SUMMARY_SCHEMA, summaryMessages(input, parts));
+  const out = await requestSummaryOutput(input, parts);
   return { headline: out.headline, topPriorities: out.topPriorities.slice(0, 3), comment: out.comment };
+}
+
+// LLM 원본 응답. mock 모드에서는 언어별로 저장된 응답(fixtures/llm-*.json)을 돌려준다.
+// 저장된 응답의 줄·단어 번호가 지금 대본과 안 맞으면 analyzePart에서 범위 밖으로 걸러진다.
+export async function requestPartOutput(input: AnalyzeInput, script: Line[], partIndex: number): Promise<PartOutput> {
+  if (MOCK_LLM) {
+    await mockDelay(1500);
+    return readFixture<PartOutput>(`llm-part-${input.language}.json`);
+  }
+  return callJson<PartOutput>('part_analysis', PART_SCHEMA, partMessages(input, script, partIndex));
+}
+
+export async function requestSummaryOutput(input: AnalyzeInput, parts: Part[]): Promise<Analysis['summary']> {
+  if (MOCK_LLM) {
+    await mockDelay(500);
+    return readFixture<Analysis['summary']>(`llm-summary-${input.language}.json`);
+  }
+  return callJson<Analysis['summary']>('summary', SUMMARY_SCHEMA, summaryMessages(input, parts));
 }
 
 async function callJson<T>(name: string, schema: object, messages: { system: string; user: string }): Promise<T> {

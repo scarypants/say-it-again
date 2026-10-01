@@ -2,8 +2,9 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import OpenAI, { toFile } from 'openai';
 import type { TranscriptionVerbose } from 'openai/resources/audio/transcriptions';
-import { MIN_WORDS, STT_DUMP_DIR, STT_MODEL } from '../config';
+import { MIN_WORDS, MOCK_STT, STT_DUMP_DIR, STT_MODEL } from '../config';
 import { HttpError } from '../errors';
+import { MOCK_WHISPER, mockDelay, readFixture } from '../mock';
 import { getOpenAI } from '../openai';
 import type { Language } from '../types/api';
 import type { Transcript } from '../types/internal';
@@ -22,7 +23,8 @@ export async function transcribe(
   index: number,
 ): Promise<Transcript> {
   const label = `${index + 1}번째 녹음`;
-  const result = await withRetry(() => requestWhisper(file, language)).catch((err: unknown) => {
+  const request = MOCK_STT ? () => mockWhisper(language) : () => requestWhisper(file, language);
+  const result = await withRetry(request).catch((err: unknown) => {
     console.error(`[stt] ${label} 실패`, err);
     if (err instanceof OpenAI.BadRequestError) {
       throw new HttpError(400, `${label}의 오디오 형식을 읽을 수 없습니다. webm 또는 mp4로 녹음해 주세요.`);
@@ -57,6 +59,12 @@ async function requestWhisper(file: Express.Multer.File, language: Language): Pr
   });
 }
 
+// mock 모드: 언어별 저장된 whisper 응답을 돌려준다 (녹음 내용과 상관없음)
+async function mockWhisper(language: Language): Promise<TranscriptionVerbose> {
+  await mockDelay(800);
+  return readFixture<TranscriptionVerbose>(MOCK_WHISPER[language]);
+}
+
 // 일시적인 오류(429, 5xx, 네트워크)만 1회 재시도한다. 형식 오류 같은 4xx는 바로 실패.
 async function withRetry<T>(fn: () => Promise<T>): Promise<T> {
   try {
@@ -71,7 +79,7 @@ async function withRetry<T>(fn: () => Promise<T>): Promise<T> {
 
 // STT_DUMP_DIR이 설정되어 있으면 whisper 원본 응답을 저장한다 (샘플·mock 데이터용)
 async function dump(result: TranscriptionVerbose, index: number): Promise<void> {
-  if (!STT_DUMP_DIR) return;
+  if (!STT_DUMP_DIR || MOCK_STT) return;
   await mkdir(STT_DUMP_DIR, { recursive: true });
   const file = path.join(STT_DUMP_DIR, `whisper-${Date.now()}-${index + 1}.json`);
   await writeFile(file, JSON.stringify(result, null, 2));

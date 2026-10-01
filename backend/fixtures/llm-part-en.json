@@ -1,0 +1,26 @@
+{
+  "panics": [
+    {
+      "line": 3,
+      "reason": "주말에 친구들과 축구를 한다는 취미를 말한 뒤, 다음 이야기로 넘어갈 연결어나 추가 설명이 떠오르지 않아 멈춘 것으로 보입니다. 취미를 하나 더 소개하는 문장으로 이어가면 자연스럽습니다.",
+      "fixed": "I also enjoy cooking in my free time. It helps me relax."
+    }
+  ],
+  "issues": [
+    {
+      "line": 5,
+      "from": 5,
+      "to": 5,
+      "category": "grammar",
+      "reason": "주어가 단수인 “cooking”이므로 동사에 3인칭 단수형이 필요합니다.",
+      "fixed": "helps"
+    }
+  ],
+  "final": [
+    "Hi, my name is Minjun, and I’m a student at Konkuk University.",
+    "I’m majoring in computer engineering.",
+    "I like playing soccer with my friends on weekends.",
+    "I also really like cooking. Cooking is fun because it helps me relax."
+  ],
+  "comment": "자기소개와 취미에 관한 질문에는 답했지만, 시험에서 더 좋은 평가를 받으려면 전공과 취미에 대한 구체적인 설명을 덧붙이는 것이 좋습니다."
+}

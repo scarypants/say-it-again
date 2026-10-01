@@ -47,6 +47,12 @@ export function partMessages(input: AnalyzeInput, script: Line[], partIndex: num
       ' fixed에는 그 범위를 대체할 표현을 쓴다.',
     '   범위(from~to)는 실제로 바꿔야 하는 단어만 최소로 잡는다 (보통 1~4단어). 문장이나 절 전체를 잡지 않는다.',
     '   필러(음, 어, 그러니까, um, uh 등)와 같은 단어 반복은 다른 단계에서 찾으므로 issues에 넣지 않는다.',
+    ...(speaking
+      ? [
+          '   문법 오류(시제, 주어·동사 수 일치, 관사, 전치사, 어순 등)는 하나도 빠뜨리지 말고 모두 grammar로 표시한다.',
+          '   final에서 고친 문법 오류는 반드시 issues에도 grammar로 있어야 한다.',
+        ]
+      : []),
     '3. final: 대본 전체를 자연스럽게 다듬은 최종 대본을 문장 배열로 쓴다. 필러와 반복은 빼고, 내용과 순서는 유지한다.',
     '   토익 스피킹 Part 1(지문 읽기)처럼 주어진 글을 그대로 읽는 문제라면 final은 빈 배열로 둔다.',
     speaking

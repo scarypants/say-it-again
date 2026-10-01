@@ -46,5 +46,9 @@ export const LLM_REASONING_EFFORT = 'low' as const;
 // LLM 표현 개선 하이라이트는 파트당 최대 개수 (영향도 순)
 export const MAX_EXPRESSIONS = 8;
 
+// mock 모드: 키·네트워크 없이 backend/fixtures의 저장된 응답으로 대신한다 (시연 백업, 프론트 개발용)
+export const MOCK_STT = process.env.MOCK_STT === 'true';
+export const MOCK_LLM = process.env.MOCK_LLM === 'true';
+
 // whisper 원본 응답을 JSON으로 저장할 폴더 (샘플·mock용, 비우면 저장 안 함)
 export const STT_DUMP_DIR = process.env.STT_DUMP_DIR ?? '';
