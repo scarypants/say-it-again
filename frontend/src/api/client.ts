@@ -11,7 +11,10 @@ const USE_MOCK = import.meta.env.VITE_USE_MOCK === "true";
 
 // 녹음 형식에 맞는 확장자 (Safari는 mp4, 그 외 webm)
 export function audioFileName(blob: Blob) {
-  const ext = blob.type.includes("mp4") ? "mp4" : blob.type.includes("ogg") ? "ogg" : "webm";
+  // 올린 파일은 원래 확장자를 쓴다 (서버·whisper가 확장자로 형식을 본다)
+  const own = blob instanceof File ? blob.name.match(/.(w+)$/)?.[1]?.toLowerCase() : undefined;
+  const ext =
+    own ?? (blob.type.includes("mp4") ? "mp4" : blob.type.includes("ogg") ? "ogg" : "webm");
   return `recording.${ext}`;
 }
 
