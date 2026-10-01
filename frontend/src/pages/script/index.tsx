@@ -122,7 +122,7 @@ export default function ScriptPage() {
                   return (
                     <li key={key}>
                       <div
-                        className={`flex items-start gap-1 rounded-field py-1 ${
+                        className={`flex items-start gap-1 rounded-field py-1 transition-colors ${
                           player.playing === key ? "bg-base-200" : ""
                         }`}
                       >
@@ -137,9 +137,9 @@ export default function ScriptPage() {
                                   type="button"
                                   data-word={`${pi}:${run.first}`}
                                   aria-expanded={isSelected}
-                                  className={`box-decoration-clone rounded-[4px] px-1 py-0.5 text-left ${
+                                  className={`box-decoration-clone rounded-[4px] px-1 py-0.5 text-left outline-2 outline-offset-1 transition-[outline-color] duration-150 ${
                                     CATEGORY[run.top.category].mark
-                                  } ${isSelected ? "outline-2 outline-offset-1 outline-base-content" : ""}`}
+                                  } ${isSelected ? "outline-base-content" : "outline-transparent"}`}
                                   aria-label={`${run.text} — ${run.items
                                     .map((h) => CATEGORY[h.category].label)
                                     .join(", ")}`}
@@ -206,12 +206,13 @@ export default function ScriptPage() {
           <div className="min-h-0 flex-1 overflow-y-auto rounded-box border border-base-300 p-5">
             {selected ? (
               <FeedbackDetail
+                key={`${selected.part}:${selected.first}`}
                 part={result.parts[selected.part]}
                 items={selected.items}
                 onClose={close}
               />
             ) : (
-              <p className="py-10 text-center text-sm text-secondary">
+              <p className="animate-fade py-10 text-center text-sm text-secondary">
                 대본에서 색칠된 부분을 누르면
                 <br />
                 여기에 원인과 고칠 말이 나와요.

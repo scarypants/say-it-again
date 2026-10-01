@@ -410,7 +410,7 @@ export default function OpicExam() {
           {items.map((_, i) => (
             <span
               key={i}
-              className={`h-1.5 flex-1 rounded-full ${i <= qi ? "bg-primary" : "bg-base-300"}`}
+              className={`h-1.5 flex-1 rounded-full transition-colors duration-500 ease-soft ${i <= qi ? "bg-primary" : "bg-base-300"}`}
             />
           ))}
         </div>
@@ -419,11 +419,19 @@ export default function OpicExam() {
         </span>
       </div>
 
-      <h1 className="text-xl font-bold">Question {qi + 1}</h1>
-      <p className="mt-1 text-sm text-secondary">{item.name}</p>
+      {/* 다음 질문으로 넘어가면 제목·본문이 새로 올라온다 */}
+      <h1 key={`t${qi}`} className="animate-enter text-xl font-bold">
+        Question {qi + 1}
+      </h1>
+      <p key={`n${qi}`} className="mt-1 animate-enter text-sm text-secondary">
+        {item.name}
+      </p>
 
       {/* Ava: 질문은 소리로만. 읽는 동안 고리가 퍼진다 */}
-      <section className="flex flex-1 flex-col items-center justify-center gap-3 py-6">
+      <section
+        key={`s${qi}`}
+        className="flex flex-1 animate-enter flex-col items-center justify-center gap-3 py-6"
+      >
         <div className="relative flex h-28 w-28 items-center justify-center" aria-hidden>
           {phase === "listen" && canSpeak && (
             <span className="absolute inset-0 rounded-full bg-primary/15 motion-safe:animate-ping" />

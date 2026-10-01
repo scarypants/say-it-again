@@ -13,7 +13,7 @@ const COPY = {
 export default function AnalyzingView({ step = "transcribe" }: { step?: keyof typeof COPY }) {
   const copy = COPY[step];
   return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-5 text-center">
+    <div className="flex flex-1 animate-enter flex-col items-center justify-center gap-5 text-center">
       <span className="loading loading-dots loading-lg text-primary" />
       <div>
         <p className="text-lg font-semibold">{copy.title}</p>

@@ -209,13 +209,13 @@ function Review({ transcript, audio, questions, setResult }: ReviewProps) {
           총 {mmss(totalDuration(parts))} · 고친 문장 {editedCount}개
         </p>
         {fillerWarning && (
-          <p role="status" className="text-center text-xs text-warning-content">
+          <p role="status" className="animate-fade text-center text-xs text-warning-content">
             '{fillerWarning}'처럼 말버릇을 고치면 군말 분석에서 빠져요. 잘못 들린 게 아니라면 되돌려
             주세요.
           </p>
         )}
         {(error || player.error) && (
-          <div role="alert" className="alert alert-error alert-soft text-sm">
+          <div role="alert" className="alert alert-error alert-soft animate-reveal text-sm">
             {error ?? player.error}
           </div>
         )}

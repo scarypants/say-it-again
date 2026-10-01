@@ -90,7 +90,7 @@ export default function HomePage() {
                 </label>
 
                 {selected && m.value === "presentation" && (
-                  <div className="border-t border-base-300 px-4 pt-3 pb-4">
+                  <div className="animate-reveal border-t border-base-300 px-4 pt-3 pb-4">
                     <span className="mb-2 block text-sm font-medium">발표 언어</span>
                     <div className="join mb-4 w-full" role="radiogroup" aria-label="발표 언어">
                       {LANGS.map((l) => (
@@ -132,7 +132,7 @@ export default function HomePage() {
                 )}
 
                 {selected && m.value === "speaking" && (
-                  <div className="border-t border-base-300 px-4 pt-3 pb-4">
+                  <div className="animate-reveal border-t border-base-300 px-4 pt-3 pb-4">
                     <span className="mb-2 block text-sm font-medium">시험 종류</span>
                     <div className="join w-full" role="radiogroup" aria-label="시험 종류">
                       {EXAMS.map((e) => (
@@ -167,10 +167,14 @@ export default function HomePage() {
             {mode === "speaking" ? "질문 받고 시작하기" : "녹음하러 가기"}
           </button>
           {mode === "speaking" && !exam && (
-            <p className="mt-2 text-center text-xs text-secondary">시험 종류를 골라 주세요</p>
+            <p className="mt-2 animate-fade text-center text-xs text-secondary">
+              시험 종류를 골라 주세요
+            </p>
           )}
           {mode === "presentation" && !level && (
-            <p className="mt-2 text-center text-xs text-secondary">발표 수준을 골라 주세요</p>
+            <p className="mt-2 animate-fade text-center text-xs text-secondary">
+              발표 수준을 골라 주세요
+            </p>
           )}
         </div>
       </div>
