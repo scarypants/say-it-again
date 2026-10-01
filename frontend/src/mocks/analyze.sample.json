@@ -1,0 +1,23 @@
+{
+  "duration": 14.2,
+  "lines": [
+    { "start": 0.3, "end": 2.9, "words": ["오늘은", "음", "캠퍼스", "식당", "문제를"] },
+    { "start": 2.9, "end": 6.1, "words": [], "pause": true },
+    { "start": 6.1, "end": 9.4, "words": ["어", "그러니까", "식당이", "약간", "붐비는", "것", "같아요"] }
+  ],
+  "fillers": { "0": [1], "2": [0, 1] },
+  "repeats": {},
+  "panic": {
+    "1": { "reason": "주제를 꺼낸 직후 근거로 넘어가는 연결 문장이 준비되지 않았습니다.", "altScript": "오늘은 캠퍼스 식당 문제를 이야기하려 합니다. 점심시간 대기 시간이 평균 20분입니다." }
+  },
+  "highlight": {
+    "2": [[3, 6, "모호한 표현", "식당이 붐빕니다", "vague"]]
+  },
+  "stats": { "wpm": 92, "fillerCount": 3, "panicCount": 1, "panicTotalSec": 3.2, "score": 71 },
+  "fillerTop": [{ "word": "음", "count": 1 }, { "word": "어", "count": 1 }, { "word": "그러니까", "count": 1 }],
+  "summary": {
+    "headline": "내용은 명확하지만 도입 직후 연결이 끊깁니다.",
+    "topPriorities": ["주제 → 근거 연결 문장 준비", "'어/그러니까' 줄이기", "'~것 같아요' 대신 단정형"],
+    "modeComment": "강의 발표는 첫 30초 구조가 중요합니다."
+  }
+}
