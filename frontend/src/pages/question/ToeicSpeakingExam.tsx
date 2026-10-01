@@ -4,7 +4,6 @@ import { Link } from "react-router";
 import { audioFileName, questionImage } from "../../api/client";
 import { useTranscribe } from "../../api/useTranscribe";
 import AnalyzingView from "../../components/common/AnalyzingView";
-import CountdownBar from "../../components/common/CountdownBar";
 import LevelBars from "../../components/common/LevelBars";
 import MicButton from "../../components/common/MicButton";
 import { useLeaveGuard } from "../../components/common/useLeaveGuard";
@@ -18,6 +17,8 @@ import {
   type ToeicSpeakingItem,
 } from "./toeicSpeakingItems";
 import { speakingQuestions } from "./serverQuestions";
+import AnswerActions from "./AnswerActions";
+import { failedAnswerIndex } from "./answerRetry";
 
 const PHASE_LABEL: Record<Phase["kind"], string> = {
   read: "자료 읽기",
@@ -33,6 +34,11 @@ const canSpeak = typeof window !== "undefined" && "speechSynthesis" in window;
 function mmss(sec: number) {
   const s = Math.max(0, Math.ceil(sec));
   return `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
+}
+
+// 단계 시작 시각 (이벤트·타이머 안에서만 부른다)
+function clock() {
+  return Date.now();
 }
 
 function totalSec(item: ToeicSpeakingItem, kind: "prep" | "speak") {
@@ -82,6 +88,7 @@ export default function ToeicSpeakingExam({ onRestart }: { onRestart: () => void
   const answersRef = useRef<(Blob | null)[]>(answers);
   const urlsRef = useRef<string[]>([]);
   const beepCtxRef = useRef<AudioContext | null>(null);
+  const redoRef = useRef(false); // 끝난 뒤 한 문제만 다시 녹음 중: 그 문제가 끝나면 목록으로
 
   function clearTimer() {
     if (timerRef.current) clearTimeout(timerRef.current);
@@ -127,6 +134,8 @@ export default function ToeicSpeakingExam({ onRestart }: { onRestart: () => void
     tokenRef.current++;
     setPhase(null);
     setEndsAt(null);
+    redoRef.current = false;
+    urlsRef.current.forEach((u) => URL.revokeObjectURL(u));
     const urls = answersRef.current.map((b) => (b ? URL.createObjectURL(b) : null));
     urlsRef.current = urls.filter((u): u is string => u !== null);
     setAnswerUrls(urls);
@@ -134,7 +143,7 @@ export default function ToeicSpeakingExam({ onRestart }: { onRestart: () => void
   }
 
   function nextQuestion(q: number) {
-    if (q + 1 < items.length) startQuestion(q + 1);
+    if (q + 1 < items.length && !redoRef.current) startQuestion(q + 1);
     else finishExam();
   }
 
@@ -186,8 +195,9 @@ export default function ToeicSpeakingExam({ onRestart }: { onRestart: () => void
       return;
     }
 
-    setEndsAt(Date.now() + ph.sec * 1000);
-    setNow(Date.now());
+    const t = clock();
+    setEndsAt(t + ph.sec * 1000);
+    setNow(t);
 
     if (ph.kind === "speak") {
       beep();
@@ -235,6 +245,22 @@ export default function ToeicSpeakingExam({ onRestart }: { onRestart: () => void
   function stopEarly() {
     clearTimer();
     rec.stop();
+  }
+
+  // 끝난 뒤 이 문제만 다시: 같은 문제(같은 사진)로 진행하고 끝나면 목록으로 돌아온다
+  function redoAnswer(q: number) {
+    tx.clear();
+    redoRef.current = true;
+    setStage("running");
+    startQuestion(q);
+  }
+
+  // 이 문제의 답변을 빼고 분석한다
+  function skipAnswer(q: number) {
+    tx.clear();
+    answersRef.current = answersRef.current.map((b, i) => (i === q ? null : b));
+    setAnswers(answersRef.current);
+    setAnswerUrls((urls) => urls.map((u, i) => (i === q ? null : u)));
   }
 
   // 질문과 답변을 모두 한 번에 백엔드로 (녹음이 없는 문제는 빼고 순서 유지)
@@ -389,6 +415,7 @@ export default function ToeicSpeakingExam({ onRestart }: { onRestart: () => void
   }
 
   if (stage === "done") {
+    const failed = tx.noSpeech ? failedAnswerIndex(analyzeError, answers) : null;
     return (
       <div className="flex flex-1 flex-col">
         {leaveGuard}
@@ -404,25 +431,28 @@ export default function ToeicSpeakingExam({ onRestart }: { onRestart: () => void
                 <span className="text-secondary">{it.name}</span>
               </p>
               {answerUrls[i] ? (
-                <>
-                  <audio src={answerUrls[i]!} controls className="mt-3 w-full" />
-                  <div className="mt-2 flex justify-end">
-                    <a
-                      href={answerUrls[i]!}
-                      download={`part${it.part}-${audioFileName(answers[i]!)}`}
-                      className="btn btn-ghost btn-sm"
-                    >
-                      파일 저장
-                    </a>
-                  </div>
-                </>
+                <audio src={answerUrls[i]!} controls className="mt-3 w-full" />
               ) : (
-                <p className="mt-2 text-sm text-secondary">녹음된 답변이 없어요.</p>
+                <p className="mt-2 text-sm text-secondary">녹음된 답변이 없어 분석에서 빠져요.</p>
               )}
+              <AnswerActions
+                hasAnswer={!!answers[i]}
+                failed={failed === i}
+                onRedo={() => redoAnswer(i)}
+                onSkip={() => skipAnswer(i)}
+                download={
+                  answerUrls[i] && answers[i]
+                    ? {
+                        href: answerUrls[i]!,
+                        name: `part${it.part}-${audioFileName(answers[i]!)}`,
+                      }
+                    : undefined
+                }
+              />
             </li>
           ))}
         </ul>
-        {analyzeError && (
+        {analyzeError && failed === null && (
           <div role="alert" className="alert alert-error alert-soft mt-4 text-sm">
             {analyzeError}
           </div>
@@ -434,10 +464,10 @@ export default function ToeicSpeakingExam({ onRestart }: { onRestart: () => void
           <button
             type="button"
             className="btn btn-primary btn-lg flex-[2]"
-            onClick={tx.noSpeech ? onRestart : runAnalyze}
-            disabled={!answers.some(Boolean)}
+            onClick={tx.noSpeech && failed === null ? onRestart : runAnalyze}
+            disabled={!answers.some(Boolean) || failed !== null}
           >
-            {tx.noSpeech
+            {tx.noSpeech && failed === null
               ? "처음부터 다시 응시하기"
               : analyzeError
                 ? "다시 시도하기"
@@ -552,28 +582,21 @@ export default function ToeicSpeakingExam({ onRestart }: { onRestart: () => void
         <p className={`text-sm font-semibold ${timeUp ? "text-error" : ""}`}>
           {timeUp ? "답변 시간이 끝났어요" : kind ? PHASE_LABEL[kind] : ""}
         </p>
-        {remaining !== null ? (
-          <>
-            {/* 1초마다 숫자가 살짝 내려오며 바뀐다 */}
-            <p
-              key={Math.ceil(remaining)}
-              className={`animate-tick text-4xl font-semibold tabular-nums tracking-tight ${timeUp ? "text-error" : ""}`}
-            >
-              {timeUp ? `+${mmss(-remaining)}` : mmss(remaining)}
-            </p>
-            {!timeUp && (
-              <CountdownBar
-                key={endsAt}
-                leftMs={remaining * 1000}
-                totalSec={phaseTotal}
-                className={`max-w-60 ${kind === "speak" ? "text-primary" : "text-secondary"}`}
-              />
-            )}
-          </>
+        {/* 발표 녹음처럼 숫자만 바뀐다. 답변 중에는 녹음한 시간 / 답변 시간, 그 밖에는 남은 시간 */}
+        {kind === "speak" ? (
+          <p
+            className={`text-4xl font-semibold tabular-nums tracking-tight ${timeUp ? "text-error" : ""}`}
+          >
+            {mmss(rec.elapsed)}
+            <span className="text-lg font-medium text-secondary"> / {mmss(phaseTotal)}</span>
+          </p>
+        ) : remaining !== null ? (
+          <p className="text-4xl font-semibold tabular-nums tracking-tight text-secondary">
+            {mmss(remaining)}
+          </p>
         ) : (
           <span className="loading loading-dots loading-md text-secondary" />
         )}
-
         {kind === "speak" ? (
           <>
             <LevelBars levels={rec.levels} />
@@ -581,6 +604,7 @@ export default function ToeicSpeakingExam({ onRestart }: { onRestart: () => void
               key={qi}
               size="md"
               recording={rec.status === "recording"}
+              disabled={rec.status !== "recording"}
               onClick={stopEarly}
             />
             <p className="text-xs text-secondary">

@@ -187,6 +187,9 @@ export function useRecorder(maxSec = 300, { maxTotalSec = maxSec }: { maxTotalSe
   const start = useCallback(
     async (onRecorded?: OnRecorded) => {
       setError(null);
+      // 파형·시간은 언제나 빈 상태에서 시작 (이전 문제의 막대가 이어지지 않게)
+      setLevels(Array(BAR_COUNT).fill(0));
+      setElapsed(0);
       // http로 휴대폰에서 접속하면 mediaDevices 자체가 없다
       if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
         setError("이 주소에서는 녹음할 수 없어요. 휴대폰이라면 https 주소로 접속해 주세요.");
