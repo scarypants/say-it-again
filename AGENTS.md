@@ -6,12 +6,13 @@
 ## 1. 프로젝트
 
 - 대학생의 말하기 연습(강의 발표 / 어학 스피킹 / 면접)을 AI가 진단하는 모바일 우선 반응형 웹.
-- 녹음 → STT(Whisper, 단어 타임스탬프) → 서버가 줄 분할 + 패닉존(2초 이상 침묵) 계산 → 필러워드/중복 탐지 → Claude 1회 호출로 원인 진단·대안 대본·총평 → 스크립트 하이라이트 + 총평 화면.
+- 녹음 → STT(Whisper, 단어 타임스탬프) → 서버가 줄 분할 + 패닉존(2초 이상 침묵) 계산 → 필러워드/중복 탐지 → OpenAI LLM 1회 호출로 원인 진단·대안 대본·총평 → 스크립트 하이라이트 + 총평 화면.
 - 상세 기획: `docs/plan.md` / 화면 설계: `docs/wireframe.webp` / API 계약: `docs/api.md`
 - 기술 스택
   - frontend: React(Vite) + TypeScript + TailwindCSS + DaisyUI, MediaRecorder API, recharts
-  - backend: Node.js + Express (JavaScript, CommonJS, nodemon), multer, cors, dotenv, `openai`(whisper-1), `@anthropic-ai/sdk`
+  - backend: Node.js + Express + TypeScript(tsx), multer, cors, dotenv, `openai`(whisper-1 + LLM 분석)
 - 저장소 구조: npm workspaces 모노레포 `frontend/` + `backend/` (루트 `package.json`). DB 없음.
+- backend 구조: `backend/src/` 아래 `server.ts`(진입점), `config.ts`(튜닝 상수), `types/`(API·내부 타입), `http/`(라우트·요청 검증), `pipeline/`(전사·줄 분할·통계), `detectors/`(필러·중복 탐지), `llm/`(OpenAI 호출·프롬프트)
 
 ## 2. 팀과 소유권 (가장 중요)
 
@@ -32,7 +33,7 @@
 - 백엔드는 `docs/api.md`에 엔드포인트와 요청/응답 예시 JSON을 먼저 확정한다.
 - 프론트는 그 예시를 `frontend/src/mocks/`에 두고 서버 없이 개발한다. 결과 화면(김왁수)은 mock JSON만으로 시작할 수 있다.
 - 응답 타입은 `frontend/src/types/api.ts`에 `docs/api.md`와 동일하게 둔다. 계약이 바뀌면 백엔드가 `docs/api.md`를 고치고, PR 설명 첫 줄에 `[API 변경]`을 쓰고, 팀 채팅에 알린다.
-- API 키는 서버에만 둔다. 클라이언트에서 OpenAI/Anthropic을 직접 호출하지 않는다.
+- API 키는 서버에만 둔다. 클라이언트에서 OpenAI를 직접 호출하지 않는다.
 
 ## 4. 브랜치 · 커밋 · PR
 
@@ -63,21 +64,21 @@
 - 테스트/빌드가 깨진 상태로 커밋.
 
 커밋 기준:
-- 기능 단위가 완결되고 frontend는 `npm run build -w frontend`, backend는 서버 기동이 확인되면 커밋한다.
+- 기능 단위가 완결되고 frontend는 `npm run build -w frontend`, backend는 `npm run build -w backend`가 통과하면 커밋한다.
 - 커밋 메시지는 4절 형식을 따른다.
 
 ## 6. 코드 스타일
 
-- frontend는 TypeScript strict, `any` 최소화. backend는 기존 JavaScript(CommonJS) 유지.
+- TypeScript strict. `any`는 최소화. (frontend, backend 공통)
 - 포맷은 Prettier(`.prettierrc`), 줄바꿈 LF, 들여쓰기 2칸. 자기 소유 파일에만 포맷을 적용한다.
 - 파일명: 컴포넌트 `PascalCase.tsx`, 그 외 `camelCase.ts`.
-- 서버 튜닝 상수는 한곳에 모은다: `LINE_GAP=0.8`, `PANIC_GAP=2.0`, `MAX_WORDS=12`.
+- 서버 튜닝 상수는 `backend/src/config.ts` 한곳에 모은다: `LINE_GAP=0.8`, `PANIC_GAP=2.0`, `MAX_WORDS=12`.
 - UI: DaisyUI 컴포넌트 우선. 하이라이트 5색 규칙은 `docs/plan.md` 6-1절을 따른다. 이모지 남발·의미 없는 카드 중첩 금지.
 
 ## 7. 비밀값 · 환경 변수
 
 - `.env`는 커밋 금지(.gitignore 등록됨). 대신 `backend/.env.example`에 키 이름만 적는다.
-  - `OPENAI_API_KEY=`, `ANTHROPIC_API_KEY=`, `PORT=3000` (frontend는 `frontend/.env.example`에 `VITE_USE_MOCK`)
+  - `OPENAI_API_KEY=`, `OPENAI_LLM_MODEL=`, `PORT=8080` (frontend는 `frontend/.env.example`에 `VITE_USE_MOCK`)
 - 키는 각자 로컬 `.env`에 넣는다. 채팅·이슈·PR에 키를 붙여넣지 않는다.
 
 ## 8. 대회 규칙 준수
