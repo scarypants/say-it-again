@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
+import Collapse from "../../components/common/Collapse";
 import { PRESENTATION_LEVELS } from "../../api/presentationLevels";
 import { JOB_MAX_LENGTH } from "../question/interviewItems";
 import { useAnalysis, type Exam, type PresentationLevel } from "../../store/analysis";
@@ -97,75 +98,81 @@ export default function HomePage() {
                   </span>
                 </label>
 
-                {selected && m.value === "presentation" && (
-                  <div className="animate-reveal border-t border-base-300 px-4 pt-3 pb-4">
-                    <LangPicker label="발표 언어" value={lang} onChange={setLang} />
-                    <span className="mb-2 block text-sm font-medium">발표 수준</span>
-                    <div className="join w-full" role="radiogroup" aria-label="발표 수준">
-                      {PRESENTATION_LEVELS.map((l) => (
-                        <button
-                          key={l.value}
-                          type="button"
-                          role="radio"
-                          aria-checked={level === l.value}
-                          className={`btn join-item flex-1 px-2 ${
-                            level === l.value ? "btn-primary" : "btn-outline border-base-300"
-                          }`}
-                          onClick={() => setLevel(l.value)}
-                        >
-                          {l.label}
-                        </button>
-                      ))}
+                {m.value === "presentation" && (
+                  <Collapse open={selected}>
+                    <div className="border-t border-base-300 px-4 pt-3 pb-4">
+                      <LangPicker label="발표 언어" value={lang} onChange={setLang} />
+                      <span className="mb-2 block text-sm font-medium">발표 수준</span>
+                      <div className="join w-full" role="radiogroup" aria-label="발표 수준">
+                        {PRESENTATION_LEVELS.map((l) => (
+                          <button
+                            key={l.value}
+                            type="button"
+                            role="radio"
+                            aria-checked={level === l.value}
+                            className={`btn join-item flex-1 px-2 ${
+                              level === l.value ? "btn-primary" : "btn-outline border-base-300"
+                            }`}
+                            onClick={() => setLevel(l.value)}
+                          >
+                            {l.label}
+                          </button>
+                        ))}
+                      </div>
+                      <p className="mt-2 text-xs text-secondary">
+                        고른 발표 상황에 맞춰 AI가 피드백해 드려요.
+                      </p>
                     </div>
-                    <p className="mt-2 text-xs text-secondary">
-                      고른 발표 상황에 맞춰 AI가 피드백해 드려요.
-                    </p>
-                  </div>
+                  </Collapse>
                 )}
 
-                {selected && m.value === "interview" && (
-                  <div className="animate-reveal border-t border-base-300 px-4 pt-3 pb-4">
-                    <label className="mb-4 block">
-                      <span className="mb-2 block text-sm font-medium">지원 직무</span>
-                      <input
-                        type="text"
-                        className="input w-full"
-                        placeholder="예: 백엔드 개발자, 마케팅, 간호사"
-                        maxLength={JOB_MAX_LENGTH}
-                        value={job}
-                        onChange={(e) => setJob(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" && ready) start();
-                        }}
-                      />
-                    </label>
-                    <LangPicker label="답변 언어" value={lang} onChange={setLang} />
-                    <p className="-mt-2 text-xs text-secondary">
-                      AI가 직무에 맞춘 면접 질문 다섯 개를 만들어 드려요.
-                    </p>
-                  </div>
+                {m.value === "interview" && (
+                  <Collapse open={selected}>
+                    <div className="border-t border-base-300 px-4 pt-3 pb-4">
+                      <label className="mb-4 block">
+                        <span className="mb-2 block text-sm font-medium">지원 직무</span>
+                        <input
+                          type="text"
+                          className="input w-full"
+                          placeholder="예: 백엔드 개발자, 마케팅, 간호사"
+                          maxLength={JOB_MAX_LENGTH}
+                          value={job}
+                          onChange={(e) => setJob(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" && ready) start();
+                          }}
+                        />
+                      </label>
+                      <LangPicker label="답변 언어" value={lang} onChange={setLang} />
+                      <p className="-mt-2 text-xs text-secondary">
+                        AI가 직무에 맞춘 면접 질문 다섯 개를 만들어 드려요.
+                      </p>
+                    </div>
+                  </Collapse>
                 )}
 
-                {selected && m.value === "speaking" && (
-                  <div className="animate-reveal border-t border-base-300 px-4 pt-3 pb-4">
-                    <span className="mb-2 block text-sm font-medium">시험 종류</span>
-                    <div className="join w-full" role="radiogroup" aria-label="시험 종류">
-                      {EXAMS.map((e) => (
-                        <button
-                          key={e.value}
-                          type="button"
-                          role="radio"
-                          aria-checked={exam === e.value}
-                          className={`btn join-item flex-1 ${
-                            exam === e.value ? "btn-primary" : "btn-outline border-base-300"
-                          }`}
-                          onClick={() => setExam(e.value)}
-                        >
-                          {e.label}
-                        </button>
-                      ))}
+                {m.value === "speaking" && (
+                  <Collapse open={selected}>
+                    <div className="border-t border-base-300 px-4 pt-3 pb-4">
+                      <span className="mb-2 block text-sm font-medium">시험 종류</span>
+                      <div className="join w-full" role="radiogroup" aria-label="시험 종류">
+                        {EXAMS.map((e) => (
+                          <button
+                            key={e.value}
+                            type="button"
+                            role="radio"
+                            aria-checked={exam === e.value}
+                            className={`btn join-item flex-1 ${
+                              exam === e.value ? "btn-primary" : "btn-outline border-base-300"
+                            }`}
+                            onClick={() => setExam(e.value)}
+                          >
+                            {e.label}
+                          </button>
+                        ))}
+                      </div>
                     </div>
-                  </div>
+                  </Collapse>
                 )}
               </div>
             );

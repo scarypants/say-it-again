@@ -1,6 +1,7 @@
 import PageHeader from "../../components/common/PageHeader";
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router";
+import Collapse from "../../components/common/Collapse";
 import PlayLineButton from "../../components/common/PlayLineButton";
 import { mmss, partTitle, questionLine, totalDuration } from "../../components/common/scriptFormat";
 import { useClipPlayer } from "../../components/common/useClipPlayer";
@@ -150,75 +151,78 @@ export default function ScriptPage() {
                                   displayCategory(h.category) ===
                                     displayCategory(run.top!.category),
                               );
+                            // 말풍선(tooltip)은 inline-block이라 안에 띄어쓰기를 두면 사라지고 긴 조각이 줄바꿈되지 않는다.
+                            // inline으로 두고 띄어쓰기는 바깥에 둔다
                             return run.top ? (
-                              <span
-                                key={run.first}
-                                className={hint ? "tooltip tooltip-bottom" : undefined}
-                                data-tip={hint}
-                              >
-                                {run.top.category === "panic" ? (
-                                  <mark
-                                    tabIndex={0}
-                                    data-word={`${pi}:${run.first}`}
-                                    aria-label={`${run.text} — ${CATEGORY.panic.desc}`}
-                                    className={`box-decoration-clone rounded-[4px] px-1 py-0.5 text-base-content focus-visible:outline-2 focus-visible:outline-offset-1 ${CATEGORY.panic.mark}`}
-                                  >
-                                    {run.words.map((w, wi) => (
-                                      <span key={wi}>
-                                        {wi > 0 && " "}
-                                        <span
-                                          className={
-                                            w.under
-                                              ? `underline decoration-2 underline-offset-[5px] ${CATEGORY[w.under].under}`
-                                              : undefined
-                                          }
-                                        >
-                                          {w.text}
+                              <Fragment key={run.first}>
+                                <span
+                                  className={hint ? "tooltip tooltip-bottom inline" : undefined}
+                                  data-tip={hint}
+                                >
+                                  {run.top.category === "panic" ? (
+                                    <mark
+                                      tabIndex={0}
+                                      data-word={`${pi}:${run.first}`}
+                                      aria-label={`${run.text} — ${CATEGORY.panic.desc}`}
+                                      className={`box-decoration-clone rounded-[4px] px-1 py-0.5 text-base-content focus-visible:outline-2 focus-visible:outline-offset-1 ${CATEGORY.panic.mark}`}
+                                    >
+                                      {run.words.map((w, wi) => (
+                                        <span key={wi}>
+                                          {wi > 0 && " "}
+                                          <span
+                                            className={
+                                              w.under
+                                                ? `underline decoration-2 underline-offset-[5px] ${CATEGORY[w.under].under}`
+                                                : undefined
+                                            }
+                                          >
+                                            {w.text}
+                                          </span>
                                         </span>
-                                      </span>
-                                    ))}
-                                  </mark>
-                                ) : (
-                                  <button
-                                    type="button"
-                                    data-word={`${pi}:${run.first}`}
-                                    aria-expanded={isSelected}
-                                    className={`box-decoration-clone rounded-[4px] px-1 py-0.5 text-left outline-2 outline-offset-1 transition-[outline-color] duration-150 ${
-                                      CATEGORY[run.top.category].mark
-                                    } ${isSelected ? "outline-base-content" : "outline-transparent"}`}
-                                    aria-label={`${run.text} — ${[
-                                      ...new Set(items.map((h) => CATEGORY[h.category].label)),
-                                    ].join(", ")}`}
-                                    onClick={() =>
-                                      setSelected(
-                                        isSelected
-                                          ? null
-                                          : {
-                                              part: pi,
-                                              line: li,
-                                              first: run.first,
-                                              items,
-                                            },
-                                      )
-                                    }
-                                  >
-                                    {run.words.map((w, wi) => (
-                                      <span key={wi}>
-                                        {wi > 0 && " "}
-                                        <span
-                                          className={
-                                            w.under
-                                              ? `underline decoration-2 underline-offset-[5px] ${CATEGORY[w.under].under}`
-                                              : undefined
-                                          }
-                                        >
-                                          {w.text}
+                                      ))}
+                                    </mark>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      data-word={`${pi}:${run.first}`}
+                                      aria-expanded={isSelected}
+                                      className={`box-decoration-clone rounded-[4px] px-1 py-0.5 text-left outline-2 outline-offset-1 transition-[outline-color] duration-150 ${
+                                        CATEGORY[run.top.category].mark
+                                      } ${isSelected ? "outline-base-content" : "outline-transparent"}`}
+                                      aria-label={`${run.text} — ${[
+                                        ...new Set(items.map((h) => CATEGORY[h.category].label)),
+                                      ].join(", ")}`}
+                                      onClick={() =>
+                                        setSelected(
+                                          isSelected
+                                            ? null
+                                            : {
+                                                part: pi,
+                                                line: li,
+                                                first: run.first,
+                                                items,
+                                              },
+                                        )
+                                      }
+                                    >
+                                      {run.words.map((w, wi) => (
+                                        <span key={wi}>
+                                          {wi > 0 && " "}
+                                          <span
+                                            className={
+                                              w.under
+                                                ? `underline decoration-2 underline-offset-[5px] ${CATEGORY[w.under].under}`
+                                                : undefined
+                                            }
+                                          >
+                                            {w.text}
+                                          </span>
                                         </span>
-                                      </span>
-                                    ))}
-                                  </button>
-                                )}{" "}
-                              </span>
+                                      ))}
+                                    </button>
+                                  )}
+                                </span>{" "}
+                              </Fragment>
                             ) : (
                               <span key={run.first} data-word={`${pi}:${run.first}`}>
                                 {run.text}{" "}
@@ -233,9 +237,16 @@ export default function ScriptPage() {
                           onClick={() => void player.play(key, audio[pi], line.start, line.end)}
                         />
                       </div>
-                      {openHere && (
-                        <FeedbackDetail inline part={part} items={openHere.items} onClose={close} />
-                      )}
+                      <Collapse open={!!openHere}>
+                        {openHere && (
+                          <FeedbackDetail
+                            inline
+                            part={part}
+                            items={openHere.items}
+                            onClose={close}
+                          />
+                        )}
+                      </Collapse>
                     </li>
                   );
                 })}

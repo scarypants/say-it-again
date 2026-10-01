@@ -3,8 +3,12 @@ import type {
   AnalyzeResponse,
   ApiError,
   CompareStats,
+  Exam,
   InterviewQuestionsRequest,
   InterviewQuestionsResponse,
+  Lang,
+  Mode,
+  PresentationLevel,
   RetryRequest,
   RetryResponse,
   TranscribeRequest,
@@ -85,7 +89,10 @@ async function mockInterviewQuestions({
 
 // [1] 녹음 → 문장 단위 대본. audio 필드를 녹음 순서대로 여러 번 붙인다 (서버는 붙인 순서를 파트 순서로 씀)
 export async function transcribe(req: TranscribeRequest): Promise<TranscribeResponse> {
-  if (USE_MOCK) return mock(() => import("../mocks/transcribe.sample.json"));
+  if (USE_MOCK) {
+    const sample = await mock<TranscribeResponse>(() => import("../mocks/transcribe.sample.json"));
+    return { ...sample, ...echo(req), parts: fit(sample.parts, req.audio.length) };
+  }
 
   const form = new FormData();
   form.append("mode", req.mode);
@@ -104,7 +111,10 @@ export async function transcribe(req: TranscribeRequest): Promise<TranscribeResp
 
 // [2] 검토·수정한 대본 → 분석. 녹음 파일은 다시 보내지 않는다
 export async function analyze(req: AnalyzeRequest): Promise<AnalyzeResponse> {
-  if (USE_MOCK) return mock(() => import("../mocks/analyze.sample.json"));
+  if (USE_MOCK) {
+    const sample = await mock<AnalyzeResponse>(() => import("../mocks/analyze.sample.json"));
+    return { ...sample, ...echo(req), parts: fit(sample.parts, req.parts.length) };
+  }
 
   return post<AnalyzeResponse>("/api/analyze", {
     method: "POST",
@@ -169,8 +179,9 @@ async function mockRetry(req: RetryRequest): Promise<RetryResponse> {
   };
   return {
     ...res,
+    ...echo(req),
     // retry는 panic·filler·repeat만, 패닉 원인·대안 없음, final은 빈 배열
-    parts: res.parts.map((p) => ({
+    parts: fit(res.parts, req.parts.length).map((p) => ({
       ...p,
       comment: undefined,
       final: [],
@@ -180,7 +191,16 @@ async function mockRetry(req: RetryRequest): Promise<RetryResponse> {
     })),
     charts: {
       ...res.charts,
-      categoryRatio: { ...res.charts.categoryRatio, expression: 0, grammar: 0 },
+      // 재도전은 표현 개선·문법을 보지 않으므로 그만큼 정상으로 (합 100 유지)
+      categoryRatio: {
+        ...res.charts.categoryRatio,
+        normal:
+          res.charts.categoryRatio.normal +
+          res.charts.categoryRatio.expression +
+          res.charts.categoryRatio.grammar,
+        expression: 0,
+        grammar: 0,
+      },
     },
     analysis: {
       score: after.score,
@@ -197,6 +217,21 @@ async function mockRetry(req: RetryRequest): Promise<RetryResponse> {
     compare: { scriptMatch: req.previous.final.length ? 87 : null, before, after },
     retry,
   };
+}
+
+// mock 응답이 요청한 모드·언어·수준·시험을 따르게 한다 (실제 서버처럼). 면접도 mock으로 끝까지 돌 수 있게
+function echo(req: { mode: string; language: Lang; level?: PresentationLevel; exam?: Exam }) {
+  return {
+    mode: req.mode as Mode, // 응답 타입에 아직 "interview"가 없다 (types/api.ts InputMode 참고)
+    language: req.language,
+    level: req.level,
+    exam: req.exam,
+  };
+}
+
+// mock 파트 수를 녹음·답변 수에 맞춘다 (모자라면 예시 파트를 돌려 쓴다)
+function fit<T>(parts: T[], n: number): T[] {
+  return Array.from({ length: Math.max(1, n) }, (_, i) => parts[i % parts.length]);
 }
 
 async function mock<T>(load: () => Promise<{ default: unknown }>): Promise<T> {

@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { analyze, retry } from "../../api/client";
 import AnalyzingView from "../../components/common/AnalyzingView";
+import Collapse from "../../components/common/Collapse";
 import PlayLineButton from "../../components/common/PlayLineButton";
 import { mmss, partTitle, questionLine, totalDuration } from "../../components/common/scriptFormat";
 import { useClipPlayer } from "../../components/common/useClipPlayer";
@@ -48,7 +49,6 @@ function Review({ transcript, audio, questions, setResult, previous }: ReviewPro
   const navigate = useNavigate();
   const player = useClipPlayer();
   const [parts, setParts] = useState(() => clone(transcript.parts));
-  const [fillerWarning, setFillerWarning] = useState<string | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const leaveGuard = useLeaveGuard(true, "녹음과 대본이 모두 사라져요.");
@@ -61,13 +61,14 @@ function Review({ transcript, audio, questions, setResult, previous }: ReviewPro
         .length,
     0,
   );
+  // 원본에 있던 말버릇이 지금 대본에서 빠졌으면 경고한다. 되돌리면 저절로 사라진다
+  const fillerWarning = removedFiller(original, parts);
 
   // 한 칸을 고친다. 비우면 그 단어를 지운다 (문장이 통째로 비면 되돌린다)
   function editWord(pi: number, li: number, wi: number, value: string) {
     const before = parts[pi].script[li].words[wi];
     const nextWord = value.trim();
     if (nextWord === before) return;
-    if (isFillerWord(before)) setFillerWarning(before);
     setParts((prev) => {
       const next = clone(prev);
       const words = next[pi].script[li].words;
@@ -219,12 +220,15 @@ function Review({ transcript, audio, questions, setResult, previous }: ReviewPro
         <p className="hidden text-sm text-secondary tabular-nums lg:block">
           총 {mmss(totalDuration(parts))} · 고친 문장 {editedCount}개
         </p>
-        {fillerWarning && (
-          <p role="status" className="animate-fade text-center text-xs text-warning-content">
-            '{fillerWarning}'처럼 말버릇을 고치면 군말 분석에서 빠져요. 잘못 들린 게 아니라면 되돌려
-            주세요.
-          </p>
-        )}
+        {/* 말버릇을 고쳤다 되돌리면 자주 열리고 닫혀서, 높이째 부드럽게 접는다 */}
+        <Collapse open={!!fillerWarning}>
+          {fillerWarning && (
+            <p role="status" className="text-center text-xs text-warning-content">
+              '{fillerWarning}'처럼 말버릇을 고치면 군말 분석에서 빠져요. 잘못 들린 게 아니라면
+              되돌려 주세요.
+            </p>
+          )}
+        </Collapse>
         {(error || player.error) && (
           <div role="alert" className="alert alert-error alert-soft animate-reveal text-sm">
             {error ?? player.error}
@@ -260,4 +264,15 @@ function NoSession({ onSample }: { onSample?: ReturnType<typeof useAnalysis>["se
       </div>
     </div>
   );
+}
+
+// 문장마다 원본의 말버릇 개수보다 지금 개수가 적으면 그 말버릇을 돌려준다 (고쳤거나 지운 것)
+function removedFiller(original: ScriptPart[], parts: ScriptPart[]) {
+  for (const [pi, p] of original.entries())
+    for (const [li, line] of p.script.entries()) {
+      const now = parts[pi].script[li].words;
+      for (const w of new Set(line.words.filter(isFillerWord)))
+        if (now.filter((x) => x === w).length < line.words.filter((x) => x === w).length) return w;
+    }
+  return null;
 }
