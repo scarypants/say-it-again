@@ -1,0 +1,197 @@
+{
+  "mode": "presentation",
+  "level": "exam",
+  "language": "ko",
+  "parts": [
+    {
+      "duration": 26,
+      "script": [
+        {
+          "start": 0.4,
+          "end": 4.2,
+          "offset": 0,
+          "words": [
+            "오늘은",
+            "캠퍼스",
+            "식당의",
+            "대기",
+            "시간을",
+            "줄이는",
+            "방법을",
+            "발표하겠습니다"
+          ]
+        },
+        {
+          "start": 4.5,
+          "end": 8.6,
+          "offset": 8,
+          "words": [
+            "점심시간에",
+            "음",
+            "학생들이",
+            "평균",
+            "20분을",
+            "기다리고",
+            "있습니다"
+          ]
+        },
+        {
+          "start": 8.8,
+          "end": 13.4,
+          "offset": 15,
+          "words": [
+            "그래서",
+            "학교",
+            "앱에서",
+            "미리",
+            "주문하고",
+            "번호를",
+            "받는",
+            "방식을",
+            "제안합니다"
+          ]
+        },
+        {
+          "start": 13.5,
+          "end": 16.1,
+          "offset": 24,
+          "words": [],
+          "pause": true
+        },
+        {
+          "start": 16.1,
+          "end": 20.8,
+          "offset": 24,
+          "words": [
+            "어",
+            "이",
+            "방식은",
+            "학생들의",
+            "대기",
+            "시간을",
+            "절반으로",
+            "줄일",
+            "수",
+            "있습니다"
+          ]
+        },
+        {
+          "start": 21,
+          "end": 25.6,
+          "offset": 34,
+          "words": [
+            "기존",
+            "학교",
+            "앱에",
+            "기능을",
+            "추가하므로",
+            "도입",
+            "비용도",
+            "적게",
+            "듭니다"
+          ]
+        }
+      ],
+      "highlight": [
+        {
+          "from": 21,
+          "to": 23,
+          "category": "panic",
+          "pauseSec": 2.6
+        },
+        {
+          "from": 9,
+          "to": 9,
+          "category": "filler",
+          "reason": "군말(필러)입니다. 빼고 말해 보세요.",
+          "fixed": ""
+        },
+        {
+          "from": 24,
+          "to": 24,
+          "category": "filler",
+          "reason": "군말(필러)입니다. 빼고 말해 보세요.",
+          "fixed": ""
+        }
+      ],
+      "final": []
+    }
+  ],
+  "charts": {
+    "categoryRatio": {
+      "panic": 7,
+      "filler": 5,
+      "repeat": 0,
+      "expression": 0,
+      "grammar": 0,
+      "normal": 88
+    },
+    "repeatTop": [],
+    "fillerTop": [
+      {
+        "word": "음",
+        "count": 1
+      },
+      {
+        "word": "어",
+        "count": 1
+      }
+    ]
+  },
+  "analysis": {
+    "score": 88,
+    "stats": {
+      "wpm": 118,
+      "fillerCount": 2,
+      "panicCount": 1,
+      "panicTotalSec": 2.6,
+      "repeatCount": 0,
+      "expressionCount": 0,
+      "grammarCount": 0
+    },
+    "summary": {
+      "headline": "군말과 멈춘 시간이 줄어들며 말의 흐름이 좋아졌어요.",
+      "topPriorities": [
+        "두 번째 문장 앞 '음' 없애기"
+      ],
+      "comment": ""
+    }
+  },
+  "compare": {
+    "scriptMatch": 40,
+    "before": {
+      "score": 75,
+      "durationSec": 47.1,
+      "wpm": 118,
+      "fillerCount": 6,
+      "panicCount": 2,
+      "panicTotalSec": 5.8,
+      "repeatCount": 1,
+      "fillerPerMin": 7.6,
+      "panicPerMin": 2.5,
+      "repeatPerMin": 1.3
+    },
+    "after": {
+      "score": 88,
+      "durationSec": 26,
+      "wpm": 118,
+      "fillerCount": 2,
+      "panicCount": 1,
+      "panicTotalSec": 2.6,
+      "repeatCount": 0,
+      "fillerPerMin": 4.6,
+      "panicPerMin": 2.3,
+      "repeatPerMin": 0
+    }
+  },
+  "retry": {
+    "improved": [
+      "말이 멈춘 시간이 5.8초에서 2.6초로 줄었어요",
+      "군말이 분당 7.6회에서 4.6회로 줄었어요"
+    ],
+    "remaining": [
+      "두 번째 문장 앞 '음' 없애기"
+    ],
+    "comment": "군말과 멈춘 시간이 줄어들며 말의 흐름이 좋아졌어요."
+  }
+}

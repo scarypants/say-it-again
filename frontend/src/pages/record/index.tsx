@@ -64,6 +64,12 @@ export default function RecordPage() {
     });
   }
 
+  // 음성이 감지되지 않았으면 녹음을 비우고 처음부터 다시 녹음한다
+  function rerecord() {
+    tx.clear();
+    rec.reset();
+  }
+
   if (analyzing)
     return (
       <>
@@ -274,9 +280,9 @@ export default function RecordPage() {
               <button
                 type="button"
                 className="btn btn-primary btn-lg btn-block"
-                onClick={() => void runAnalyze(rec.blobs)}
+                onClick={() => (tx.noSpeech ? rerecord() : void runAnalyze(rec.blobs))}
               >
-                {analyzeError ? "다시 시도하기" : "대본 만들기"}
+                {tx.noSpeech ? "다시 녹음하기" : analyzeError ? "다시 시도하기" : "대본 만들기"}
               </button>
             )}
           </div>
