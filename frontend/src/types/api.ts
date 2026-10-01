@@ -9,7 +9,10 @@ export type AnalyzeRequest = {
   language: Lang;
   keywords?: string;
   material?: File;
+  question?: string; // 어학 모드: 답한 질문 (LLM 평가 맥락)
 };
+
+export type Exam = "toss" | "opic"; // 토익 스피킹 / 오픽
 
 export type Line = {
   start: number;

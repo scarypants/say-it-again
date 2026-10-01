@@ -1,12 +1,13 @@
 import { useRef, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { analyze, audioFileName } from "../../api/client";
+import AnalyzingView from "../../components/common/AnalyzingView";
+import LevelBars from "../../components/common/LevelBars";
 import MicButton from "../../components/common/MicButton";
+import { useRecorder } from "../../components/common/useRecorder";
 import { useAnalysis } from "../../store/analysis";
-import LevelBars from "./LevelBars";
 import { isMaterialFile, MATERIAL_ACCEPT } from "./material";
 import MaterialPreview from "./MaterialPreview";
-import { useRecorder } from "./useRecorder";
 
 const MAX_SEC = 300;
 
@@ -62,21 +63,7 @@ export default function RecordPage() {
     }
   }
 
-  if (analyzing) {
-    return (
-      <div className="flex flex-1 flex-col items-center justify-center gap-5 text-center">
-        <span className="loading loading-dots loading-lg text-primary" />
-        <div>
-          <p className="text-lg font-semibold">녹음을 분석하고 있어요</p>
-          <p className="mt-2 text-sm leading-relaxed text-secondary">
-            말을 글로 옮기고, 막힌 구간과 그 이유를 찾는 중이에요.
-            <br />
-            보통 30초 안팎 걸려요.
-          </p>
-        </div>
-      </div>
-    );
-  }
+  if (analyzing) return <AnalyzingView />;
 
   const recording = rec.status === "recording";
 
