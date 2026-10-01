@@ -68,7 +68,8 @@ export default function ScriptPage() {
   const audio = session?.audio ?? [];
   const questions = session?.questions;
   const counts = countByCategory(result.parts);
-  const legend = DISPLAY_CATEGORIES.filter((c) => counts[c] > 0 || result.mode === "presentation");
+  // 발표·면접은 0개여도 색 설명을 다 보여 준다 (스피킹은 나온 것만)
+  const legend = DISPLAY_CATEGORIES.filter((c) => counts[c] > 0 || result.mode !== "speaking");
   const close = () => setSelected(null);
   const summaryButton = (
     <Link to="/summary" className="btn btn-primary btn-lg btn-block">
@@ -103,11 +104,14 @@ export default function ScriptPage() {
 
         <div className="flex flex-col gap-6">
           {result.parts.map((part, pi) => (
-            <section key={pi} aria-label={partTitle(result.mode, pi, part.duration)}>
+            <section
+              key={pi}
+              aria-label={partTitle(result.mode, pi, part.duration, questions?.[pi])}
+            >
               {(result.parts.length > 1 || result.mode !== "presentation") && (
                 <header className="mb-2 border-b border-base-300 pb-2">
                   <h2 className="text-sm font-semibold tabular-nums">
-                    {partTitle(result.mode, pi, part.duration)}
+                    {partTitle(result.mode, pi, part.duration, questions?.[pi])}
                   </h2>
                   {questionLine(questions?.[pi]) && (
                     <p className="mt-0.5 text-sm text-secondary">{questionLine(questions?.[pi])}</p>

@@ -7,9 +7,13 @@ export function mmss(sec: number) {
   return `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
 }
 
-// 파트 제목. 발표: 전체에서 몇 분 몇 초 구간인지 / 스피킹·면접: 몇 번째 질문인지
-export function partTitle(mode: InputMode, index: number, duration: number) {
-  if (mode !== "presentation") return `질문 ${index + 1}`;
+// 파트 제목. 발표: 전체에서 몇 분 몇 초 구간인지 / 스피킹·면접: 몇 번째 질문인지.
+// question(질문 문자열)에 "Q4"처럼 원래 번호가 있으면 그걸 쓴다 (면접에서 건너뛴 뒤에도 번호 유지)
+export function partTitle(mode: InputMode, index: number, duration: number, question?: string) {
+  if (mode !== "presentation") {
+    const n = question?.match(/\bQ(\d+)\b/)?.[1];
+    return `질문 ${n ?? index + 1}`;
+  }
   const from = index * PART_SEC;
   return `${mmss(from)} – ${mmss(from + duration)}`;
 }

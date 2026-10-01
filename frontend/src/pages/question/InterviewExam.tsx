@@ -396,6 +396,9 @@ export default function InterviewExam({ onRestart }: { onRestart: () => void }) 
         <p className="text-sm font-semibold">
           {rec.status === "recording" ? "답변 녹음 중" : "녹음 준비 중"}
         </p>
+        <p className="-mt-2 text-sm font-semibold text-accent">
+          {language === "en" ? "영어" : "한국어"}로 답해 주세요
+        </p>
         <p className="text-4xl font-semibold tabular-nums tracking-tight">
           {mmss(rec.elapsed)}
           <span className="text-lg font-medium text-secondary"> / {mmss(ANSWER_GOAL_SEC)}</span>
