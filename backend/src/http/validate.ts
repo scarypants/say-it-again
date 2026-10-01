@@ -1,13 +1,27 @@
 import type { Request } from 'express';
-import { MAX_FILES, MAX_JOB_LENGTH } from '../config';
+import {
+  MAX_ANSWER_CHARS,
+  MAX_ASKED,
+  MAX_FILES,
+  MAX_FOLLOW_UPS,
+  MAX_JOB_LENGTH,
+  MAX_OPIC_TOPICS,
+  MAX_QUESTION_CHARS,
+  MAX_SCENE_LENGTH,
+} from '../config';
 import { HttpError } from '../errors';
 import type {
   Analysis,
   Charts,
   Exam,
+  FollowUpQuestionsRequest,
+  InitialQuestionsRequest,
   InterviewQuestionsRequest,
   Level,
   Line,
+  OpicTopic,
+  QuestionImageRequest,
+  QuestionsRequest,
   RetryPrevious,
   TranscriptPart,
 } from '../types/api';
@@ -120,12 +134,135 @@ function parseModeInfo(body: Record<string, unknown>, count: number): ModeInfo {
 export function parseInterviewQuestionsRequest(req: Request): InterviewQuestionsRequest {
   const { language, job } = (req.body ?? {}) as Record<string, unknown>;
   if (language !== 'ko' && language !== 'en') throw new HttpError(400, 'language는 ko 또는 en이어야 합니다.');
-  // 줄바꿈 등은 공백 하나로 (질문 문자열·프롬프트 안에 한 줄로 들어간다)
+  return { language, job: parseJob(job) };
+}
+
+/** 지원 직무: 줄바꿈 등은 공백 하나로 (질문 문자열·프롬프트 안에 한 줄로 들어간다), 1~MAX_JOB_LENGTH자 */
+function parseJob(job: unknown): string {
   const trimmed = typeof job === 'string' ? job.replace(/\s+/g, ' ').trim() : '';
   if (trimmed.length < 1 || trimmed.length > MAX_JOB_LENGTH) {
     throw new HttpError(400, `지원 직무를 1~${MAX_JOB_LENGTH}자로 입력해 주세요.`);
   }
-  return { language, job: trimmed };
+  return trimmed;
+}
+
+/** POST /api/questions (JSON): kind·mode·language·exam 조합과 모드별 입력을 검증한다 (docs/api.md 6절). 실패하면 400. */
+export function parseQuestionsRequest(req: Request): QuestionsRequest {
+  const body = (req.body ?? {}) as Record<string, unknown>;
+  if (body.kind === 'initial') return parseInitialQuestions(body);
+  if (body.kind === 'followUp') return parseFollowUpQuestions(body);
+  throw new HttpError(400, 'kind는 initial 또는 followUp이어야 합니다.');
+}
+
+function parseInitialQuestions(body: Record<string, unknown>): InitialQuestionsRequest {
+  const { mode, language, exam } = body;
+  if (mode === 'speaking') {
+    if (language !== 'en') throw new HttpError(400, '스피킹 모드의 language는 en이어야 합니다.');
+    if (exam === 'TOEIC-Speaking') return { kind: 'initial', mode, language, exam };
+    if (exam === 'opic') return { kind: 'initial', mode, language, exam, opic: parseOpic(body.opic) };
+    throw new HttpError(400, 'exam이 올바르지 않습니다.');
+  }
+  if (mode === 'interview') {
+    if (language !== 'ko' && language !== 'en') {
+      throw new HttpError(400, '면접 모드의 language는 ko 또는 en이어야 합니다.');
+    }
+    return { kind: 'initial', mode, language, job: parseJob(body.job) };
+  }
+  throw new HttpError(400, '처음 질문은 스피킹·면접 모드만 만들 수 있습니다.');
+}
+
+function parseOpic(raw: unknown): { topics: OpicTopic[]; level: number } {
+  const o = raw as { topics?: unknown; level?: unknown } | null;
+  const topics = Array.isArray(o?.topics) ? o.topics : [];
+  if (topics.length < 1 || topics.length > MAX_OPIC_TOPICS) {
+    throw new HttpError(400, `opic.topics는 1~${MAX_OPIC_TOPICS}개여야 합니다.`);
+  }
+  const parsed = topics.map((t: unknown) => {
+    const { id, label } = (t ?? {}) as Record<string, unknown>;
+    if (typeof id !== 'string' || typeof label !== 'string' || !id.trim() || !label.trim()) {
+      throw new HttpError(400, 'opic.topics의 id·label은 비어 있지 않은 문자열이어야 합니다.');
+    }
+    return { id: id.trim().slice(0, 50), label: label.trim().slice(0, 50) };
+  });
+  const level = o?.level;
+  if (typeof level !== 'number' || !Number.isInteger(level) || level < 1 || level > 6) {
+    throw new HttpError(400, 'opic.level은 1~6이어야 합니다.');
+  }
+  return { topics: parsed, level };
+}
+
+function parseFollowUpQuestions(body: Record<string, unknown>): FollowUpQuestionsRequest {
+  const { mode, language, level, exam } = body;
+  const base = {
+    kind: 'followUp' as const,
+    count: parseCount(body.count),
+    answers: parseAnswers(body.answers),
+    asked: parseAsked(body.asked),
+  };
+
+  if (mode === 'presentation') {
+    if (language !== 'ko' && language !== 'en') {
+      throw new HttpError(400, '발표 모드의 language는 ko 또는 en이어야 합니다.');
+    }
+    if (!LEVELS.includes(level as Level)) throw new HttpError(400, 'level이 올바르지 않습니다.');
+    return { ...base, mode, language, level: level as Level };
+  }
+  if (mode === 'speaking') {
+    if (language !== 'en') throw new HttpError(400, '스피킹 모드의 language는 en이어야 합니다.');
+    if (!EXAMS.includes(exam as Exam)) throw new HttpError(400, 'exam이 올바르지 않습니다.');
+    return { ...base, mode, language, exam: exam as Exam };
+  }
+  if (mode === 'interview') {
+    if (language !== 'ko' && language !== 'en') {
+      throw new HttpError(400, '면접 모드의 language는 ko 또는 en이어야 합니다.');
+    }
+    // job은 선택. 오면 처음 질문과 같은 규칙으로 정리한다
+    return { ...base, mode, language, ...(body.job !== undefined && { job: parseJob(body.job) }) };
+  }
+  throw new HttpError(400, 'mode가 올바르지 않습니다.');
+}
+
+function parseCount(raw: unknown): 1 | 2 | 3 {
+  if (raw === undefined) return MAX_FOLLOW_UPS;
+  if (raw === 1 || raw === 2 || raw === 3) return raw;
+  throw new HttpError(400, `count는 1~${MAX_FOLLOW_UPS}이어야 합니다.`);
+}
+
+function parseAnswers(raw: unknown): { question?: string; text: string }[] {
+  if (!Array.isArray(raw) || raw.length < 1 || raw.length > MAX_FILES) {
+    throw new HttpError(400, `answers는 1~${MAX_FILES}개여야 합니다.`);
+  }
+  const answers = raw.map((a: unknown, i) => {
+    const { question, text } = (a ?? {}) as Record<string, unknown>;
+    if (typeof text !== 'string') throw new HttpError(400, `${i + 1}번째 answers의 text가 올바르지 않습니다.`);
+    if (question !== undefined && (typeof question !== 'string' || question.length > MAX_QUESTION_CHARS)) {
+      throw new HttpError(400, `${i + 1}번째 answers의 question이 올바르지 않습니다.`);
+    }
+    return { ...(question !== undefined && { question }), text: text.trim() };
+  });
+  if (answers.reduce((n, a) => n + a.text.length, 0) > MAX_ANSWER_CHARS) {
+    throw new HttpError(400, `answers의 text는 합계 ${MAX_ANSWER_CHARS}자 이하여야 합니다.`);
+  }
+  if (answers.every((a) => a.text.length === 0)) throw new HttpError(400, 'answers의 text가 모두 비어 있습니다.');
+  return answers;
+}
+
+function parseAsked(raw: unknown): string[] {
+  if (raw === undefined) return [];
+  if (!Array.isArray(raw) || raw.length > MAX_ASKED || !raw.every((q) => typeof q === 'string')) {
+    throw new HttpError(400, `asked는 문자열 배열(최대 ${MAX_ASKED}개)이어야 합니다.`);
+  }
+  return raw.map((q) => q.slice(0, MAX_QUESTION_CHARS));
+}
+
+/** POST /api/questions/image (JSON): 토익 Part 2 장면 설명. 실패하면 400. */
+export function parseQuestionImageRequest(req: Request): QuestionImageRequest {
+  const { scene } = (req.body ?? {}) as Record<string, unknown>;
+  const trimmed = typeof scene === 'string' ? scene.trim() : '';
+  if (trimmed.length < 1 || trimmed.length > MAX_SCENE_LENGTH) {
+    throw new HttpError(400, `scene은 1~${MAX_SCENE_LENGTH}자여야 합니다.`);
+  }
+  return { scene: trimmed };
 }
 
 /** multipart에서는 JSON 문자열, JSON 요청에서는 배열로 온다. */

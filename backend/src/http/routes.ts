@@ -1,13 +1,17 @@
 import { Router } from 'express';
 import multer from 'multer';
 import { MAX_FILE_BYTES, MAX_FILES } from '../config';
+import { generateQuestionImage } from '../llm/image';
 import { analyze } from '../pipeline/analyze';
 import { generateInterviewQuestions } from '../pipeline/interview';
+import { generateQuestions } from '../pipeline/questions';
 import { retry } from '../pipeline/retry';
 import { transcribeAll } from '../pipeline/transcribe';
 import {
   parseAnalyzeRequest,
   parseInterviewQuestionsRequest,
+  parseQuestionImageRequest,
+  parseQuestionsRequest,
   parseRetryRequest,
   parseTranscribeRequest,
 } from './validate';
@@ -35,7 +39,18 @@ router.post('/retry', async (req, res) => {
   res.json(await retry(parseRetryRequest(req)));
 });
 
-// 면접: 지원 직무 → 질문 5개 (LLM 실패 시 기본 질문)
+// 질문 생성: 처음 질문(스피킹·면접) / 꼬리질문(모든 모드, 버튼을 눌렀을 때)
+router.post('/questions', async (req, res) => {
+  res.json(await generateQuestions(parseQuestionsRequest(req)));
+});
+
+// 토익 Part 2 사진 (질문을 받은 뒤 프론트가 뒤에서 부른다. 실패하면 502 → 기본 사진)
+router.post('/questions/image', async (req, res) => {
+  const { scene } = parseQuestionImageRequest(req);
+  res.json({ image: await generateQuestionImage(scene) });
+});
+
+// (예전) 면접: 지원 직무 → 질문 5개. 프론트가 /questions로 옮기면 삭제한다
 router.post('/interview/questions', async (req, res) => {
   res.json(await generateInterviewQuestions(parseInterviewQuestionsRequest(req)));
 });

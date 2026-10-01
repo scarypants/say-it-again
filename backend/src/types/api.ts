@@ -147,3 +147,70 @@ export type InterviewQuestionsResponse = {
   questions: { type: InterviewQuestionType; text: string }[]; // 항상 5개: intro → motivation → job → experience → closing
   warnings?: string[]; // LLM 실패 시 ["llm_failed"] + 기본 질문
 };
+
+// ---- POST /api/questions (질문 생성: 처음 질문 · 꼬리질문) ----
+
+export type QuestionKind = 'initial' | 'followUp';
+
+export type QuestionType =
+  | InterviewQuestionType // 면접 처음 질문
+  | 'readAloud' | 'describePicture' | 'respond' | 'information' | 'opinion' // 토익
+  | 'description' | 'routine' | 'rolePlayAsk' | 'rolePlaySolve' // 오픽 (intro·experience는 면접과 이름이 같다)
+  | 'expected' // 발표 예상 질문
+  | 'followUp'; // 오픽·면접 꼬리질문
+
+export type ToeicSchedule = { title: string; rows: { time: string; session: string; speaker: string }[] };
+
+export type OpicTopic = { id: string; label: string };
+
+export type Question = {
+  type: QuestionType;
+  text: string; // 화면에 보여 주는(토익·오픽은 TTS로 읽어 주는) 질문
+  prompt: string; // transcribe·analyze·retry의 questions[i]로 그대로 보내는 문자열
+  part?: 1 | 2 | 3 | 4 | 5; // 토익
+  context?: string; // 토익 Part 1 지문, Part 3 상황
+  picture?: {
+    scene: string; // /api/questions/image에 보낼 장면 설명
+    prompt: string; // 생성 사진으로 출제했을 때의 questions[i]
+    fallback: { id: 'cafeteria'; prompt: string }; // 기본 사진으로 출제했을 때
+  };
+  schedule?: ToeicSchedule; // 토익 Part 4
+  topic?: OpicTopic; // 오픽 처음 질문
+  hint?: string; // 발표: 답변 방향 / 면접: 질문 의도
+  about?: number; // 꼬리질문이 이어지는 답변 번호 (answers 기준, 0부터)
+};
+
+export type InitialQuestionsRequest =
+  | { kind: 'initial'; mode: 'speaking'; language: 'en'; exam: 'TOEIC-Speaking' }
+  | { kind: 'initial'; mode: 'speaking'; language: 'en'; exam: 'opic'; opic: { topics: OpicTopic[]; level: number } }
+  | { kind: 'initial'; mode: 'interview'; language: Language; job: string };
+
+export type FollowUpQuestionsRequest = {
+  kind: 'followUp';
+  mode: Mode;
+  language: Language;
+  level?: Level; // 발표
+  exam?: Exam; // 스피킹
+  job?: string; // 면접
+  count: 1 | 2 | 3; // 받을 꼬리질문 개수 (요청에서 빠지면 3)
+  answers: { question?: string; text: string }[]; // 꼬리질문을 만들 재료: 녹음(파트)마다 실제로 말한 대본
+  asked: string[]; // 이미 받은 꼬리질문 (중복 방지)
+};
+
+export type QuestionsRequest = InitialQuestionsRequest | FollowUpQuestionsRequest;
+
+export type QuestionsResponse = {
+  kind: QuestionKind;
+  mode: Mode;
+  language: Language;
+  exam?: Exam;
+  job?: string;
+  questions: Question[];
+  warnings?: string[];
+};
+
+// ---- POST /api/questions/image (토익 Part 2 사진) ----
+
+export type QuestionImageRequest = { scene: string };
+
+export type QuestionImageResponse = { image: string }; // data URL
