@@ -1,3 +1,4 @@
+import PageHeader from "../../components/common/PageHeader";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 import { audioFileName } from "../../api/client";
@@ -235,12 +236,14 @@ export default function ToeicSpeakingExam() {
   if (stage === "intro") {
     return (
       <div className="flex flex-1 flex-col">
-        <section className="flex items-center justify-between gap-3 pt-2 pb-4">
-          <h1 className="text-xl font-bold">토익 스피킹 모의시험</h1>
-          <Link to="/" className="btn btn-ghost btn-sm">
-            설정 바꾸기
-          </Link>
-        </section>
+        <PageHeader
+          title="토익 스피킹 모의시험"
+          action={
+            <Link to="/" className="btn btn-ghost btn-sm">
+              설정 바꾸기
+            </Link>
+          }
+        />
         <p className="text-[0.9375rem] leading-relaxed">
           실제 시험처럼 Part 1부터 5까지 한 문제씩 이어서 진행해요. 준비 시간이 끝나면 신호음과 함께
           자동으로 녹음돼요. 답변 시간이 끝나면 알려 드리고, 버튼을 누르면 다음 문제로 넘어가요.
@@ -285,12 +288,10 @@ export default function ToeicSpeakingExam() {
     return (
       <div className="flex flex-1 flex-col">
         {leaveGuard}
-        <section className="pt-2 pb-4">
-          <h1 className="text-xl font-bold">시험이 끝났어요</h1>
-          <p className="mt-1 text-sm text-secondary">
-            답변을 들어 보고, 다섯 문제를 한 번에 분석해요.
-          </p>
-        </section>
+        <PageHeader
+          title="시험이 끝났어요"
+          description="답변을 들어 보고, 다섯 문제를 한 번에 분석해요."
+        />
         <ul className="flex flex-col gap-3">
           {TOEIC_SPEAKING_ITEMS.map((it, i) => (
             <li key={it.part} className="rounded-box border border-base-300 p-4">
