@@ -95,15 +95,16 @@ API는 두 단계다 (`docs/api.md`).
 파트별 호출 (입력: 번호 붙은 스크립트 + 모드·`level`·`exam`·질문 문자열):
 ```json
 {
-  "highlight": [
-    { "line": 2, "from": 3, "to": 6, "category": "panic|expression|grammar", "reason": "...", "fixed": "..." }
-  ],
+  "panics": [{ "line": 3, "reason": "왜 막혔는지", "fixed": "대안 대본" }],
+  "issues": [{ "line": 2, "from": 3, "to": 4, "category": "expression|grammar", "reason": "...", "fixed": "..." }],
   "final": ["수정된 문장", "..."],
   "comment": "..."
 }
 ```
-- `line`, `from`, `to`는 입력의 줄 번호와 줄 안 단어 번호이고, 서버가 응답 `highlight`의 파트 전체 단어 번호로 바꾼다. 범위를 벗어나면 폐기한다.
-- `comment`는 스피킹에서만 받는다. 토익 Part 1(지문 읽기)은 `final`을 빈 배열로 돌려준다.
+- `panics[].line`은 침묵(pause) 줄 번호다. 패닉존 위치·`pauseSec`는 코드가 이미 정했고, 서버가 같은 pause 줄의 panic 하이라이트에 `reason`·`fixed`를 채운다.
+- `issues`의 `line`, `from`, `to`는 입력의 줄 번호와 줄 안 단어 번호이고, 서버가 `offset`을 더해 파트 전체 단어 번호로 바꾼다. 범위를 벗어나면 폐기한다. 범위는 바꿔야 할 단어만 최소로(보통 1~4단어) 잡게 지시한다.
+- `grammar`는 스피킹에서만 받는다. `comment`도 스피킹에서만 쓴다. 토익 Part 1(지문 읽기)은 `final`을 빈 배열로 돌려준다.
+- 모델은 `OPENAI_LLM_MODEL`(현재 gpt-6-luna), Structured Outputs(strict JSON schema), 추론 강도 `low`. 35초 녹음 1개 기준 약 12초.
 
 총평 호출:
 ```json

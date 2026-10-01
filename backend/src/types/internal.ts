@@ -19,7 +19,8 @@ export type AnalyzeInput = ModeInfo & { parts: TranscriptPart[] };
 
 // LLM이 파트 하나에 대해 돌려주는 결과 (코드가 찾은 필러·중복은 포함하지 않는다)
 export type LlmPartResult = {
-  highlight: Highlight[];
+  highlight: Highlight[]; // expression / grammar
+  panicNotes: Map<number, { reason: string; fixed: string }>; // pause 줄 번호 → 원인·대안
   final: { words: string[] }[];
   comment?: string;
 };

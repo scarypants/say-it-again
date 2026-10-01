@@ -39,6 +39,12 @@ export const TOP_N = 10;
 // OpenAI
 export const STT_MODEL = 'whisper-1';
 export const LLM_MODEL = process.env.OPENAI_LLM_MODEL ?? '';
+export const LLM_TIMEOUT_MS = 90_000;
+// 추론 강도. 높을수록 느리고 꼼꼼하다 ('minimal' | 'low' | 'medium' | 'high')
+export const LLM_REASONING_EFFORT = 'low' as const;
+
+// LLM 표현 개선 하이라이트는 파트당 최대 개수 (영향도 순)
+export const MAX_EXPRESSIONS = 8;
 
 // whisper 원본 응답을 JSON으로 저장할 폴더 (샘플·mock용, 비우면 저장 안 함)
 export const STT_DUMP_DIR = process.env.STT_DUMP_DIR ?? '';
