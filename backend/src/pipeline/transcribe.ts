@@ -21,7 +21,12 @@ export async function transcribeAll(input: TranscribeInput): Promise<TranscribeR
 
 /** 녹음 길이 확인 (+GRACE_SEC 여유). transcribe는 whisper duration, analyze는 보내온 duration 기준. */
 export function checkDurations(info: ModeInfo, durations: number[]): void {
-  const limit = info.mode === 'speaking' && info.exam ? MAX_AUDIO_SEC[info.exam] : MAX_AUDIO_SEC.presentation;
+  const limit =
+    info.mode === 'interview'
+      ? MAX_AUDIO_SEC.interview
+      : info.mode === 'speaking' && info.exam
+        ? MAX_AUDIO_SEC[info.exam]
+        : MAX_AUDIO_SEC.presentation;
   durations.forEach((duration, i) => {
     if (duration > limit + GRACE_SEC) {
       throw new HttpError(400, `${i + 1}번째 녹음이 너무 깁니다 (최대 ${limit}초).`);

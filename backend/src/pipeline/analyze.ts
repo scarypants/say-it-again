@@ -2,6 +2,7 @@ import { findFillers } from '../detectors/fillers';
 import { findPanics } from '../detectors/panics';
 import { findRepeats } from '../detectors/repeats';
 import { analyzePart, summarize } from '../llm/requests';
+import { answersQuestions } from '../modes';
 import type { AnalyzeResponse, Highlight, Language, Line, Part } from '../types/api';
 import type { AnalyzeInput } from '../types/internal';
 import { toWords, withOffsets } from './script';
@@ -32,7 +33,7 @@ export async function analyze(input: AnalyzeInput): Promise<AnalyzeResponse> {
           if (note) Object.assign(panic.highlight, note);
         }
         return {
-          comment: input.mode === 'speaking' ? llm.comment : undefined,
+          comment: answersQuestions(input) ? llm.comment : undefined,
           duration,
           script,
           highlight: [...codeHighlight, ...llm.highlight],
