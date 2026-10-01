@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { analyze, audioFileName } from "../../api/client";
+import { LEVEL_LABEL } from "../../api/presentationLevels";
 import AnalyzingView from "../../components/common/AnalyzingView";
 import LevelBars from "../../components/common/LevelBars";
 import MicButton from "../../components/common/MicButton";
@@ -42,11 +43,6 @@ export default function RecordPage() {
     setMaterial(file);
   }
 
-  const keywords = settings.keywords
-    .split(",")
-    .map((k) => k.trim())
-    .filter(Boolean);
-
   async function runAnalyze(audio: Blob[]) {
     setAnalyzing(true);
     setAnalyzeError(null);
@@ -55,7 +51,7 @@ export default function RecordPage() {
         audio,
         mode: settings.mode,
         language: settings.language,
-        keywords: settings.keywords || undefined,
+        level: settings.level,
         material: material ?? undefined,
       });
       setResult(result);
@@ -77,14 +73,8 @@ export default function RecordPage() {
       <section className="flex items-start justify-between gap-3 pt-2 pb-4">
         <div className="min-w-0">
           <h1 className="text-xl font-bold">발표 연습</h1>
-          {keywords.length > 0 && (
-            <ul className="mt-2 flex flex-wrap gap-1.5" aria-label="발표 키워드">
-              {keywords.map((k) => (
-                <li key={k} className="badge badge-outline border-base-300 badge-sm">
-                  {k}
-                </li>
-              ))}
-            </ul>
+          {settings.level && (
+            <p className="mt-0.5 text-sm text-secondary">{LEVEL_LABEL[settings.level]}</p>
           )}
         </div>
         {!recording && !paused && (

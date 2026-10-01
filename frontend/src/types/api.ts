@@ -1,15 +1,18 @@
 // docs/api.md 와 동일하게 유지한다. 계약이 바뀌면 이 파일도 같이 고친다.
 
-export type Mode = "lecture" | "language" | "interview";
+export type Mode = "presentation" | "speaking" | "interview"; // 발표 / 어학 스피킹 / 면접(예정)
 export type Lang = "ko" | "en";
 
 export type AnalyzeRequest = {
   audio: Blob[]; // 녹음 순서대로. 파일 하나당 최대 5분, 최대 5개
   mode: Mode;
   language: Lang;
-  keywords?: string;
+  level?: PresentationLevel; // 발표 모드에서만
   material?: File;
 };
+
+// 발표 수준: 과제 발표 / 시험 발표 / 큰 강연
+export type PresentationLevel = "assignment" | "exam" | "keynote";
 
 export type Exam = "TOEIC-Speaking" | "opic"; // 토익 스피킹 / 오픽
 

@@ -24,7 +24,7 @@ export async function analyze(req: AnalyzeRequest): Promise<AnalyzeResponse> {
   req.audio.forEach((a, i) => form.append("audio", a, `part${i + 1}-${audioFileName(a)}`));
   form.append("mode", req.mode);
   form.append("language", req.language);
-  if (req.keywords) form.append("keywords", req.keywords);
+  if (req.level) form.append("level", req.level);
   if (req.material) form.append("material", req.material);
 
   return postAnalyze(form);
@@ -36,7 +36,7 @@ export async function analyzeSpeaking(req: SpeakingAnalyzeRequest): Promise<Anal
   if (USE_MOCK) return mockResponse();
 
   const form = new FormData();
-  form.append("mode", "language");
+  form.append("mode", "speaking");
   form.append("language", "en");
   form.append("exam", req.exam);
   form.append("questions", JSON.stringify(req.answers.map((a) => a.question)));
