@@ -1,5 +1,6 @@
 import { GRACE_SEC, MAX_AUDIO_SEC } from '../config';
 import { HttpError } from '../errors';
+import { panicRule } from '../modes';
 import type { TranscribeResponse } from '../types/api';
 import type { ModeInfo, TranscribeInput } from '../types/internal';
 import { splitSentences } from './script';
@@ -15,7 +16,7 @@ export async function transcribeAll(input: TranscribeInput): Promise<TranscribeR
     level: input.level,
     exam: input.exam,
     language: input.language,
-    parts: transcripts.map((t) => ({ duration: t.duration, script: splitSentences(t.words, t.segmentEnds) })),
+    parts: transcripts.map((t) => ({ duration: t.duration, script: splitSentences(t.words, t.segmentEnds, panicRule(input)) })),
   };
 }
 
