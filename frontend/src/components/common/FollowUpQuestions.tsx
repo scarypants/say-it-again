@@ -30,7 +30,7 @@ type Props = {
 };
 
 // 결과 화면 아래의 꼬리질문. 버튼을 눌렀을 때만 받는다 (LLM 호출).
-// 스피킹·면접은 받은 질문으로 바로 다시 연습할 수 있다
+// 받은 질문으로 바로 한 문항씩 답하며 연습할 수 있다
 export default function FollowUpQuestions({ result, questions }: Props) {
   const copy = COPY[result.mode];
   const practice = usePracticeFollowUp();
@@ -38,7 +38,6 @@ export default function FollowUpQuestions({ result, questions }: Props) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [asked, setAsked] = useState<string[]>([]); // 다시 받을 때 겹치지 않게
-  const canPractice = result.mode !== "presentation";
 
   async function load() {
     setBusy(true);
@@ -99,11 +98,7 @@ export default function FollowUpQuestions({ result, questions }: Props) {
       )}
 
       <Collapse open={items.length > 0}>
-        <ol
-          key={asked.length}
-          className="mt-4 flex animate-fade flex-col gap-4"
-          aria-live="polite"
-        >
+        <ol key={asked.length} className="mt-4 flex animate-fade flex-col gap-4" aria-live="polite">
           {items.map((q, i) => (
             <li key={q.text} className="flex gap-3">
               <span className="w-5 shrink-0 pt-0.5 text-sm font-semibold tabular-nums text-secondary">
@@ -119,32 +114,25 @@ export default function FollowUpQuestions({ result, questions }: Props) {
                     {q.context}
                   </p>
                 )}
-                {q.hint && <p className="mt-1 text-sm text-accent">{q.hint}</p>}
+                {q.hint && (
+                  <details className="mt-1 text-sm">
+                    <summary className="cursor-pointer text-secondary select-none">
+                      {result.mode === "presentation" ? "답변 방향 보기" : "질문 의도 보기"}
+                    </summary>
+                    <p className="mt-1 text-accent">{q.hint}</p>
+                  </details>
+                )}
               </div>
             </li>
           ))}
         </ol>
-        <div className="mt-5 flex flex-wrap gap-2">
-          {canPractice && (
-            <button
-              type="button"
-              className="btn btn-primary"
-              disabled={busy}
-              onClick={() => practice(result, items, questions?.[0]?.match(/^Job: (.*)$/m)?.[1])}
-            >
-              이 질문으로 연습하기
-            </button>
-          )}
-          <button
-            type="button"
-            className="btn btn-ghost"
-            onClick={() => void load()}
-            disabled={busy}
-          >
-            {busy && spinner}
-            다른 질문 받기
-          </button>
-        </div>
+        <button
+          type="button"
+          className="btn btn-primary mt-5"
+          onClick={() => practice(result, items, questions?.[0]?.match(/^Job: (.*)$/m)?.[1])}
+        >
+          {result.mode === "presentation" ? "이 질문에 답해 보기" : "이 질문으로 연습하기"}
+        </button>
       </Collapse>
     </section>
   );

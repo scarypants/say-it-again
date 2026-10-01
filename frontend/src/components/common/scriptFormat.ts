@@ -20,6 +20,9 @@ export function partTitle(
     // 꼬리질문 연습: "Interview Follow-up 2 (about Q4)" → 꼬리질문 2
     const follow = question?.match(/\bFollow-up (\d+)\b/)?.[1];
     if (follow) return `꼬리질문 ${follow}`;
+    // 발표 예상 질문 연습: "Presentation Q&A 2" → 예상 질문 2
+    const qna = question?.match(/^Presentation Q&A (\d+)/)?.[1];
+    if (qna) return `예상 질문 ${qna}`;
     const n = question?.match(/\bQ(\d+)\b/)?.[1];
     return `질문 ${n ?? index + 1}`;
   }

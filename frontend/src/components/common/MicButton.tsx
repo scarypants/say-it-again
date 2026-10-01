@@ -19,9 +19,11 @@ export default function MicButton({ recording, onClick, disabled, size = "lg" }:
   // 질문이 바로 이어지는 화면은 녹음이 꺼졌다 켜지는 순간이 안 보일 수 있어 key={질문 번호}로 새로 그린다
   const [wasRecording, setWasRecording] = useState(recording);
   const [locked, setLocked] = useState(recording);
+  const [stopping, setStopping] = useState(false); // 정지를 눌렀으면 녹음이 끝날 때까지 다시 못 누른다
   if (recording !== wasRecording) {
     setWasRecording(recording);
     setLocked(recording);
+    setStopping(false);
   }
   useEffect(() => {
     if (!locked) return;
@@ -32,8 +34,11 @@ export default function MicButton({ recording, onClick, disabled, size = "lg" }:
   return (
     <button
       type="button"
-      onClick={onClick}
-      disabled={disabled || locked}
+      onClick={() => {
+        if (recording) setStopping(true);
+        onClick();
+      }}
+      disabled={disabled || locked || stopping}
       aria-label={recording ? "녹음 정지" : "녹음 시작"}
       className={`btn btn-circle btn-primary ${box} transition-[box-shadow,opacity] duration-500 ${
         recording ? "ring-8 ring-primary/15" : ""

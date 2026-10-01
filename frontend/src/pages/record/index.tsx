@@ -1,6 +1,5 @@
 import PageHeader from "../../components/common/PageHeader";
 import { useRef, useState } from "react";
-import { Link } from "react-router";
 import { audioFileName } from "../../api/client";
 import { useTranscribe } from "../../api/useTranscribe";
 import { LEVEL_LABEL } from "../../api/presentationLevels";
@@ -8,6 +7,7 @@ import AnalyzingView from "../../components/common/AnalyzingView";
 import Collapse from "../../components/common/Collapse";
 import LevelBars from "../../components/common/LevelBars";
 import MicButton from "../../components/common/MicButton";
+import RecordedAudio from "../../components/common/RecordedAudio";
 import { DESKTOP_QUERY, useMediaQuery } from "../../components/common/useMediaQuery";
 import { useLeaveGuard } from "../../components/common/useLeaveGuard";
 import { useRecorder } from "../../components/common/useRecorder";
@@ -92,15 +92,6 @@ export default function RecordPage() {
           (settings.language === "en" ? "영어" : "한국어") +
           (settings.level ? ` 발표, ${LEVEL_LABEL[settings.level]}` : "")
         }
-        action={
-          !recording &&
-          !paused &&
-          !retry && (
-            <Link to="/" className="btn btn-ghost btn-sm">
-              설정 바꾸기
-            </Link>
-          )
-        }
       />
 
       {/* 자료가 있으면 폰에선 자료가 위를 차지하고 녹음 영역은 아래로 작게,
@@ -162,7 +153,7 @@ export default function RecordPage() {
             {rec.status === "recorded" && rec.urls.length > 0 ? (
               <div className="flex w-full animate-fade flex-col items-center gap-3">
                 {rec.urls.length === 1 ? (
-                  <audio src={rec.urls[0]} controls className="w-full" />
+                  <RecordedAudio src={rec.urls[0]} />
                 ) : (
                   // 5분짜리 파일 여러 개: 녹음 순서대로, 각 파일이 전체에서 몇 분 몇 초 구간인지
                   <ol className="flex w-full flex-col gap-2" aria-label="녹음 파일">
@@ -181,7 +172,7 @@ export default function RecordPage() {
                             파일 저장
                           </a>
                         </div>
-                        <audio src={u} controls className="w-full" />
+                        <RecordedAudio src={u} />
                       </li>
                     ))}
                   </ol>

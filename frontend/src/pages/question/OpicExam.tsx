@@ -8,6 +8,7 @@ import { failedAnswerIndex } from "./answerRetry";
 import AnalyzingView from "../../components/common/AnalyzingView";
 import LevelBars from "../../components/common/LevelBars";
 import MicButton from "../../components/common/MicButton";
+import RecordedAudio from "../../components/common/RecordedAudio";
 import { useLeaveGuard } from "../../components/common/useLeaveGuard";
 import { useRecorder } from "../../components/common/useRecorder";
 import {
@@ -38,6 +39,11 @@ type Phase = "listen" | "replay" | "speak";
 // 오픽 모의시험: 서베이·자가 평가 → 질문은 소리로만 → 5초 안에 한 번 다시 듣기 → 자동 녹음.
 // 다 말하면 버튼으로 다음 문제. 이전 문제로는 돌아갈 수 없다.
 // onRestart: 음성이 감지되지 않았을 때 시험을 처음부터 다시 (부모가 새로 그린다)
+const MAX_TOPICS = 3; // 고를 수 있는 서베이 주제 수
+
+// 90 → "1분 30초", 120 → "2분"
+const minText = (sec: number) => `${Math.floor(sec / 60)}분${sec % 60 ? ` ${sec % 60}초` : ""}`;
+
 export default function OpicExam({ onRestart }: { onRestart: () => void }) {
   const rec = useRecorder(ANSWER_MAX_SEC); // 2분이 되면 자동으로 멈추고 다음 문제
 
@@ -65,6 +71,7 @@ export default function OpicExam({ onRestart }: { onRestart: () => void }) {
   const answersRef = useRef<(Blob | null)[]>([]);
   const urlsRef = useRef<string[]>([]);
   const beepCtxRef = useRef<AudioContext | null>(null);
+  const skippedRef = useRef(false); // 건너뛰기로 멈춘 녹음은 답변으로 저장하지 않는다
   const redoRef = useRef(false); // 끝난 뒤 한 문제만 다시 녹음 중: 그 문제가 끝나면 목록으로
 
   function clearTimer() {
@@ -139,7 +146,10 @@ export default function OpicExam({ onRestart }: { onRestart: () => void }) {
     beep();
     void rec.start((blob) => {
       if (tokenRef.current !== token) return;
-      answersRef.current = answersRef.current.map((b, i) => (i === q ? blob : b));
+      answersRef.current = answersRef.current.map((b, i) =>
+        i === q ? (skippedRef.current ? null : blob) : b,
+      );
+      skippedRef.current = false;
       setAnswers(answersRef.current);
       nextQuestion(q);
     });
@@ -169,7 +179,13 @@ export default function OpicExam({ onRestart }: { onRestart: () => void }) {
   }
 
   function toggleTopic(id: string) {
-    setTopicIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+    setTopicIds((prev) =>
+      prev.includes(id)
+        ? prev.filter((x) => x !== id)
+        : prev.length < MAX_TOPICS
+          ? [...prev, id]
+          : prev,
+    );
   }
 
   async function startExam() {
@@ -213,6 +229,21 @@ export default function OpicExam({ onRestart }: { onRestart: () => void }) {
   }
 
   // 답변 중 버튼 = 지금 답변을 끝내고 다음 문제 (onRecorded에서 넘어간다)
+  // 건너뛰기: 이 문제는 답하지 않고(분석에서 빠진다) 다음 문제로. 녹음 중이면 멈춰서 버린다
+  function skipCurrent() {
+    clearTimer();
+    if (rec.status === "recording") {
+      skippedRef.current = true;
+      rec.stop();
+      return;
+    }
+    tokenRef.current++;
+    if (canSpeak) speechSynthesis.cancel();
+    answersRef.current = answersRef.current.map((b, i) => (i === qi ? null : b));
+    setAnswers(answersRef.current);
+    nextQuestion(qi);
+  }
+
   function stopEarly() {
     rec.stop();
   }
@@ -279,14 +310,7 @@ export default function OpicExam({ onRestart }: { onRestart: () => void }) {
     const ready = topicIds.length > 0 && level !== null;
     return (
       <div className="flex flex-1 flex-col">
-        <PageHeader
-          title="오픽 모의시험"
-          action={
-            <Link to="/" className="btn btn-ghost btn-sm">
-              설정 바꾸기
-            </Link>
-          }
-        />
+        <PageHeader title="오픽 모의시험" />
         <p className="text-[0.9375rem] leading-relaxed">
           실제 시험처럼 자기소개, 고른 주제의 질문 세 개, 롤플레이 순서로 다섯 문제를 풀어요. 질문은
           소리로만 나오고, 끝나면 신호음과 함께 자동으로 녹음돼요.
@@ -295,7 +319,8 @@ export default function OpicExam({ onRestart }: { onRestart: () => void }) {
         <fieldset className="mt-6">
           <legend className="font-semibold">관심 있는 주제</legend>
           <p className="mt-0.5 text-sm text-secondary">
-            Background Survey예요. 고른 주제 중 하나로 질문 세 개가 이어져요.
+            Background Survey예요. 최대 {MAX_TOPICS}개까지 고를 수 있고, 그중 하나로 질문 세 개가
+            이어져요.
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
             {SURVEY_TOPICS.map((t) => {
@@ -305,6 +330,7 @@ export default function OpicExam({ onRestart }: { onRestart: () => void }) {
                   key={t.id}
                   type="button"
                   aria-pressed={on}
+                  disabled={!on && topicIds.length >= MAX_TOPICS}
                   onClick={() => toggleTopic(t.id)}
                   className={`btn btn-sm ${on ? "btn-primary" : "btn-ghost border border-base-300"}`}
                 >
@@ -342,8 +368,8 @@ export default function OpicExam({ onRestart }: { onRestart: () => void }) {
         <ul className="mt-5 list-disc space-y-1 pl-5 text-sm text-secondary">
           <li>질문이 끝나고 {REPLAY_WINDOW_SEC}초 안에 한 번 더 들을 수 있어요.</li>
           <li>
-            문제마다 {ANSWER_GOAL_SEC / 60}분 안팎으로 답해요. {ANSWER_MAX_SEC / 60}분이 되면 다음
-            문제로 넘어가요.
+            문제마다 {minText(ANSWER_GOAL_SEC)} 안팎으로 답해요. {minText(ANSWER_MAX_SEC)}이 되면
+            다음 문제로 넘어가요.
           </li>
           <li>이전 문제로는 돌아갈 수 없어요. 질문 글은 시험이 끝나면 보여 드려요.</li>
           <li>소리가 나오니 스피커나 이어폰을 켜 주세요.</li>
@@ -402,7 +428,7 @@ export default function OpicExam({ onRestart }: { onRestart: () => void }) {
                 {it.text}
               </p>
               {answerUrls[i] ? (
-                <audio src={answerUrls[i]!} controls className="mt-3 w-full" />
+                <RecordedAudio src={answerUrls[i]!} className="mt-3" />
               ) : (
                 <p className="mt-2 text-sm text-secondary">녹음된 답변이 없어 분석에서 빠져요.</p>
               )}
@@ -555,6 +581,10 @@ export default function OpicExam({ onRestart }: { onRestart: () => void }) {
             </p>
           </>
         )}
+
+        <button type="button" className="btn btn-ghost btn-sm" onClick={skipCurrent}>
+          {qi + 1 < items.length ? "이 문제 건너뛰기" : "건너뛰고 끝내기"}
+        </button>
 
         {rec.error && (
           <div role="alert" className="alert alert-error alert-soft w-full text-sm">

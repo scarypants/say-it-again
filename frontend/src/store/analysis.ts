@@ -121,13 +121,15 @@ export function followUpRequest(
   };
 }
 
-// 꼬리질문으로 연습(스피킹·면접): 받은 질문의 prompt로 같은 모드 질문 화면에서 다시 답한다
+// 꼬리질문으로 연습: 받은 질문의 prompt로 질문 화면에서 한 문항씩 답한다
 export function usePracticeFollowUp() {
   const { setPrevious, setResult, setSession, setSettings } = useAnalysis();
   const navigate = useNavigate();
   return useCallback(
     (from: AnalyzeResponse, practice: Question[], job?: string) => {
-      setSettings({ mode: from.mode, language: from.language, exam: from.exam, job, practice });
+      // 발표 예상 질문은 질문에 답하는 연습이라 면접 모드로 분석한다 (발표 모드는 질문을 받지 않는다)
+      const mode = from.mode === "presentation" ? "interview" : from.mode;
+      setSettings({ mode, language: from.language, exam: from.exam, job, practice });
       setPrevious(null);
       setResult(null);
       setSession(null);
