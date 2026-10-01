@@ -13,7 +13,7 @@ import { useRecorder } from "../../components/common/useRecorder";
 import { useAnalysis } from "../../store/analysis";
 import { isPdf, MATERIAL_ACCEPT } from "./material";
 import MaterialPreview from "./MaterialPreview";
-import TestAudioUpload from "./TestAudioUpload";
+import AudioFileUpload from "./AudioFileUpload";
 
 const MAX_SEC = 300; // 파일 하나 5분. 다 되면 잠깐 멈추고 새 파일로 이어서 녹음할지 고른다
 const MAX_FILES = 5;
@@ -214,8 +214,6 @@ export default function RecordPage() {
           </section>
 
           <div className="flex flex-col gap-2 pt-2">
-            {/* [임시] 테스트 녹음 파일로 바로 대본 만들기. 데모 전에 지운다 */}
-            {rec.status === "idle" && <TestAudioUpload onFiles={runAnalyze} />}
             {/* 와이어프레임: 자료는 녹음 전에 올린다. 올리면 이 버튼만 사라진다 */}
             {!material && rec.status === "idle" && (
               <>
@@ -238,6 +236,8 @@ export default function RecordPage() {
                 </button>
               </>
             )}
+            {/* 녹음 대신 이미 녹음한 파일로 바로 대본 만들기 */}
+            {rec.status === "idle" && <AudioFileUpload onFiles={runAnalyze} />}
             {/* 5분이 다 되면: 새 파일로 이어서 녹음하거나, 여기까지 바로 분석 */}
             {paused && (
               <div className="flex gap-2">
