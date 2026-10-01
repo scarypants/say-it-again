@@ -20,7 +20,8 @@ cd server && cp .env.example .env   # 키 입력
 npm install && npm run dev
 
 # client
-cd client && npm install && npm run dev
+cd client && cp .env.example .env   # 서버 없이 보려면 VITE_USE_MOCK=true
+npm install && npm run dev           # http://localhost:5173
 ```
 
 ## 문서

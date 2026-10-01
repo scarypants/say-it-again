@@ -21,7 +21,7 @@
 | 고민준 | KO-HOJINI | Claude | 프론트 (입력 화면 + 공용) | `client/src/pages/home/`, `client/src/pages/record/`, `client/src/pages/upload/`, `client/src/pages/question/`, 그리고 아래 프론트 공용 파일 |
 | 김왁수 | kimwaksoo | Codex | 프론트 (결과 화면) | `client/src/pages/script/`, `client/src/pages/summary/`, `client/src/mocks/` |
 
-- 프론트 공용 파일(주인: 고민준): `client/package.json`, lock 파일, `client/vite.config.ts`, tailwind/DaisyUI 설정, `client/src/main.tsx`, `client/src/App.tsx`(라우터), `client/src/components/common/`, `client/src/api/`, `client/src/types/`, `client/src/styles/`
+- 프론트 공용 파일(주인: 고민준): `client/package.json`, lock 파일, `client/vite.config.ts`, tailwind/DaisyUI 설정, `client/src/main.tsx`, `client/src/App.tsx`(라우터), `client/src/components/common/`, `client/src/api/`, `client/src/types/`, `client/src/store/`(페이지 간 공유 상태), `client/src/styles/`
 - 페이지 전용 컴포넌트는 각자 페이지 폴더 안에 둔다 (예: `pages/script/components/Highlight.tsx`). 공용으로 올리고 싶으면 고민준에게 요청한다.
 - 루트 파일(`AGENTS.md`, `CLAUDE.md`, `README.md`, `.github/`, 설정 파일)은 팀 합의 후 수정한다. 단, README의 "외부 API·오픈소스" 목록에 한 줄 추가하는 것은 누구나 가능.
 - **남의 소유 경로는 읽기만 한다.** 수정이 필요하면 이슈를 만들거나 팀 채팅으로 주인에게 요청한다.
