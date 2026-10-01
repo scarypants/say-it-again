@@ -150,10 +150,10 @@ function Review({ transcript, audio, questions, setResult, previous }: ReviewPro
         <div className="flex flex-col gap-6">
           {parts.map((part, pi) => (
             <section key={pi} aria-labelledby={`part-${pi}`}>
-              {parts.length > 1 || transcript.mode === "speaking" ? (
+              {parts.length > 1 || transcript.mode !== "presentation" ? (
                 <header className="mb-2 border-b border-base-300 pb-2">
                   <h2 id={`part-${pi}`} className="text-sm font-semibold tabular-nums">
-                    {partTitle(transcript.mode, pi, part.duration)}
+                    {partTitle(transcript.mode, pi, part.duration, questions?.[pi])}
                   </h2>
                   {questionLine(questions?.[pi]) && (
                     <p className="mt-0.5 text-sm text-secondary">{questionLine(questions?.[pi])}</p>

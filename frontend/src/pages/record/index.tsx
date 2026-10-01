@@ -5,6 +5,7 @@ import { audioFileName } from "../../api/client";
 import { useTranscribe } from "../../api/useTranscribe";
 import { LEVEL_LABEL } from "../../api/presentationLevels";
 import AnalyzingView from "../../components/common/AnalyzingView";
+import Collapse from "../../components/common/Collapse";
 import LevelBars from "../../components/common/LevelBars";
 import MicButton from "../../components/common/MicButton";
 import { DESKTOP_QUERY, useMediaQuery } from "../../components/common/useMediaQuery";
@@ -139,6 +140,12 @@ export default function RecordPage() {
               side ? "gap-2 pt-3 lg:flex-1 lg:gap-4 lg:pt-0" : "flex-1 gap-4 py-6"
             }`}
           >
+            {/* 녹음 중에는 고른 언어로 말해야 한다고 알린다 (전사·분석이 그 언어 기준) */}
+            <Collapse open={recording}>
+              <p className="text-sm font-semibold text-accent">
+                {settings.language === "en" ? "영어" : "한국어"}로 말해 주세요
+              </p>
+            </Collapse>
             <p
               className={`${side && !desktop ? "text-2xl" : "text-4xl"} font-semibold tabular-nums tracking-tight ${
                 recording ? "text-base-content" : "text-secondary"
