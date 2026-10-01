@@ -1,7 +1,14 @@
-import react from '@vitejs/plugin-react'
-import { defineConfig } from 'vite'
+import tailwindcss from "@tailwindcss/vite";
+import react from "@vitejs/plugin-react";
+import { defineConfig } from "vite";
 
-// https://vite.dev/config/
+// /api 요청은 로컬 서버(3000)로 프록시 → 클라이언트 코드에서는 항상 "/api"만 쓴다
 export default defineConfig({
-  plugins: [react()],
-})
+  plugins: [react(), tailwindcss()],
+  server: {
+    host: true,
+    proxy: {
+      "/api": "http://localhost:3000",
+    },
+  },
+});
