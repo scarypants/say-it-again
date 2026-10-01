@@ -3,24 +3,22 @@ import { wordFeedback } from "../script/feedback";
 
 export const chartCategories = [
   { key: "panic", name: "패닉존", fill: "var(--color-hl-panic)" },
-  { key: "filler", name: "군더더기", fill: "var(--color-hl-filler)" },
+  { key: "filler", name: "군말", fill: "var(--color-hl-filler)" },
   { key: "repeat", name: "반복", fill: "var(--color-hl-repeat)" },
   { key: "expression", name: "표현 개선", fill: "var(--color-hl-expr)" },
-  { key: "grammar", name: "문법", fill: "#efb1c7" },
   { key: "normal", name: "정상", fill: "var(--color-success)" },
 ] as const;
 export type ChartKey = (typeof chartCategories)[number]["key"];
 export type ChartItem = (typeof chartCategories)[number] & { value: number; percent: number };
 
 // 단어 타임스탬프가 없는 현재 계약에서는 각 문장의 시간을 단어 수로 나눈다.
-// 겹친 항목은 패닉존 → 군더더기 → 반복 → 문법 → 표현 개선 순서로 한 번만 센다.
+// 겹친 항목은 패닉존 → 군말 → 반복 → 문법 → 표현 개선 순서로 한 번만 센다.
 export function createChartData(result: AnalyzeResponse): ChartItem[] {
   const seconds: Record<ChartKey, number> = {
     panic: 0,
     filler: 0,
     repeat: 0,
     expression: 0,
-    grammar: 0,
     normal: 0,
   };
   let coveredUntil = 0;
@@ -48,11 +46,9 @@ export function createChartData(result: AnalyzeResponse): ChartItem[] {
           ? "filler"
           : issues.includes("repeat")
             ? "repeat"
-            : issues.includes("grammar")
-              ? "grammar"
-              : issues.includes("expression")
-                ? "expression"
-                : "normal";
+            : issues.includes("expression")
+              ? "expression"
+              : "normal";
       seconds[category] += duration / line.words.length;
     }
   }

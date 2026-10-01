@@ -54,7 +54,7 @@ export default function InlineFeedback({
             {feedback.map((item, index) => (
               <div key={index} className={index ? "border-t border-base-300 pt-4" : ""}>
                 <h4
-                  className={`inline text-xs font-semibold underline underline-offset-4 ${categories[item.category].style}`}
+                  className={`inline rounded px-1.5 py-0.5 text-xs font-semibold ${categories[item.category].style}`}
                 >
                   {categories[item.category].label}
                 </h4>
@@ -63,7 +63,7 @@ export default function InlineFeedback({
                 )}
                 <p className="mt-3 text-xs font-semibold text-base-content/65">개선한 표현</p>
                 <p className="mt-1 font-script text-lg leading-relaxed whitespace-pre-wrap wrap-anywhere">
-                  {item.improved || "개선된 표현이 아직 준비되지 않았어요."}
+                  {item.improved || "이 표현은 생략하고 문장을 이어 말해보세요."}
                 </p>
               </div>
             ))}

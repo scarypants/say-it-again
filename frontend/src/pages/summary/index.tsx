@@ -146,7 +146,7 @@ export default function SummaryPage() {
           >
             <h2 id="improvements-title" className="text-lg font-bold">
               {selected
-                ? `${selected === "filler" ? "군더더기" : "반복"} 표현 개선안`
+                ? `${selected === "filler" ? "군말" : "반복"} 표현 개선안`
                 : "색상을 눌러 개선안을 확인하세요"}
             </h2>
             {selected ? (
@@ -182,7 +182,7 @@ export default function SummaryPage() {
               </div>
             ) : (
               <p className="mt-2 text-sm leading-relaxed text-base-content/70">
-                원형 차트의 보라색 반복 또는 노란색 군더더기를 선택해 주세요.
+                원형 차트의 보라색 반복 또는 노란색 군말를 선택해 주세요.
               </p>
             )}
           </section>
