@@ -1,11 +1,14 @@
 import { useEffect, useRef } from "react";
 import type { Highlight, Part } from "../../types/api";
-import { CATEGORY, highlightText } from "./highlights";
+import { CATEGORY, displayCategory, highlightText } from "./highlights";
 
 // 같은 종류가 바로 붙어 있으면("어 그러니까") 대본에서 한 덩어리로 칠했으니 설명도 하나로 합친다
 function mergeAdjacent(items: Highlight[]): Highlight[] {
   const out: Highlight[] = [];
-  for (const h of [...items].sort((a, b) => a.from - b.from)) {
+  const actionable = items
+    .filter((h) => h.category !== "panic")
+    .map((h) => ({ ...h, category: displayCategory(h.category) }));
+  for (const h of actionable.sort((a, b) => a.from - b.from)) {
     const prev = out.find((p) => p.category === h.category && h.from <= p.to + 1);
     if (!prev) {
       out.push({ ...h });
@@ -22,8 +25,8 @@ function mergeAdjacent(items: Highlight[]): Highlight[] {
   // 우선순위 순서는 원래 배열 순서를 따른다
   return out.sort(
     (a, b) =>
-      items.findIndex((h) => h.category === a.category) -
-      items.findIndex((h) => h.category === b.category),
+      items.findIndex((h) => displayCategory(h.category) === a.category) -
+      items.findIndex((h) => displayCategory(h.category) === b.category),
   );
 }
 
@@ -40,6 +43,8 @@ export default function FeedbackDetail({ part, items: raw, onClose, inline }: Pr
     if (inline) ref.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
   }, [inline, raw]);
 
+  if (!items.length) return null;
+
   return (
     <div
       ref={ref}
@@ -54,11 +59,6 @@ export default function FeedbackDetail({ part, items: raw, onClose, inline }: Pr
           <header className="flex items-center gap-2">
             <span className={`h-2.5 w-2.5 rounded-full ${CATEGORY[h.category].dot}`} aria-hidden />
             <h2 className="text-sm font-semibold">{CATEGORY[h.category].label}</h2>
-            {h.category === "panic" && h.pauseSec !== undefined && (
-              <span className="text-sm text-secondary tabular-nums">
-                {h.pauseSec.toFixed(1)}초 멈춤
-              </span>
-            )}
             {i === 0 && (
               <button type="button" className="btn btn-ghost btn-xs ml-auto" onClick={onClose}>
                 닫기
@@ -67,15 +67,11 @@ export default function FeedbackDetail({ part, items: raw, onClose, inline }: Pr
           </header>
           <dl className="mt-3 flex flex-col gap-3">
             <div>
-              <dt className="text-xs text-secondary">
-                {h.category === "panic" ? "멈추기 직전에 한 말" : "말한 그대로"}
-              </dt>
+              <dt className="text-xs text-secondary">말한 그대로</dt>
               <dd className="mt-1 text-[1.0625rem] leading-relaxed">{highlightText(part, h)}</dd>
             </div>
             <div>
-              <dt className="text-xs text-secondary">
-                {h.category === "panic" ? "이렇게 이어 가 보세요" : "바꾸면"}
-              </dt>
+              <dt className="text-xs text-secondary">바꾸면</dt>
               <dd className="mt-1 text-[1.0625rem] leading-relaxed font-semibold">
                 {h.fixed === undefined
                   ? "준비된 대안이 없어요"

@@ -1,13 +1,17 @@
 import type { Highlight, HighlightCategory, Line, Part } from "../../types/api";
 
-// 겹치면 위에 있는 것 하나만 배경색으로 칠한다 (docs/api.md: 빨강 > 노랑 > 보라 > 파랑 > 핑크)
+// 문법도 표현 개선으로 표시한다. 겹치면 빨강 > 노랑 > 보라 > 파랑 순으로 칠한다.
 export const PRIORITY: Record<HighlightCategory, number> = {
   panic: 0,
   filler: 1,
   repeat: 2,
   expression: 3,
-  grammar: 4,
+  grammar: 3,
 };
+
+export const displayCategory = (category: HighlightCategory) =>
+  category === "grammar" ? "expression" : category;
+export const DISPLAY_CATEGORIES = ["panic", "filler", "repeat", "expression"] as const;
 
 // 색은 styles/index.css 의 --color-hl-* 토큰. Tailwind가 찾을 수 있게 클래스 이름을 통째로 적는다
 export const CATEGORY: Record<
@@ -18,7 +22,7 @@ export const CATEGORY: Record<
     label: "패닉존",
     mark: "bg-hl-panic-soft",
     dot: "bg-hl-panic",
-    desc: "2초 넘게 말이 멈추기 직전의 말",
+    desc: "2초 이상 말이 멈추기 직전의 구간",
   },
   filler: {
     label: "군말",
@@ -39,10 +43,10 @@ export const CATEGORY: Record<
     desc: "더 분명하게 바꿀 수 있는 표현",
   },
   grammar: {
-    label: "문법",
-    mark: "bg-hl-grammar-soft",
-    dot: "bg-hl-grammar",
-    desc: "문법이 틀린 부분",
+    label: "표현 개선",
+    mark: "bg-hl-expr-soft",
+    dot: "bg-hl-expr",
+    desc: "더 분명하게 바꿀 수 있는 표현",
   },
 };
 
@@ -69,7 +73,8 @@ export function lineRuns(line: Line, highlights: Highlight[]): Run[] {
     const items = highlights.filter((h) => covers(h, g)).sort(byPriority);
     const top = items[0];
     const prev = runs.at(-1);
-    const sameKind = !!prev?.top && !!top && prev.top.category === top.category;
+    const sameKind =
+      !!prev?.top && !!top && displayCategory(prev.top.category) === displayCategory(top.category);
     if (prev && (prev.top === top || sameKind)) {
       prev.text += " " + word;
       for (const h of items) if (!prev.items.includes(h)) prev.items.push(h);
@@ -97,13 +102,12 @@ export function lineOfWord(part: Part, word: number) {
 }
 
 export function countByCategory(parts: Part[]) {
-  const counts: Record<HighlightCategory, number> = {
+  const counts: Record<(typeof DISPLAY_CATEGORIES)[number], number> = {
     panic: 0,
     filler: 0,
     repeat: 0,
     expression: 0,
-    grammar: 0,
   };
-  for (const p of parts) for (const h of p.highlight) counts[h.category]++;
+  for (const p of parts) for (const h of p.highlight) counts[displayCategory(h.category)]++;
   return counts;
 }
