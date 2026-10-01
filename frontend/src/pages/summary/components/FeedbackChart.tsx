@@ -42,7 +42,7 @@ export default function FeedbackChart({
         <>
           <svg
             viewBox="0 0 260 260"
-            className="mx-auto mt-3 w-full max-w-72"
+            className="mx-auto mt-3 w-full max-w-64"
             role="group"
             aria-label="정상 구간을 포함한 말하기 비율 원형 차트"
           >
@@ -97,7 +97,7 @@ export default function FeedbackChart({
               );
             })}
           </svg>
-          <ul className="grid grid-cols-2 gap-2 text-xs" aria-label="항목별 백분율">
+          <ul className="grid grid-cols-2 gap-2 text-sm" aria-label="항목별 백분율">
             {categories.map((item) => (
               <li key={item.key}>
                 {item.key === "filler" || item.key === "repeat" ? (

@@ -4,6 +4,7 @@ import sample from "../../mocks/analyze.sample.json";
 import { useAnalysis } from "../../store/analysis";
 import type { AnalyzeResponse } from "../../types/api";
 import { createChartData } from "./chartData";
+import { feedbackRows } from "./feedbackRows";
 import WordFrequency from "./components/WordFrequency";
 import { totalDuration } from "../../components/common/scriptFormat";
 const FeedbackChart = lazy(() => import("./components/FeedbackChart"));
@@ -29,47 +30,7 @@ export default function SummaryPage() {
   }, []);
   const selected = selection?.result === result ? selection.category : null;
   const chart = result ? createChartData(result) : [];
-  const improvements =
-    result && selected
-      ? result.parts.flatMap((part, partIndex) =>
-          part.highlight
-            .filter((h) => h.category === selected)
-            .flatMap((h) => {
-              const line = part.script.find(
-                (l) => !l.pause && h.from >= l.offset && h.from < l.offset + l.words.length,
-              );
-              if (!line) return [];
-              return [
-                {
-                  key: `${partIndex}-${h.from}-${h.to}`,
-                  original: line.words.join(" "),
-                  before: line.words.slice(0, h.from - line.offset).join(" "),
-                  problem: line.words
-                    .slice(
-                      h.from - line.offset,
-                      Math.min(h.to - line.offset + 1, line.words.length),
-                    )
-                    .join(" "),
-                  after: line.words.slice(h.to - line.offset + 1).join(" "),
-                  improved:
-                    h.fixed === undefined
-                      ? undefined
-                      : [
-                          ...line.words.slice(0, h.from - line.offset),
-                          h.fixed,
-                          ...line.words.slice(h.to - line.offset + 1),
-                        ]
-                          .filter(Boolean)
-                          .join(" "),
-                  partIndex,
-                  start: line.start,
-                  end: line.end,
-                  word: h.from,
-                },
-              ];
-            }),
-        )
-      : [];
+  const improvements = result && selected ? feedbackRows(result, selected) : [];
   const score =
     result && Number.isFinite(result.analysis.score)
       ? Math.min(100, Math.max(0, result.analysis.score))
@@ -124,18 +85,18 @@ export default function SummaryPage() {
       ) : (
         <>
           <section className="rounded-box bg-base-200" aria-labelledby="score-title">
-            <div className="card-body gap-4">
-              <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center justify-between gap-4 p-5">
+              <div className="flex flex-col items-start gap-2">
                 <h2 id="score-title" className="card-title text-lg">
-                  이번 말하기
+                  말하기 점수
                 </h2>
                 <span className="badge badge-outline">
                   {modeNames[result.mode]} · {timestamp(totalDuration(result.parts))}
                 </span>
               </div>
-              <p className="tabular-nums">
-                <span className="text-5xl font-bold">{score ?? "—"}</span>
-                <span className="ml-2 text-sm text-base-content/70">/ 100점</span>
+              <p className="shrink-0 tabular-nums">
+                <span className="text-4xl font-bold sm:text-5xl">{score ?? "—"}</span>
+                <span className="ml-1 text-xs text-base-content/70">/ 100점</span>
               </p>
             </div>
           </section>
@@ -154,66 +115,77 @@ export default function SummaryPage() {
               }
             />
           </Suspense>
-          <section
-            aria-labelledby="improvements-title"
-            className="rounded-box border border-base-300 bg-base-100 p-5 sm:p-6"
-          >
-            <h2 id="improvements-title" className="text-lg font-bold">
-              {selected
-                ? `${selected === "filler" ? "군말" : "반복"} 표현 개선안`
-                : "색상을 눌러 개선안을 확인하세요"}
-            </h2>
-            {selected && (
-              <WordFrequency
-                category={selected}
-                rows={selected === "filler" ? result.charts.fillerTop : result.charts.repeatTop}
-              />
-            )}
-            {selected ? (
-              <div className="mt-4 flex flex-col gap-4" aria-live="polite">
-                {improvements.length ? (
-                  improvements.map((item, index) => (
-                    <article
-                      key={item.key}
-                      className={index ? "border-t border-base-300 pt-4" : ""}
-                    >
-                      <p className="text-xs tabular-nums text-base-content/65">
-                        {timestamp(item.start)} – {timestamp(item.end)}
-                      </p>
-                      <p className="mt-2 text-xs font-semibold text-base-content/65">말한 문장</p>
-                      <p className="mt-2 max-w-prose text-lg leading-[1.9] wrap-anywhere">
-                        {item.before && <>{item.before} </>}
-                        <mark
-                          className={`box-decoration-clone rounded px-1 py-0.5 font-semibold text-base-content ${selected === "filler" ? "bg-hl-filler-soft" : "bg-hl-repeat-soft"}`}
-                        >
-                          {item.problem}
-                        </mark>
-                        {item.after && <> {item.after}</>}
-                      </p>
-                      <p className="mt-3 text-xs font-semibold text-base-content/65">개선한 문장</p>
-                      <p className="mt-2 max-w-prose text-lg leading-[1.9] wrap-anywhere">
-                        {item.improved === ""
-                          ? "이 표현은 생략하고 문장을 이어 말해보세요."
-                          : (item.improved ?? "이 구간에는 개선안이 제공되지 않았어요.")}
-                      </p>
-                      <Link
-                        to={`/script?part=${item.partIndex}&word=${item.word}`}
-                        className="link mt-3 inline-block text-xs"
+          {selected && (
+            <section
+              aria-labelledby="improvements-title"
+              className="rounded-box border border-base-300 bg-base-100 p-5 sm:p-6"
+            >
+              <h2 id="improvements-title" className="text-lg font-bold">
+                {selected
+                  ? `${selected === "filler" ? "군말" : "반복"} 표현 개선안`
+                  : "색상을 눌러 개선안을 확인하세요"}
+              </h2>
+              {selected && (
+                <WordFrequency
+                  category={selected}
+                  rows={selected === "filler" ? result.charts.fillerTop : result.charts.repeatTop}
+                />
+              )}
+              {selected ? (
+                <div className="mt-4 flex flex-col gap-4" aria-live="polite">
+                  {improvements.length ? (
+                    improvements.map((item, index) => (
+                      <article
+                        key={item.key}
+                        className={index ? "border-t border-base-300 pt-4" : ""}
                       >
-                        대본에서 보기
-                      </Link>
-                    </article>
-                  ))
-                ) : (
-                  <p className="text-sm text-base-content/70">이 항목의 개선안이 없어요.</p>
-                )}
-              </div>
-            ) : (
-              <p className="mt-2 text-sm leading-relaxed text-base-content/70">
-                원형 차트의 보라색 반복 또는 노란색 군말을 선택해 주세요.
-              </p>
-            )}
-          </section>
+                        <p className="text-xs tabular-nums text-base-content/75">
+                          녹음 {item.partIndex + 1} · {timestamp(item.start)} –{" "}
+                          {timestamp(item.end)}
+                        </p>
+                        <p className="mt-2 text-xs font-semibold text-base-content/65">말한 문장</p>
+                        <p className="mt-2 max-w-prose text-lg leading-[1.9] wrap-anywhere">
+                          {item.segments.map((segment, index) => (
+                            <span key={index}>
+                              {segment.highlighted ? (
+                                <mark
+                                  className={`box-decoration-clone rounded px-1 py-0.5 font-semibold text-base-content ${selected === "filler" ? "bg-hl-filler-soft" : "bg-hl-repeat-soft"}`}
+                                >
+                                  {segment.text}
+                                </mark>
+                              ) : (
+                                segment.text
+                              )}{" "}
+                            </span>
+                          ))}
+                        </p>
+                        <p className="mt-3 text-xs font-semibold text-base-content/65">
+                          개선한 문장
+                        </p>
+                        <p className="mt-2 max-w-prose text-lg leading-[1.9] wrap-anywhere">
+                          {item.improved === ""
+                            ? "이 표현은 생략하고 문장을 이어 말해보세요."
+                            : (item.improved ?? "이 구간에는 개선안이 제공되지 않았어요.")}
+                        </p>
+                        <Link
+                          to={`/script?part=${item.partIndex}&word=${item.word}`}
+                          className="link mt-3 inline-flex min-h-10 items-center text-sm"
+                        >
+                          대본에서 보기
+                        </Link>
+                      </article>
+                    ))
+                  ) : (
+                    <p className="text-sm text-base-content/70">이 항목의 개선안이 없어요.</p>
+                  )}
+                </div>
+              ) : (
+                <p className="mt-2 text-sm leading-relaxed text-base-content/70">
+                  원형 차트의 보라색 반복 또는 노란색 군말을 선택해 주세요.
+                </p>
+              )}
+            </section>
+          )}
           <section aria-labelledby="priorities-title">
             <h2 id="priorities-title" className="text-lg font-bold">
               먼저 고칠 3가지
