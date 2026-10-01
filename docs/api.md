@@ -491,7 +491,7 @@ type QuestionsResponse = {
   exam?: "TOEIC-Speaking" | "opic";
   job?: string;              // 면접: 공백을 정리한 직무
   questions: Question[];
-  warnings?: string[];       // "llm_failed"
+  warnings?: string[];       // "llm_failed", "image_failed"
 };
 
 type Question = {
@@ -502,7 +502,8 @@ type Question = {
   // 토익 스피킹
   part?: 1 | 2 | 3 | 4 | 5;
   context?: string;          // Part 1 읽을 지문, Part 3 상황 설명
-  picture?: "cafeteria";     // Part 2 사진 (프론트가 그릴 수 있는 사진 id)
+  image?: string;            // Part 2 사진: 서버가 생성한 이미지 (data URL, "data:image/png;base64,...")
+  picture?: "cafeteria";     // Part 2 사진: 이미지 생성 실패 시 대신 쓰는 프론트 기본 사진 id (image가 있으면 없음)
   schedule?: { title: string; rows: { time: string; session: string; speaker: string }[] };  // Part 4 자료 (LLM이 만든다)
   // 오픽
   topic?: { id: string; label: string };
@@ -527,7 +528,13 @@ type Question = {
 | followUp · 오픽 | `followUp` (+ `topic`, `about`) | 1~3개 |
 | followUp · 면접 | `followUp` (+ `about`, `hint`) | 1~3개 |
 
-- 토익 Part 2 사진은 LLM이 그릴 수 없으므로, 서버가 프론트가 그릴 수 있는 사진 목록(지금은 `cafeteria` 하나) 중에서 고르고 그 사진의 설명을 `prompt`에 넣는다. 질문 문장은 고정("Describe the picture in as much detail as you can.").
+- **토익 Part 2 사진은 이미지 생성 모델로 만든다.** 사진 문제는 처음 질문(`initial` · 토익)의 Part 2 **한 문항뿐**이고, 꼬리질문에는 사진 문제를 넣지 않는다.
+  - 순서: LLM이 장면 설명(사람·사물·배경, 영어 2~3문장)을 쓴다 → 이미지 모델이 그 설명으로 사진 1장을 만든다 → 장면 설명을 `prompt`의 `Picture:` 줄에 넣는다 (analyze가 묘사의 정확성을 판단하는 근거).
+  - 모델은 환경 변수 `OPENAI_IMAGE_MODEL`(팀 결정: GPT Image 2.5 Flare, API 모델 ID는 구현할 때 OpenAI 문서에서 확인), API 키는 `OPENAI_API_KEY` 그대로. 크기는 가로형 1장, 속도를 위해 낮은 품질 설정을 쓴다.
+  - 이미지는 서버에 저장하지 않고 응답의 `image`(data URL)로 바로 보낸다. 응답이 1~2MB 정도 커질 수 있다.
+  - 이미지 생성은 10~30초 걸릴 수 있어 질문 텍스트 생성과 **동시에** 시작한다. 질문 화면 로딩 문구를 길게 잡아 둔다.
+  - **이미지 생성이 실패하거나 시간을 넘기면**: `image` 없이 `picture: "cafeteria"`(프론트 기본 사진)와 그 사진의 고정 설명을 쓰고 `warnings`에 `"image_failed"`를 붙인다. 나머지 질문은 그대로.
+  - 질문 문장은 고정("Describe the picture in as much detail as you can.").
 - 꼬리질문으로 답변을 연습할 때(스피킹·면접): 받은 질문의 `prompt`를 `questions`로 해서 같은 모드로 녹음 → transcribe → analyze. 질문 수 = 녹음 수 (1~3개).
 
 ### LLM 실패 시
@@ -536,6 +543,7 @@ type Question = {
 |---|---|
 | initial · 면접 | 200. 직무를 넣은 기본 질문 5개 + `warnings: ["llm_failed"]` (아래 기본 질문) |
 | initial · 스피킹 | 200. `questions: []` + `warnings: ["llm_failed"]` → 프론트는 지금 가진 문항 데이터로 낸다 |
+| initial · 토익 Part 2 이미지만 실패 | 200. 질문 5개는 그대로, Part 2는 `picture: "cafeteria"` + 고정 설명, `warnings: ["image_failed"]` |
 | followUp | 200. `questions: []` + `warnings: ["llm_failed"]` → "질문을 만들지 못했어요. 다시 시도해 주세요" |
 
 - 면접 기본 질문(ko): "1분 동안 자기소개를 해 주세요." / "{job} 직무에 지원한 이유는 무엇인가요?" / "{job} 직무에서 가장 중요한 역량은 무엇이고, 본인은 그 역량을 어떻게 갖췄나요?" / "팀으로 일하며 갈등이나 어려움을 해결한 경험을 말해 주세요." / "마지막으로 하고 싶은 말이 있나요?" (en도 같은 구성)
@@ -658,6 +666,7 @@ analyze:    검증 → 파트별 코드 분석(패닉존, 필러, 중복) → �
             → 총평 LLM 1회 → 합산
 retry:      검증 → 파트별 코드 분석(패닉존, 필러, 중복) → 합산 + 전후 비교·대본 일치율 → 재도전 총평 LLM 1회
 questions:  검증 → 질문 생성 LLM 1회 (initial 면접은 실패 시 기본 질문, 나머지는 빈 목록)
+            토익 initial은 LLM의 Part 2 장면 설명 → 이미지 생성 1회 (실패 시 기본 사진)
 ```
 
 - 파트는 서로 독립이다. 파일 사이를 이어 붙이지 않으므로 가짜 패닉존이 생기지 않는다.
@@ -677,6 +686,7 @@ questions:  검증 → 질문 생성 LLM 1회 (initial 면접은 실패 시 기�
 | STT 실패 (transcribe, 1회 재시도 후, 몇 번째인지 포함) | 502 |
 | LLM 실패 (analyze) | 200. `final`은 빈 배열, `summary`는 빈 문자열·빈 배열로 내려가고 `warnings: ["llm_failed"]`가 붙는다 |
 | LLM 실패 (questions) | 200. 면접 처음 질문은 기본 질문 5개, 나머지는 `questions: []`. 둘 다 `warnings: ["llm_failed"]` (6절) |
+| 이미지 생성 실패·시간 초과 (questions, 토익 Part 2) | 200. 기본 사진(`picture: "cafeteria"`) + `warnings: ["image_failed"]` |
 | LLM 실패 (retry) | 200. `retry`가 없고 `summary`는 빈 문자열·빈 배열, `warnings: ["llm_failed"]`. `compare`는 그대로 온다 |
 
 ## 확인이 필요한 항목
@@ -684,6 +694,7 @@ questions:  검증 → 질문 생성 LLM 1회 (initial 면접은 실패 시 기�
 - 토익 스피킹의 파트별 시간 검증을 서버가 할지 (질문 문자열의 `Part N` 표기를 읽는 방식). 지금은 서버 상한 60초 + 프론트 타이머.
 - 점수에 패닉 길이·말 속도를 반영할지 (지금은 패닉존·군말·반복 단어 비율만. 샘플을 본 뒤 판단).
 - retry의 `RETRY_MATCH_LOW`(기본 40)가 적절한지 (대본을 보고 읽은 샘플과 즉흥 샘플을 녹음해 본 뒤 조정).
-- 토익 Part 2 사진 목록: 지금은 `cafeteria` 하나. 늘리려면 프론트(그림)와 서버(사진 설명)에 같은 id로 함께 추가해야 한다.
+- 이미지 모델 ID: 팀 결정은 GPT Image 2.5 Flare. 정확한 API 모델 ID·지원 크기·품질 옵션은 구현할 때 OpenAI 문서로 확인하고 `OPENAI_IMAGE_MODEL`에 넣는다. 구현할 때 `backend/.env.example`에 키 이름 추가, README "외부 API·오픈소스" 표에 한 줄 추가.
+- 이미지 생성 시간 상한(초과 시 기본 사진)은 실제 응답 시간을 재 보고 정한다.
 - 발표 예상 질문에 답하는 연습을 할지: 하려면 발표 모드에서도 `questions`를 받도록 analyze를 바꿔야 한다. 지금은 질문과 `hint`를 보여 주기만 한다.
 - 오픽 처음 질문을 LLM으로 만들면 서베이 주제 목록(`data/opic/survey.json`)의 문항 예시는 실패 시 대체용으로만 쓰인다.
