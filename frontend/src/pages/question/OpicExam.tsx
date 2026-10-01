@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router";
-import { analyzeSpeaking, audioFileName } from "../../api/client";
+import { Link } from "react-router";
+import { audioFileName } from "../../api/client";
+import { useTranscribe } from "../../api/useTranscribe";
 import AnalyzingView from "../../components/common/AnalyzingView";
 import LevelBars from "../../components/common/LevelBars";
 import MicButton from "../../components/common/MicButton";
 import { useLeaveGuard } from "../../components/common/useLeaveGuard";
 import { useRecorder } from "../../components/common/useRecorder";
-import { useAnalysis } from "../../store/analysis";
 import {
   ANSWER_GOAL_SEC,
   ANSWER_MAX_SEC,
@@ -33,9 +33,7 @@ type Phase = "listen" | "replay" | "speak";
 // 오픽 모의시험: 서베이·자가 평가 → 질문은 소리로만 → 5초 안에 한 번 다시 듣기 → 자동 녹음.
 // 다 말하면 버튼으로 다음 문제. 이전 문제로는 돌아갈 수 없다.
 export default function OpicExam() {
-  const navigate = useNavigate();
-  const { setResult } = useAnalysis();
-  const rec = useRecorder(ANSWER_MAX_SEC); // 3분이 되면 자동으로 멈추고 다음 문제
+  const rec = useRecorder(ANSWER_MAX_SEC); // 2분이 되면 자동으로 멈추고 다음 문제
 
   const [stage, setStage] = useState<Stage>("setup");
   const [topicIds, setTopicIds] = useState<string[]>([]);
@@ -48,8 +46,9 @@ export default function OpicExam() {
   const [answers, setAnswers] = useState<(Blob | null)[]>([]);
   const [answerUrls, setAnswerUrls] = useState<(string | null)[]>([]);
   const [startError, setStartError] = useState<string | null>(null);
-  const [analyzing, setAnalyzing] = useState(false);
-  const [analyzeError, setAnalyzeError] = useState<string | null>(null);
+  const tx = useTranscribe(); // 녹음 → 대본 → 검토 화면
+  const analyzing = tx.busy;
+  const analyzeError = tx.error;
   // 시험을 시작한 뒤에는 다른 화면으로 가기 전에 확인 (답변 녹음이 사라지므로)
   const leaveGuard = useLeaveGuard(stage !== "setup", "지금까지 녹음한 답변이 모두 사라져요.");
 
@@ -201,16 +200,13 @@ export default function OpicExam() {
       answers[i] ? [{ question: opicQuestionText(it, i, level), audio: answers[i]! }] : [],
     );
     if (pairs.length === 0) return;
-    setAnalyzing(true);
-    setAnalyzeError(null);
-    try {
-      const result = await analyzeSpeaking({ exam: "opic", answers: pairs });
-      setResult(result);
-      navigate("/script");
-    } catch (err) {
-      setAnalyzeError(err instanceof Error ? err.message : "분석 요청에 실패했어요.");
-      setAnalyzing(false);
-    }
+    await tx.run({
+      mode: "speaking",
+      language: "en",
+      exam: "opic",
+      questions: pairs.map((p) => p.question),
+      audio: pairs.map((p) => p.audio),
+    });
   }
 
   // 다시 듣기 남은 시간 표시용 시계
@@ -392,7 +388,7 @@ export default function OpicExam() {
             onClick={runAnalyze}
             disabled={!answers.some(Boolean)}
           >
-            {analyzeError ? "다시 분석하기" : "전체 분석하기"}
+            {analyzeError ? "다시 시도하기" : "대본 만들기"}
           </button>
         </div>
       </div>

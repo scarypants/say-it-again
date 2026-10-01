@@ -130,8 +130,8 @@ export default function FeedbackChart({
             ))}
           </ul>
           <p className="mt-3 text-xs leading-relaxed text-base-content/60">
-            문장 시간을 단어 수로 나눈 추정 비율이에요. 겹친 항목은 한 번만 계산하며, 정상은 감지된
-            문제가 없는 구간이에요.
+            전체 단어 가운데 각 항목에 걸린 단어의 비율이에요. 겹친 단어는 한 번만 세고, 정상은 걸린
+            데가 없는 단어예요.
           </p>
         </>
       ) : (

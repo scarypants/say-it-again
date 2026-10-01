@@ -49,14 +49,18 @@
   /* 글꼴은 Pretendard 하나로 통일. font-script는 기존 클래스 호환용 별칭 */
   --font-script: var(--font-sans);
 
-  /* 하이라이트 5색 (docs/plan.md 6-1). bg-hl-panic, decoration-hl-filler 처럼 사용 */
-  --color-hl-panic: #e0533d; /* 막힌 지점 */
-  --color-hl-panic-soft: #fbe1dc;
-  --color-hl-filler: #e6b325; /* 군더더기 */
-  --color-hl-filler-soft: #fdf3d3;
+  /* 하이라이트 5색: 패닉존 빨강, 군말 노랑, 반복 보라, 표현 개선 파랑, 문법 연한 핑크.
+     진한 색은 밑줄·글자, -soft는 배경. bg-hl-panic-soft, decoration-hl-filler 처럼 사용 */
+  --color-hl-panic: #e0533d; /* 패닉존(막힌 지점) */
+  --color-hl-panic-soft: #fbdcd6;
+  --color-hl-filler: #e6b325; /* 군말 */
+  --color-hl-filler-soft: #fcefc4;
   --color-hl-repeat: #8a5cd6; /* 반복 */
+  --color-hl-repeat-soft: #ece2fb;
   --color-hl-expr: #3d6fd1; /* 표현 개선 */
-  --color-hl-grammar: #2f8f5b; /* 문법 */
+  --color-hl-expr-soft: #dfe9fc;
+  --color-hl-grammar: #e0789e; /* 문법 (연한 핑크) */
+  --color-hl-grammar-soft: #fde3ed;
   --color-silence: #8b93a7; /* 침묵 마커 */
 }
 

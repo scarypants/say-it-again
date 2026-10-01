@@ -14,6 +14,23 @@ export default function PdfViewer({ file }: Props) {
   const boxRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const touchX = useRef<number | null>(null);
+  const [boxSize, setBoxSize] = useState({ w: 0, h: 0 });
+
+  // 상자 크기가 바뀌면(화면 회전, PC 레이아웃 전환) 다시 맞춰 그린다
+  useEffect(() => {
+    const box = boxRef.current;
+    if (!box) return;
+    const ro = new ResizeObserver(([entry]) => {
+      const { width, height } = entry.contentRect;
+      setBoxSize((prev) =>
+        Math.abs(prev.w - width) < 2 && Math.abs(prev.h - height) < 2
+          ? prev
+          : { w: width, h: height },
+      );
+    });
+    ro.observe(box);
+    return () => ro.disconnect();
+  }, [doc]);
 
   // 파일 → 문서
   useEffect(() => {
@@ -65,7 +82,7 @@ export default function PdfViewer({ file }: Props) {
       cancelled = true;
       task?.cancel();
     };
-  }, [doc, page]);
+  }, [doc, page, boxSize]);
 
   const total = doc?.numPages ?? 0;
   const prev = () => setPage((n) => Math.max(1, n - 1));
