@@ -3,7 +3,7 @@ import { followUpQuestions } from "../../api/client";
 import { followUpRequest, usePracticeFollowUp } from "../../store/analysis";
 import type { AnalyzeResponse, Question } from "../../types/api";
 import Collapse from "./Collapse";
-import { partTitle } from "./scriptFormat";
+import { partTitle, totalDuration } from "./scriptFormat";
 
 // 모드마다 꼬리질문의 성격이 다르다 (docs/api.md 6절)
 const COPY = {
@@ -54,11 +54,16 @@ export default function FollowUpQuestions({ result, questions }: Props) {
     }
   }
 
-  // 어느 답변에서 나온 질문인지 (면접·오픽). 원래 질문 번호를 쓴다
-  const aboutLabel = (q: Question) =>
-    q.about !== undefined && result.parts.length > 1
-      ? `${partTitle(result.mode, q.about, 0, questions?.[q.about])} 답변에서`
-      : q.topic?.label;
+  // 어느 녹음에서 나온 질문인지. 발표는 실제 파일 길이로 누적한 구간(00:00 – 04:12),
+  // 스피킹·면접은 원래 질문 번호
+  const aboutLabel = (q: Question) => {
+    const i = q.about;
+    const part = i !== undefined ? result.parts[i] : undefined;
+    if (i === undefined || !part || result.parts.length < 2) return q.topic?.label;
+    const start = totalDuration(result.parts.slice(0, i));
+    const title = partTitle(result.mode, i, part.duration, questions?.[i], start);
+    return result.mode === "presentation" ? `${title} 구간에서` : `${title} 답변에서`;
+  };
 
   const spinner = <span className="loading loading-spinner loading-sm" />;
 
