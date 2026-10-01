@@ -6,9 +6,11 @@ export type PanicSpot = {
   highlight: Highlight;
 };
 
-// pause 줄마다 바로 앞 문장의 마지막 PANIC_TAIL_WORDS 단어를 panic 하이라이트로 만든다.
-// reason / fixed는 LLM이 채운다 (LLM이 실패해도 패닉존 표시와 통계는 유지된다).
-// script의 offset은 withOffsets로 계산되어 있어야 한다.
+/**
+ * pause 줄마다 바로 앞 문장의 마지막 PANIC_TAIL_WORDS 단어를 panic 하이라이트로 만든다.
+ * reason / fixed는 LLM이 채운다 (LLM이 실패해도 패닉존 표시와 통계는 유지된다).
+ * script의 offset은 withOffsets로 계산되어 있어야 한다.
+ */
 export function findPanics(script: Line[]): PanicSpot[] {
   const spots: PanicSpot[] = [];
   let prev: Line | undefined; // 단어가 있는 바로 앞 문장

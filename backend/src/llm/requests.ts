@@ -60,8 +60,10 @@ const SUMMARY_SCHEMA = {
   },
 };
 
-// 파트 하나에 대해 패닉 원인·대안, expression / grammar 하이라이트, 최종 대본, 코멘트를 받는다.
-// LLM의 줄·단어 번호는 파트 전체 단어 번호(offset 기준)로 바꾸고, 범위를 벗어나면 버린다.
+/**
+ * 파트 하나에 대해 패닉 원인·대안, expression / grammar 하이라이트, 최종 대본, 코멘트를 받는다.
+ * LLM의 줄·단어 번호는 파트 전체 단어 번호(offset 기준)로 바꾸고, 범위를 벗어나면 버린다.
+ */
 export async function analyzePart(input: AnalyzeInput, script: Line[], partIndex: number): Promise<LlmPartResult> {
   const out = await requestPartOutput(input, script, partIndex);
 
@@ -95,14 +97,16 @@ export async function analyzePart(input: AnalyzeInput, script: Line[], partIndex
   };
 }
 
-// 파트별 결과의 요약본으로 전체 총평(summary)을 받는다.
+/** 파트별 결과의 요약본으로 전체 총평(summary)을 받는다. */
 export async function summarize(input: AnalyzeInput, parts: Part[]): Promise<Analysis['summary']> {
   const out = await requestSummaryOutput(input, parts);
   return { headline: out.headline, topPriorities: out.topPriorities.slice(0, 3), comment: out.comment };
 }
 
-// LLM 원본 응답. mock 모드에서는 언어별로 저장된 응답(fixtures/llm-*.json)을 돌려준다.
-// 저장된 응답의 줄·단어 번호가 지금 대본과 안 맞으면 analyzePart에서 범위 밖으로 걸러진다.
+/**
+ * LLM 원본 응답. mock 모드에서는 언어별로 저장된 응답(fixtures/llm-*.json)을 돌려준다.
+ * 저장된 응답의 줄·단어 번호가 지금 대본과 안 맞으면 analyzePart에서 범위 밖으로 걸러진다.
+ */
 export async function requestPartOutput(input: AnalyzeInput, script: Line[], partIndex: number): Promise<PartOutput> {
   if (MOCK_LLM) {
     await mockDelay(1500);

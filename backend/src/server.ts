@@ -10,7 +10,7 @@ import { router } from './http/routes';
 const app = express();
 const port = Number(process.env.PORT) || 8080;
 
-// 허용 출처: 기본(내 PC·사설 IP·ngrok) + CORS_ORIGIN. "https://*.도메인" 형식과 "*"(모두 허용)를 지원한다.
+/** 허용 출처: 기본[내 PC / 사설 IP /ngrok] + CORS_ORIGIN. "https://*.도메인" 형식과 "*"(모두 허용)를 지원한다. */
 function isAllowedOrigin(origin: string): boolean {
   if (DEFAULT_ORIGINS.some((re) => re.test(origin))) return true;
   return EXTRA_ORIGINS.some((allowed) => {
@@ -21,9 +21,11 @@ function isAllowedOrigin(origin: string): boolean {
   });
 }
 
-// 허용되지 않은 출처의 요청은 처리하지 않고 403으로 거절한다.
-// (CORS 헤더만으로는 브라우저가 응답을 못 읽게 할 뿐 요청은 처리되어 OpenAI 크레딧이 소모된다)
-// Origin이 없는 요청(curl, 서버 간 호출)은 통과시킨다.
+/**
+ * 허용되지 않은 출처의 요청은 처리하지 않고 403으로 거절한다.
+ * (CORS 헤더만으로는 브라우저가 응답을 못 읽게 할 뿐 요청은 처리되어 OpenAI 크레딧이 소모된다)
+ * Origin이 없는 요청(curl, 서버 간 호출)은 통과시킨다.
+ */
 const rejectUnknownOrigin: RequestHandler = (req, _res, next) => {
   const origin = req.headers.origin;
   if (origin && !isAllowedOrigin(origin)) {

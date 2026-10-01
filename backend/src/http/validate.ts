@@ -8,7 +8,7 @@ const LEVELS: Level[] = ['assignment', 'exam', 'keynote'];
 const EXAMS: Exam[] = ['TOEIC-Speaking', 'opic'];
 const AUDIO_TYPES = ['audio/webm', 'video/webm', 'audio/mp4', 'video/mp4', 'audio/x-m4a'];
 
-// POST /api/transcribe (multipart): 녹음 파일과 모드 정보를 검증한다. 실패하면 400.
+/** POST /api/transcribe (multipart): 녹음 파일과 모드 정보를 검증한다. 실패하면 400. */
 export function parseTranscribeRequest(req: Request): TranscribeInput {
   const files = req.files as Record<string, Express.Multer.File[]> | undefined;
   const audio = files?.audio ?? [];
@@ -24,14 +24,14 @@ export function parseTranscribeRequest(req: Request): TranscribeInput {
   return { ...parseModeInfo(req.body ?? {}, audio.length), audio };
 }
 
-// POST /api/analyze (JSON): transcribe 응답에서 단어만 고친 대본과 모드 정보를 검증한다. 실패하면 400.
+/** POST /api/analyze (JSON): transcribe 응답에서 단어만 고친 대본과 모드 정보를 검증한다. 실패하면 400. */
 export function parseAnalyzeRequest(req: Request): AnalyzeInput {
   const body = (req.body ?? {}) as Record<string, unknown>;
   const parts = parseParts(body.parts);
   return { ...parseModeInfo(body, parts.length), parts };
 }
 
-// 두 API 공통: mode·language·level·exam·questions 조합 검증. count = 녹음(파트) 수
+/** 두 API 공통: mode·language·level·exam·questions 조합 검증. count = 녹음(파트) 수 */
 function parseModeInfo(body: Record<string, unknown>, count: number): ModeInfo {
   const { mode, language, level, exam } = body;
 
@@ -56,7 +56,7 @@ function parseModeInfo(body: Record<string, unknown>, count: number): ModeInfo {
   throw new HttpError(400, 'mode가 올바르지 않습니다.');
 }
 
-// multipart에서는 JSON 문자열, JSON 요청에서는 배열로 온다.
+/** multipart에서는 JSON 문자열, JSON 요청에서는 배열로 온다. */
 function parseQuestions(raw: unknown): string[] {
   let value = raw;
   if (typeof raw === 'string') {

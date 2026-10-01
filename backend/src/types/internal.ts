@@ -4,7 +4,7 @@ import type { Exam, Highlight, Language, Level, Mode, TranscriptPart } from './a
 
 export type Word = { word: string; start: number; end: number };
 
-// 두 API 공통 요청 정보
+/** 두 API 공통 요청 정보 */
 export type ModeInfo = {
   mode: Mode;
   language: Language;
@@ -17,7 +17,7 @@ export type TranscribeInput = ModeInfo & { audio: Express.Multer.File[] };
 
 export type AnalyzeInput = ModeInfo & { parts: TranscriptPart[] };
 
-// LLM이 파트 하나에 대해 돌려주는 결과 (코드가 찾은 필러·중복은 포함하지 않는다)
+/** LLM이 파트 하나에 대해 돌려주는 결과 (코드가 찾은 필러·중복은 포함하지 않는다) */
 export type LlmPartResult = {
   highlight: Highlight[]; // expression / grammar
   panicNotes: Map<number, { reason: string; fixed: string }>; // pause 줄 번호 → 원인·대안
@@ -25,7 +25,7 @@ export type LlmPartResult = {
   comment?: string;
 };
 
-// STT 결과
+/** STT 결과 */
 export type Transcript = {
   words: Word[];
   duration: number;

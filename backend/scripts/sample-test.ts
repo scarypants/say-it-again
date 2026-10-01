@@ -70,8 +70,10 @@ function readQuestion(base: string): string {
   return existsSync(file) ? readFileSync(file, 'utf8').trim() : DEFAULT_QUESTION;
 }
 
-// 안드로이드 녹음 앱의 .m4a는 실제로 3GPP 컨테이너라 whisper가 거절한다.
-// 테스트에서만 ftyp brand를 M4A로 바꿔 보낸다 (원본 파일은 그대로). 실제 서비스는 브라우저가 webm/mp4로 녹음한다.
+/**
+ * 안드로이드 녹음 앱의 .m4a는 실제로 3GPP 컨테이너라 whisper가 거절한다.
+ * 테스트에서만 ftyp brand를 M4A로 바꿔 보낸다 (원본 파일은 그대로). 실제 서비스는 브라우저가 webm/mp4로 녹음한다.
+ */
 function loadAudio(file: string): { buffer: Buffer; patched: boolean } {
   const buffer = readFileSync(file);
   let patched = false;
