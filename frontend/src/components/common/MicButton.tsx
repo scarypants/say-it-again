@@ -12,7 +12,7 @@ export default function MicButton({ recording, onClick, disabled }: Props) {
       onClick={onClick}
       disabled={disabled}
       aria-label={recording ? "녹음 정지" : "녹음 시작"}
-      className={`btn btn-circle h-24 w-24 ${recording ? "btn-error animate-pulse" : "btn-primary"}`}
+      className={`btn btn-circle btn-primary h-24 w-24 transition-shadow ${recording ? "ring-8 ring-primary/15" : ""}`}
     >
       {recording ? (
         <span className="h-7 w-7 rounded-sm bg-current" />
