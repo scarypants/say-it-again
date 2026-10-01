@@ -181,6 +181,49 @@ const PART4 = [
     "Hi, I'm a new employee starting next week.",
     "What will happen in the afternoon, and where will we have lunch?",
   ),
+  info(
+    {
+      title: "Business Trip Itinerary — Jenna Moore, Sales Team",
+      rows: [
+        { time: "May 12, 8:10 a.m.", session: "Flight KE 705, Seoul to Tokyo", speaker: "Gate 23" },
+        {
+          time: "May 12, 2:00 p.m.",
+          session: "Client Meeting, Sakura Foods",
+          speaker: "Shinjuku Office",
+        },
+        { time: "May 13, 10:00 a.m.", session: "Factory Tour", speaker: "Yokohama Plant" },
+        { time: "May 14, 6:40 p.m.", session: "Flight KE 712, Tokyo to Seoul", speaker: "Gate 8" },
+      ],
+    },
+    "Hi, this is Jenna. I lost my copy of the trip itinerary.",
+    "What do I have scheduled on May 12, and what time is my flight back?",
+  ),
+  info(
+    {
+      title: "Interview Schedule — Marketing Assistant Position, Thursday, Sept 3",
+      rows: [
+        { time: "9:30 a.m.", session: "Daniel Cho", speaker: "Room 301" },
+        { time: "10:30 a.m.", session: "Mina Seo (canceled)", speaker: "Room 301" },
+        { time: "1:00 p.m.", session: "Lucas Grant", speaker: "Video call" },
+        { time: "2:30 p.m.", session: "Ella Park", speaker: "Room 305" },
+      ],
+    },
+    "Hi, I'm one of the interviewers for Thursday.",
+    "I heard one interview was canceled. Who am I meeting in the afternoon, and where?",
+  ),
+  info(
+    {
+      title: "Order #48213 — Desk Chair and Monitor Stand, Office Plus",
+      rows: [
+        { time: "Nov 2", session: "Order placed (paid by card)", speaker: "$189.00" },
+        { time: "Nov 4", session: "Monitor stand shipped", speaker: "Parcel 1 of 2" },
+        { time: "Nov 6", session: "Desk chair delayed (out of stock)", speaker: "Parcel 2 of 2" },
+        { time: "Nov 10", session: "Expected delivery of desk chair", speaker: "Free shipping" },
+      ],
+    },
+    "Hello, I'm calling about my online order.",
+    "Has everything in my order been shipped? If not, when will the rest arrive?",
+  ),
 ];
 
 const PART5 = [
