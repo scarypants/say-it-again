@@ -1,4 +1,4 @@
-import { Link, Outlet, useMatches } from "react-router";
+import { Link, Outlet, useLocation, useMatches } from "react-router";
 import Logo from "./Logo";
 
 // 라우트에 handle: { wide: true }를 주면 PC(lg 이상)에서 넓게 쓴다. 안 주면 폰 폭 컬럼 그대로
@@ -7,6 +7,7 @@ export type RouteHandle = { wide?: boolean };
 // 모바일 우선: 폰에선 한 컬럼. PC에선 상단 바가 화면 끝까지, 본문은 페이지가 고른 폭으로 가운데
 export default function Layout() {
   const matches = useMatches();
+  const { pathname } = useLocation();
   const wide = matches.some((m) => (m.handle as RouteHandle | undefined)?.wide);
 
   return (
@@ -27,7 +28,10 @@ export default function Layout() {
           wide ? "lg:max-w-6xl lg:px-8" : ""
         }`}
       >
-        <Outlet />
+        {/* 화면이 바뀔 때마다 새로 그려지며 살짝 올라온다 */}
+        <div key={pathname} className="flex flex-1 animate-enter flex-col">
+          <Outlet />
+        </div>
       </main>
     </div>
   );

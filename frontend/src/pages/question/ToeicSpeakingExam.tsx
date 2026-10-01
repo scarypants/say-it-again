@@ -358,7 +358,7 @@ export default function ToeicSpeakingExam() {
           {TOEIC_SPEAKING_ITEMS.map((_, i) => (
             <span
               key={i}
-              className={`h-1.5 flex-1 rounded-full ${i <= qi ? "bg-primary" : "bg-base-300"}`}
+              className={`h-1.5 flex-1 rounded-full transition-colors duration-500 ease-soft ${i <= qi ? "bg-primary" : "bg-base-300"}`}
             />
           ))}
         </div>
@@ -367,14 +367,19 @@ export default function ToeicSpeakingExam() {
         </span>
       </div>
 
-      <h1 className="text-xl font-bold">
+      {/* 다음 문항으로 넘어가면 제목·본문이 새로 올라온다 */}
+      <h1 key={`t${qi}`} className="animate-enter text-xl font-bold">
         Part {item.part} <span className="font-medium text-secondary">{item.name}</span>
       </h1>
-      <p lang="en" className="mt-1 text-xs leading-relaxed text-secondary">
+      <p
+        key={`d${qi}`}
+        lang="en"
+        className="mt-1 animate-enter text-xs leading-relaxed text-secondary"
+      >
         {item.directions}
       </p>
 
-      <article lang="en" className="mt-4 flex flex-col gap-3">
+      <article key={`a${qi}`} lang="en" className="mt-4 flex animate-enter flex-col gap-3">
         {item.context && (
           <p className="text-sm leading-relaxed text-secondary italic">{item.context}</p>
         )}

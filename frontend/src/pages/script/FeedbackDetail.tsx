@@ -45,7 +45,9 @@ export default function FeedbackDetail({ part, items: raw, onClose, inline }: Pr
       ref={ref}
       role="region"
       aria-label="하이라이트 분석"
-      className={inline ? "mt-1 mb-2 rounded-box bg-base-200 px-4 py-4" : ""}
+      className={
+        inline ? "mt-1 mb-2 animate-reveal rounded-box bg-base-200 px-4 py-4" : "animate-fade"
+      }
     >
       {items.map((h, i) => (
         <article key={i} className={i ? "mt-5 border-t border-base-300 pt-5" : ""}>

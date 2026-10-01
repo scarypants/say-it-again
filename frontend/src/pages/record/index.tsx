@@ -136,7 +136,7 @@ export default function RecordPage() {
             )}
 
             {rec.status === "recorded" && rec.urls.length > 0 ? (
-              <div className="flex w-full flex-col items-center gap-3">
+              <div className="flex w-full animate-fade flex-col items-center gap-3">
                 {rec.urls.length === 1 ? (
                   <audio src={rec.urls[0]} controls className="w-full" />
                 ) : (
@@ -204,7 +204,10 @@ export default function RecordPage() {
             </p>
 
             {(rec.error || analyzeError || materialError) && (
-              <div role="alert" className="alert alert-error alert-soft w-full text-sm">
+              <div
+                role="alert"
+                className="alert alert-error alert-soft w-full animate-reveal text-sm"
+              >
                 {rec.error ?? analyzeError ?? materialError}
               </div>
             )}
