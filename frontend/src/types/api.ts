@@ -2,6 +2,9 @@
 // 흐름: 녹음 → [1] POST /api/transcribe → 대본 검토·수정 → [2] POST /api/analyze → 결과
 
 export type Mode = "presentation" | "speaking"; // 발표 / 어학 스피킹
+// 면접 모드(#76)는 백엔드·결과 화면이 받기 전까지 입력 쪽(설정·transcribe 요청)에만 둔다.
+// 백엔드가 docs/api.md에 추가하면 Mode에 합친다
+export type InputMode = Mode | "interview";
 export type Lang = "ko" | "en";
 
 // 발표 성격: 과제 발표 / 시험 발표 / 큰 강연
@@ -23,12 +26,12 @@ export type ScriptPart = { duration: number; script: Line[] };
 
 // [1] transcribe 요청 (multipart). 프론트에선 객체로 들고 client.ts가 폼으로 바꾼다
 export type TranscribeRequest = {
-  mode: Mode;
+  mode: InputMode;
   language: Lang;
   audio: Blob[]; // 녹음 순서대로. 발표는 5분 단위 파일, 스피킹은 질문별 답변. 1~5개
   level?: PresentationLevel; // 발표만
   exam?: Exam; // 스피킹만
-  questions?: string[]; // 스피킹만. audio와 같은 순서·같은 개수
+  questions?: string[]; // 스피킹·면접. audio와 같은 순서·같은 개수
 };
 
 export type TranscribeResponse = {
@@ -140,5 +143,31 @@ export type Retry = {
 
 // AnalyzeResponse와 같은 모양 + compare(항상). expression·grammar는 0, parts[].final은 []
 export type RetryResponse = AnalyzeResponse & Required<Pick<AnalyzeResponse, "compare">>;
+
+// 면접 질문 생성 (JSON). 지원 직무에 맞춘 질문 5개를 받는다
+// ⚠ #76에 올린 "제안" 계약이다. 윤화영이 docs/api.md에 확정하면 이름·모양을 그대로 맞춘다
+export type InterviewQuestionType =
+  | "intro"
+  | "motivation"
+  | "job"
+  | "experience"
+  | "personality"
+  | "closing";
+
+export type InterviewQuestionsRequest = {
+  language: Lang;
+  job: string; // 지원 직무 (예: "백엔드 개발자"). 1~50자
+};
+
+export type InterviewQuestion = {
+  type: InterviewQuestionType;
+  text: string; // 화면에 보여 줄 질문 (language로)
+};
+
+export type InterviewQuestionsResponse = {
+  language: Lang;
+  job: string;
+  questions: InterviewQuestion[]; // 5개. 자기소개 → 지원 동기·직무·경험·인성 → 마무리
+};
 
 export type ApiError = { error: string };

@@ -1,14 +1,16 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import { PRESENTATION_LEVELS } from "../../api/presentationLevels";
+import { JOB_MAX_LENGTH } from "../question/interviewItems";
 import { useAnalysis, type Exam, type PresentationLevel } from "../../store/analysis";
 import type { Lang } from "../../types/api";
 
-type Choice = "presentation" | "speaking";
+type Choice = "presentation" | "speaking" | "interview";
 
 const MODES: { value: Choice; title: string; desc: string }[] = [
   { value: "presentation", title: "발표", desc: "강의·과제 발표를 소리 내어 연습해요" },
   { value: "speaking", title: "어학 스피킹", desc: "토익 스피킹·오픽 질문에 영어로 답해요" },
+  { value: "interview", title: "면접", desc: "자주 나오는 면접 질문에 답해요" },
 ];
 
 const LANGS: { value: Lang; label: string }[] = [
@@ -21,20 +23,22 @@ const EXAMS: { value: Exam; label: string }[] = [
   { value: "opic", label: "오픽" },
 ];
 
-// 와이어프레임 "초기화면": 모드 선택 → (발표) 발표 수준 / (어학) 토익 스피킹·오픽 → 시작
+// 와이어프레임 "초기화면": 모드 선택 → (발표) 발표 수준 / (어학) 토익 스피킹·오픽 / (면접) 지원 직무·답변 언어 → 시작
 export default function HomePage() {
   const navigate = useNavigate();
   const { settings, setSettings, setPrevious } = useAnalysis();
   const [mode, setMode] = useState<Choice | null>(null);
   const [level, setLevel] = useState<PresentationLevel | null>(settings.level ?? null);
-  // 발표 언어: 어학 모드에서 돌아와도 한국어로 시작
-  const [lang, setLang] = useState<Lang>(
-    settings.mode === "presentation" ? settings.language : "ko",
-  );
+  // 발표·면접 언어: 어학 모드에서 돌아와도 한국어로 시작
+  const [lang, setLang] = useState<Lang>(settings.mode === "speaking" ? "ko" : settings.language);
   const [exam, setExam] = useState<Exam | null>(settings.exam ?? null);
+  const [job, setJob] = useState(settings.job ?? "");
+  const jobName = job.trim();
 
   const ready =
-    (mode === "presentation" && level !== null) || (mode === "speaking" && exam !== null);
+    (mode === "presentation" && level !== null) ||
+    (mode === "speaking" && exam !== null) ||
+    (mode === "interview" && jobName !== "");
 
   function start() {
     setPrevious(null); // 새 연습이면 재도전 비교 기준을 비운다
@@ -43,6 +47,9 @@ export default function HomePage() {
       navigate("/record");
     } else if (mode === "speaking" && exam) {
       setSettings({ mode: "speaking", language: "en", exam });
+      navigate("/question");
+    } else if (mode === "interview" && jobName) {
+      setSettings({ mode: "interview", language: lang, job: jobName });
       navigate("/question");
     }
   }
@@ -92,23 +99,7 @@ export default function HomePage() {
 
                 {selected && m.value === "presentation" && (
                   <div className="animate-reveal border-t border-base-300 px-4 pt-3 pb-4">
-                    <span className="mb-2 block text-sm font-medium">발표 언어</span>
-                    <div className="join mb-4 w-full" role="radiogroup" aria-label="발표 언어">
-                      {LANGS.map((l) => (
-                        <button
-                          key={l.value}
-                          type="button"
-                          role="radio"
-                          aria-checked={lang === l.value}
-                          className={`btn join-item flex-1 ${
-                            lang === l.value ? "btn-primary" : "btn-outline border-base-300"
-                          }`}
-                          onClick={() => setLang(l.value)}
-                        >
-                          {l.label}
-                        </button>
-                      ))}
-                    </div>
+                    <LangPicker label="발표 언어" value={lang} onChange={setLang} />
                     <span className="mb-2 block text-sm font-medium">발표 수준</span>
                     <div className="join w-full" role="radiogroup" aria-label="발표 수준">
                       {PRESENTATION_LEVELS.map((l) => (
@@ -128,6 +119,29 @@ export default function HomePage() {
                     </div>
                     <p className="mt-2 text-xs text-secondary">
                       고른 발표 상황에 맞춰 AI가 피드백해 드려요.
+                    </p>
+                  </div>
+                )}
+
+                {selected && m.value === "interview" && (
+                  <div className="animate-reveal border-t border-base-300 px-4 pt-3 pb-4">
+                    <label className="mb-4 block">
+                      <span className="mb-2 block text-sm font-medium">지원 직무</span>
+                      <input
+                        type="text"
+                        className="input w-full"
+                        placeholder="예: 백엔드 개발자, 마케팅, 간호사"
+                        maxLength={JOB_MAX_LENGTH}
+                        value={job}
+                        onChange={(e) => setJob(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && ready) start();
+                        }}
+                      />
+                    </label>
+                    <LangPicker label="답변 언어" value={lang} onChange={setLang} />
+                    <p className="-mt-2 text-xs text-secondary">
+                      AI가 직무에 맞춘 면접 질문 다섯 개를 만들어 드려요.
                     </p>
                   </div>
                 )}
@@ -165,11 +179,16 @@ export default function HomePage() {
             disabled={!ready}
             onClick={start}
           >
-            {mode === "speaking" ? "질문 받고 시작하기" : "녹음하러 가기"}
+            {mode === "speaking" || mode === "interview" ? "질문 받고 시작하기" : "녹음하러 가기"}
           </button>
           {mode === "speaking" && !exam && (
             <p className="mt-2 animate-fade text-center text-xs text-secondary">
               시험 종류를 골라 주세요
+            </p>
+          )}
+          {mode === "interview" && !jobName && (
+            <p className="mt-2 animate-fade text-center text-xs text-secondary">
+              지원 직무를 적어 주세요
             </p>
           )}
           {mode === "presentation" && !level && (
@@ -180,5 +199,37 @@ export default function HomePage() {
         </div>
       </div>
     </div>
+  );
+}
+
+function LangPicker({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: Lang;
+  onChange: (l: Lang) => void;
+}) {
+  return (
+    <>
+      <span className="mb-2 block text-sm font-medium">{label}</span>
+      <div className="join mb-4 w-full" role="radiogroup" aria-label={label}>
+        {LANGS.map((l) => (
+          <button
+            key={l.value}
+            type="button"
+            role="radio"
+            aria-checked={value === l.value}
+            className={`btn join-item flex-1 ${
+              value === l.value ? "btn-primary" : "btn-outline border-base-300"
+            }`}
+            onClick={() => onChange(l.value)}
+          >
+            {l.label}
+          </button>
+        ))}
+      </div>
+    </>
   );
 }
