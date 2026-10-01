@@ -16,27 +16,29 @@ Base URL: `http://localhost:8080/api`
 
 - 파일 하나가 결과의 `parts` 하나가 된다. `audio`를 보낸 순서 = `parts` 순서.
 - `level`은 발표의 성격이다: 과제 발표(`assignment`), 시험 발표(`exam`), 큰 강연(`keynote`).
-- 면접 질문은 `POST /api/interview/questions`(6절)로 지원 직무에 맞춰 서버가 만든다. 그 뒤 흐름(질문별 녹음 → transcribe → 검토 → analyze)은 스피킹과 같다.
+- 스피킹·면접 질문은 `POST /api/questions`(6절)로 서버가 LLM으로 만든다 (면접은 지원 직무에 맞춰). 그 뒤 흐름(질문별 녹음 → transcribe → 검토 → analyze)은 같다.
+- 결과 화면에서 버튼을 누르면 모든 모드에서 꼬리질문을 최대 3개 받을 수 있다 (6절).
 
 ## 2. API 목록
 
 | 순서 | 엔드포인트 | 요청 | 응답 |
 |---|---|---|---|
-| 0 | `POST /api/interview/questions` | JSON: 언어 + 지원 직무 | 면접 질문 5개 (면접만) |
+| 0 | `POST /api/questions` | JSON: `kind`(처음 질문 / 꼬리질문) + 모드 정보 | 질문 목록 (`QuestionsResponse`) |
 | 1 | `POST /api/transcribe` | multipart: 녹음 파일 + 모드 정보 | 파트별 문장 단위 대본 (`TranscribeResponse`) |
 | 2 | `POST /api/analyze` | JSON: 모드 정보 + 사용자가 고친 대본 | 분석 결과 (`AnalyzeResponse`) |
 | 3 | `POST /api/retry` | JSON: 2와 같음 + 이전 결과 요약(`previous`) | 재도전 결과 + 전후 비교 (`RetryResponse`) |
 
 ```
-(면접) [0] interview/questions → 질문마다 답변 녹음 ↓
+(스피킹·면접) [0] questions(initial) → 질문마다 답변 녹음 ↓
 녹음 → [1] transcribe → 대본을 사용자에게 보여 주고 전사 오류 수정 → [2] analyze → 대본 하이라이트·총평 화면
 재도전 → [1] transcribe → 전사 오류 수정 → [3] retry → 전후 비교·재도전 총평
+결과 화면 → (버튼) [0] questions(followUp) → 꼬리질문 1~3개 (스피킹·면접은 그 질문으로 다시 연습)
 ```
 
 - 서버는 아무것도 저장하지 않는다. 그래서 2단계 요청에 1단계 응답의 `parts`를 다시 보낸다 (녹음 파일은 다시 보내지 않는다).
 - 사용자가 고칠 수 있는 것은 **문장 안의 `words`뿐**이다. `start`·`end`·`wordTimes`·pause 줄은 받은 그대로 돌려보낸다.
 - 수정 화면에는 "전사가 틀린 부분만 고쳐 주세요. 음·어 같은 말버릇은 지우지 마세요" 같은 안내를 둔다. 지우면 분석에서 빠진다.
-- 스피킹 질문은 프론트가 가지고 있다. 면접 질문만 서버가 만든다 ([0]).
+- 스피킹·면접 질문은 서버가 만든다 ([0]). 프론트는 응답의 `prompt`를 그대로 `questions`로 보낸다.
 
 ## 3. `POST /api/transcribe` (multipart/form-data)
 
@@ -428,62 +430,185 @@ type Retry = {
 }
 ```
 
-## 6. `POST /api/interview/questions` (application/json) — 면접 질문 생성
+## 6. `POST /api/questions` (application/json) — 질문 생성 (처음 질문 · 꼬리질문)
 
-지원 직무를 받아 LLM이 면접 질문 5개를 만든다. 면접 모드에서 녹음 전에 한 번 부른다.
+모드별 질문을 LLM으로 만든다. 두 종류가 있다.
+
+| `kind` | 언제 | 모드 | 개수 |
+|---|---|---|---|
+| `initial` (처음 질문) | 녹음 전, 질문 화면에 들어올 때 | 스피킹(토익·오픽), 면접 | 5개 |
+| `followUp` (꼬리질문) | 결과 화면에서 **사용자가 버튼을 눌렀을 때만** | 발표, 스피킹, 면접 | 1~3개 (기본 3, 최대 3) |
+
+- 발표는 처음 질문이 없다 (`initial` + `presentation`은 400).
+- 꼬리질문은 모드마다 성격이 다르다.
+  - 발표: 발표를 마친 뒤 **학우나 교수님에게 받을 법한 예상 질문**과 답변 방향(`hint`)
+  - 스피킹: 같은 시험 형식의 **추가 연습 질문** (토익은 그림·표가 필요 없는 Part 3·5 형식, 오픽은 같은 주제의 연관 질문)
+  - 면접: 답변 내용을 파고드는 **꼬리질문** (어느 답변에서 나온 질문인지 `about`)
+- 기존 `POST /api/interview/questions`는 이 API(`kind: "initial"`, `mode: "interview"`)로 대체한다. 프론트가 옮길 때까지 같은 동작으로 남겨 두고, 옮긴 뒤 삭제한다.
 
 ### 요청
 
 ```ts
-type InterviewQuestionsRequest = {
-  language: "ko" | "en";   // 질문 언어 = 답변 언어
-  job: string;             // 지원 직무 (자유 입력). 서버가 앞뒤 공백을 지운 뒤 1~50자. 예: "백엔드 개발자"
+type QuestionsRequest = InitialQuestionsRequest | FollowUpQuestionsRequest;
+
+// 처음 질문 (녹음 전)
+type InitialQuestionsRequest =
+  | { kind: "initial"; mode: "speaking"; language: "en"; exam: "TOEIC-Speaking" }
+  | { kind: "initial"; mode: "speaking"; language: "en"; exam: "opic";
+      opic: {
+        topics: { id: string; label: string }[];  // 서베이에서 고른 주제 (1개 이상)
+        level: number;                            // 자가 평가 단계 1~6. 5 이상이면 롤플레이가 문제 해결형
+      } }
+  | { kind: "initial"; mode: "interview"; language: "ko" | "en"; job: string };  // job: 1~50자
+
+// 꼬리질문 (결과 화면의 버튼)
+type FollowUpQuestionsRequest = {
+  kind: "followUp";
+  mode: "presentation" | "speaking" | "interview";
+  language: "ko" | "en";
+  level?: "assignment" | "exam" | "keynote";   // 발표
+  exam?: "TOEIC-Speaking" | "opic";            // 스피킹
+  job?: string;                                // 면접 (처음 질문 응답의 job)
+  count?: 1 | 2 | 3;                           // 기본 3
+  answers: {                                   // 파트 순서대로. 1~5개
+    question?: string;                         // 그 파트의 questions[i] (발표는 없음)
+    text: string;                              // 실제로 말한 대본: 분석 결과 parts[i].script의 words를 공백으로 이어 붙인 것
+  }[];
+  asked?: string[];                            // 이미 받은 꼬리질문 text (다시 받을 때 중복을 피한다)
 };
 ```
+
+- `answers[].text`는 모범 답안(`final`)이 아니라 **실제로 말한 대본**이다. 꼬리질문은 사용자가 한 말에서 나와야 한다.
+- `answers[].text` 합계는 20,000자 이하.
 
 ### 응답 200
 
 ```ts
-type InterviewQuestionType = "intro" | "motivation" | "job" | "experience" | "closing";
-
-type InterviewQuestionsResponse = {
+type QuestionsResponse = {
+  kind: "initial" | "followUp";
+  mode: "presentation" | "speaking" | "interview";
   language: "ko" | "en";
-  job: string;             // 공백을 지운 직무
-  questions: { type: InterviewQuestionType; text: string }[];  // 항상 5개, 유형마다 하나씩 아래 순서
-  warnings?: string[];     // LLM 실패 시 ["llm_failed"] (아래 기본 질문)
+  exam?: "TOEIC-Speaking" | "opic";
+  job?: string;              // 면접: 공백을 정리한 직무
+  questions: Question[];
+  warnings?: string[];       // "llm_failed"
+};
+
+type Question = {
+  type: QuestionType;        // 아래 표
+  text: string;              // 화면에 보여 주는(토익·오픽은 TTS로 읽어 주는) 질문 한 문장
+  prompt: string;            // transcribe·analyze·retry의 questions[i]로 그대로 보내는 문자열 (7절 형식)
+
+  // 토익 스피킹
+  part?: 1 | 2 | 3 | 4 | 5;
+  context?: string;          // Part 1 읽을 지문, Part 3 상황 설명
+  picture?: "cafeteria";     // Part 2 사진 (프론트가 그릴 수 있는 사진 id)
+  schedule?: { title: string; rows: { time: string; session: string; speaker: string }[] };  // Part 4 자료
+  // 오픽
+  topic?: { id: string; label: string };
+  // 꼬리질문
+  from?: "student" | "professor";  // 발표 예상 질문: 누가 물을 법한지
+  hint?: string;             // 발표: 답변 방향 한 줄 / 면접: 이 질문의 의도 한 줄 (한국어)
+  about?: number;            // 면접·스피킹 꼬리질문: 이어지는 답변 번호(answers 기준, 0부터)
 };
 ```
 
-- 질문 5개 = 유형 5개, 순서 고정: `intro` → `motivation` → `job` → `experience` → `closing`
-  - `intro` 자기소개, `motivation` 지원 동기(직무 맞춤), `job` 직무 지식·역량, `experience` 과거 경험(STAR로 답할 질문, 협업·갈등 포함), `closing` 마지막 한마디
-  - LLM은 `motivation`·`job`·`experience`를 직무에 맞게 만든다. `intro`·`closing`도 LLM이 쓰지만 형식은 거의 고정이다.
-- `text`는 화면에 그대로 보여 주는 질문 한 문장이다 (`language`로 쓴다).
-- 같은 직무로 다시 부르면 다른 질문이 나올 수 있다 ("질문 다시 만들기").
-- **LLM 실패 시에도 200**으로 직무 이름을 넣은 기본 질문 5개를 돌려주고 `warnings: ["llm_failed"]`를 붙인다. 프론트는 그대로 질문을 보여 주면 된다.
-  - 기본 질문(ko): "1분 동안 자기소개를 해 주세요." / "{job} 직무에 지원한 이유는 무엇인가요?" / "{job} 직무에서 가장 중요한 역량은 무엇이고, 본인은 그 역량을 어떻게 갖췄나요?" / "팀으로 일하며 갈등이나 어려움을 해결한 경험을 말해 주세요." / "마지막으로 하고 싶은 말이 있나요?" (en도 같은 구성)
-  - LLM이 일부 질문을 빈 문자열로 주면 그 질문만 기본 질문으로 채운다 (`warnings` 없음).
+- **`prompt`를 서버가 만들어 준다.** 프론트는 질문 문자열 형식(7절)을 직접 조립하지 않고 `prompt`를 그대로 `questions[i]`로 보낸다. analyze·retry는 형식 변경 없음.
+- 토익의 시간(준비·답변 초), 안내문(directions)은 지금처럼 프론트가 Part 번호로 정한다.
+
+#### `type` 목록
+
+| 요청 | `type` | 개수·순서 |
+|---|---|---|
+| initial · 면접 | `intro` → `motivation` → `job` → `experience` → `closing` | 5개, 순서 고정 |
+| initial · 토익 | `readAloud`(Part 1) → `describePicture`(Part 2) → `respond`(Part 3) → `information`(Part 4) → `opinion`(Part 5) | 5개, 순서 고정 |
+| initial · 오픽 | `intro` → `description` → `routine` → `experience` → `rolePlayAsk` 또는 `rolePlaySolve`(level 5 이상) | 5개, 순서 고정. 묘사·루틴·경험은 같은 주제 |
+| followUp · 발표 | `expected` (+ `from`, `hint`) | 1~3개 |
+| followUp · 토익 | `respond` 또는 `opinion` | 1~3개 |
+| followUp · 오픽 | `followUp` (+ `topic`, `about`) | 1~3개 |
+| followUp · 면접 | `followUp` (+ `about`, `hint`) | 1~3개 |
+
+- 토익 Part 2 사진은 LLM이 그릴 수 없으므로, 서버가 프론트가 그릴 수 있는 사진 목록(지금은 `cafeteria` 하나) 중에서 고르고 그 사진의 설명을 `prompt`에 넣는다. 질문 문장은 고정("Describe the picture in as much detail as you can.").
+- 꼬리질문으로 답변을 연습할 때(스피킹·면접): 받은 질문의 `prompt`를 `questions`로 해서 같은 모드로 녹음 → transcribe → analyze. 질문 수 = 녹음 수 (1~3개).
+
+### LLM 실패 시
+
+| 요청 | 응답 |
+|---|---|
+| initial · 면접 | 200. 직무를 넣은 기본 질문 5개 + `warnings: ["llm_failed"]` (아래 기본 질문) |
+| initial · 스피킹 | 200. `questions: []` + `warnings: ["llm_failed"]` → 프론트는 지금 가진 문항 데이터로 낸다 |
+| followUp | 200. `questions: []` + `warnings: ["llm_failed"]` → "질문을 만들지 못했어요. 다시 시도해 주세요" |
+
+- 면접 기본 질문(ko): "1분 동안 자기소개를 해 주세요." / "{job} 직무에 지원한 이유는 무엇인가요?" / "{job} 직무에서 가장 중요한 역량은 무엇이고, 본인은 그 역량을 어떻게 갖췄나요?" / "팀으로 일하며 갈등이나 어려움을 해결한 경험을 말해 주세요." / "마지막으로 하고 싶은 말이 있나요?" (en도 같은 구성)
+- LLM이 일부 질문을 빈 문자열로 주면: 면접 처음 질문은 그 칸만 기본 질문으로 채우고, 나머지는 빈 질문을 빼고 돌려준다 (`warnings` 없음).
 
 ### 예시
 
-요청: `{ "language": "ko", "job": "백엔드 개발자" }`
+면접 처음 질문 — 요청: `{ "kind": "initial", "mode": "interview", "language": "ko", "job": "백엔드 개발자" }`
 
 ```json
 {
+  "kind": "initial",
+  "mode": "interview",
   "language": "ko",
   "job": "백엔드 개발자",
   "questions": [
-    { "type": "intro", "text": "1분 동안 자기소개를 해 주세요." },
-    { "type": "motivation", "text": "백엔드 개발자 직무에 지원한 이유는 무엇인가요?" },
-    { "type": "job", "text": "백엔드 개발자로 일하는 데 가장 중요한 역량은 무엇이고, 본인은 어떻게 갖췄나요?" },
-    { "type": "experience", "text": "팀 프로젝트에서 갈등이 생겼을 때 어떻게 해결했는지 말해 주세요." },
-    { "type": "closing", "text": "마지막으로 하고 싶은 말이 있나요?" }
+    { "type": "intro", "text": "1분 동안 자기소개를 해 주세요.",
+      "prompt": "Interview Q1 (Self-introduction)\nJob: 백엔드 개발자\nQuestion: 1분 동안 자기소개를 해 주세요." },
+    { "type": "motivation", "text": "백엔드 개발자 직무에 지원한 이유는 무엇인가요?",
+      "prompt": "Interview Q2 (Motivation)\nJob: 백엔드 개발자\nQuestion: 백엔드 개발자 직무에 지원한 이유는 무엇인가요?" }
   ]
 }
+```
+(5개 중 2개만 표시)
+
+발표 꼬리질문(예상 질문) — 요청:
+
+```json
+{
+  "kind": "followUp",
+  "mode": "presentation",
+  "language": "ko",
+  "level": "exam",
+  "count": 3,
+  "answers": [{ "text": "오늘은 음 캠퍼스 식당 문제를 … 점심시간 대기 시간이 평균 20분입니다 …" }]
+}
+```
+
+응답:
+
+```json
+{
+  "kind": "followUp",
+  "mode": "presentation",
+  "language": "ko",
+  "questions": [
+    { "type": "expected", "from": "professor",
+      "text": "대기 시간 20분이라는 수치는 어떤 방법으로 조사했나요?",
+      "hint": "조사 기간·표본 수·측정 방법을 짧게 밝히고 한계도 인정하세요.",
+      "prompt": "Presentation Q&A 1 (Professor)\nQuestion: 대기 시간 20분이라는 수치는 어떤 방법으로 조사했나요?" },
+    { "type": "expected", "from": "student",
+      "text": "제안한 해결책을 실제로 적용하려면 비용이 얼마나 드나요?",
+      "hint": "정확한 금액이 없으면 비용이 드는 항목과 우선순위로 답하세요.",
+      "prompt": "Presentation Q&A 2 (Student)\nQuestion: 제안한 해결책을 실제로 적용하려면 비용이 얼마나 드나요?" }
+  ]
+}
+```
+(3개 중 2개만 표시)
+
+면접 꼬리질문 — 요청의 `answers`는 `[{ "question": "Interview Q4 (Past experience (STAR))\nJob: 백엔드 개발자\nQuestion: …", "text": "저는 팀 프로젝트에서 …" }, …]`, 응답 질문 예:
+
+```json
+{ "type": "followUp", "about": 3,
+  "text": "그때 팀원과 의견이 갈린 기술 선택은 구체적으로 무엇이었고, 왜 그 방법을 골랐나요?",
+  "hint": "의사결정 근거와 본인의 역할을 확인하려는 질문입니다.",
+  "prompt": "Interview Follow-up 1 (about Q4)\nJob: 백엔드 개발자\nQuestion: 그때 팀원과 의견이 갈린 기술 선택은 구체적으로 무엇이었고, 왜 그 방법을 골랐나요?" }
 ```
 
 ## 7. 공통 규칙
 
 ### `questions` (스피킹·면접)
+- 아래 형식의 문자열은 `POST /api/questions` 응답의 `prompt`로 서버가 만들어 준다. 프론트는 그대로 보낸다.
 - transcribe(multipart)에서는 `JSON.stringify(questions)` 문자열, analyze·retry(JSON)에서는 배열 그대로 보낸다. `questions[i]`의 답이 `audio[i]`(= `parts[i]`)이고 개수가 같아야 한다.
 - 오픽은 질문 문장 그대로다.
   ```json
@@ -507,11 +632,12 @@ type InterviewQuestionsResponse = {
     "Interview Q2 (Motivation)\nJob: 백엔드 개발자\nQuestion: 백엔드 개발자 직무에 지원한 이유는 무엇인가요?"
   ]
   ```
+- 꼬리질문은 머리말만 다르다: 면접 `Interview Follow-up N (about QM)`, 오픽 `OPIc Follow-up N (topic: …)`, 토익 `TOEIC Speaking Part 3/5 (…)` (처음 질문과 같은 형식), 발표 예상 질문 `Presentation Q&A N (Professor|Student)`.
 
 ### 검증
 - `mode`와 `language` 조합: 발표·면접은 `ko`·`en`, 스피킹은 `en`만 허용한다.
 - `level`은 발표에서, `exam`은 스피킹에서, `questions`는 스피킹·면접에서 필수. 스피킹·면접은 `questions` 개수 = 녹음(파트) 개수.
-- interview/questions: `job`이 비었거나 50자를 넘으면, `language`가 `ko`·`en`이 아니면 400.
+- questions: `kind`·`mode`·`language`·`exam` 조합이 표(6절)와 다르면(예: initial + presentation), 면접 `job`이 비었거나 50자를 넘으면, 오픽 `topics`가 비었거나 `level`이 1~6이 아니면, followUp `answers`가 1~5개가 아니거나 합계 20,000자를 넘으면, `count`가 1~3이 아니면 400.
 - retry는 위 규칙에 더해 `previous`가 필수다. `previous.final`은 빈 배열이어도 된다.
 
 ### 길이 제한 (서버는 +5초 여유로 검증)
@@ -532,7 +658,7 @@ transcribe: 검증 → 녹음마다 병렬 STT(whisper) → 문장 단위 분할
 analyze:    검증 → 파트별 코드 분석(패닉존, 필러, 중복) → 파트별 LLM 병렬(패닉 원인, 표현 개선, 문법, 최종 대본)
             → 총평 LLM 1회 → 합산
 retry:      검증 → 파트별 코드 분석(패닉존, 필러, 중복) → 합산 + 전후 비교·대본 일치율 → 재도전 총평 LLM 1회
-interview/questions: 검증 → 질문 생성 LLM 1회 (실패 시 기본 질문)
+questions:  검증 → 질문 생성 LLM 1회 (initial 면접은 실패 시 기본 질문, 나머지는 빈 목록)
 ```
 
 - 파트는 서로 독립이다. 파일 사이를 이어 붙이지 않으므로 가짜 패닉존이 생기지 않는다.
@@ -551,7 +677,7 @@ interview/questions: 검증 → 질문 생성 LLM 1회 (실패 시 기본 질문
 | 음성이 감지되지 않음 (transcribe, 몇 번째 녹음인지 포함) | 422 |
 | STT 실패 (transcribe, 1회 재시도 후, 몇 번째인지 포함) | 502 |
 | LLM 실패 (analyze) | 200. `final`은 빈 배열, `summary`는 빈 문자열·빈 배열로 내려가고 `warnings: ["llm_failed"]`가 붙는다 |
-| LLM 실패 (interview/questions) | 200. 기본 질문 5개 + `warnings: ["llm_failed"]` |
+| LLM 실패 (questions) | 200. 면접 처음 질문은 기본 질문 5개, 나머지는 `questions: []`. 둘 다 `warnings: ["llm_failed"]` (6절) |
 | LLM 실패 (retry) | 200. `retry`가 없고 `summary`는 빈 문자열·빈 배열, `warnings: ["llm_failed"]`. `compare`는 그대로 온다 |
 
 ## 확인이 필요한 항목
@@ -559,4 +685,6 @@ interview/questions: 검증 → 질문 생성 LLM 1회 (실패 시 기본 질문
 - 토익 스피킹의 파트별 시간 검증을 서버가 할지 (질문 문자열의 `Part N` 표기를 읽는 방식). 지금은 서버 상한 60초 + 프론트 타이머.
 - 점수에 패닉 길이·말 속도를 반영할지 (지금은 패닉존·군말·반복 단어 비율만. 샘플을 본 뒤 판단).
 - retry의 `RETRY_MATCH_LOW`(기본 40)가 적절한지 (대본을 보고 읽은 샘플과 즉흥 샘플을 녹음해 본 뒤 조정).
-- 면접 꼬리질문(`parts[].followUp`)은 나중에 추가 검토.
+- 토익 Part 2 사진 목록: 지금은 `cafeteria` 하나. 늘리려면 프론트(그림)와 서버(사진 설명)에 같은 id로 함께 추가해야 한다.
+- 발표 예상 질문에 답하는 연습을 할지: 하려면 발표 모드에서도 `questions`를 받도록 analyze를 바꿔야 한다. 지금은 질문과 `hint`를 보여 주기만 한다.
+- 오픽 처음 질문을 LLM으로 만들면 서베이 주제 목록(`data/opic/survey.json`)의 문항 예시는 실패 시 대체용으로만 쓰인다.
