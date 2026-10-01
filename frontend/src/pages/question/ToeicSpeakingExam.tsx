@@ -35,12 +35,12 @@ function totalSec(item: ToeicSpeakingItem, kind: "prep" | "speak") {
 
 type Stage = "intro" | "running" | "done";
 
-// 토익 스피킹 모의시험: 질문 듣기/보기 → 준비 → 자동 녹음 → 시간이 지나면 자동으로 다음 문제.
-// 답변 중 마이크 버튼을 누르면 바로 다음 문제. 이전 문제로는 돌아갈 수 없다.
+// 토익 스피킹 모의시험: 질문 듣기/보기 → 준비 → 자동 녹음. 답변 시간이 끝나면 신호음으로 알리고 녹음은 계속한다.
+// 마이크 버튼을 누르면 녹음을 끝내고 다음 문제. 이전 문제로는 돌아갈 수 없다.
 export default function ToeicSpeakingExam() {
   const navigate = useNavigate();
   const { setResult } = useAnalysis();
-  const rec = useRecorder(3600); // 답변 시간은 이 화면이 직접 끊는다
+  const rec = useRecorder(3600); // 답변은 버튼을 누를 때까지 녹음 (시간이 끝나도 계속)
 
   const [stage, setStage] = useState<Stage>("intro");
   const [qi, setQi] = useState(0);
@@ -67,13 +67,13 @@ export default function ToeicSpeakingExam() {
     timerRef.current = null;
   }
 
-  // 실제 시험처럼 준비·답변 시작에 짧은 신호음
-  function beep() {
+  // 실제 시험처럼 준비·답변 시작에 짧은 신호음. 답변 시간이 끝날 때는 낮은 음
+  function beep(freq = 880) {
     const ctx = beepCtxRef.current;
     if (!ctx) return;
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
-    osc.frequency.value = 880;
+    osc.frequency.value = freq;
     gain.gain.setValueAtTime(0.15, ctx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
     osc.connect(gain).connect(ctx.destination);
@@ -146,7 +146,7 @@ export default function ToeicSpeakingExam() {
         setAnswers(answersRef.current);
         nextQuestion(q);
       });
-      timerRef.current = window.setTimeout(() => rec.stop(), ph.sec * 1000);
+      timerRef.current = window.setTimeout(() => beep(440), ph.sec * 1000);
     } else {
       if (ph.kind === "prep") beep();
       timerRef.current = window.setTimeout(next, ph.sec * 1000);
@@ -236,7 +236,7 @@ export default function ToeicSpeakingExam() {
         </section>
         <p className="text-[0.9375rem] leading-relaxed">
           실제 시험처럼 Part 1부터 5까지 한 문제씩 이어서 진행해요. 준비 시간이 끝나면 신호음과 함께
-          자동으로 녹음되고, 답변 시간이 지나면 다음 문제로 넘어가요.
+          자동으로 녹음돼요. 답변 시간이 끝나면 알려 드리고, 버튼을 누르면 다음 문제로 넘어가요.
         </p>
         <ol className="mt-5 divide-y divide-base-300 rounded-box border border-base-300">
           {TOEIC_SPEAKING_ITEMS.map((it) => (
@@ -253,7 +253,7 @@ export default function ToeicSpeakingExam() {
         </ol>
         <ul className="mt-4 list-disc space-y-1 pl-5 text-sm text-secondary">
           <li>준비가 끝났으면 바로 답하기를 눌러 준비 시간을 건너뛸 수 있어요.</li>
-          <li>답변 중 마이크 버튼을 누르면 바로 다음 문제로 넘어가요.</li>
+          <li>답변 시간이 끝나도 녹음은 계속돼요. 마이크 버튼을 눌러야 다음 문제로 넘어가요.</li>
           <li>이전 문제로는 돌아갈 수 없어요.</li>
           <li>소리가 나오니 스피커나 이어폰을 켜 주세요.</li>
         </ul>
@@ -331,6 +331,8 @@ export default function ToeicSpeakingExam() {
   const item = TOEIC_SPEAKING_ITEMS[qi];
   const kind = phase?.kind;
   const remaining = endsAt ? (endsAt - now) / 1000 : null;
+  // 답변 시간이 끝나도 녹음은 계속. 넘긴 시간을 +로 보여 준다
+  const timeUp = kind === "speak" && remaining !== null && remaining <= 0;
   const phaseTotal = phase && "sec" in phase ? phase.sec : 0;
   // Part 4는 자료 읽기가 끝나야 질문이 화면에 나온다
   const showPrompt = !(item.part === 4 && kind === "read");
@@ -398,15 +400,23 @@ export default function ToeicSpeakingExam() {
       </article>
 
       <section className="mt-auto flex flex-col items-center gap-3 pt-6 pb-2" aria-live="polite">
-        <p className="text-sm font-semibold">{kind ? PHASE_LABEL[kind] : ""}</p>
+        <p className={`text-sm font-semibold ${timeUp ? "text-error" : ""}`}>
+          {timeUp ? "답변 시간이 끝났어요" : kind ? PHASE_LABEL[kind] : ""}
+        </p>
         {remaining !== null ? (
           <>
-            <p className="text-4xl font-semibold tabular-nums tracking-tight">{mmss(remaining)}</p>
-            <progress
-              className={`progress h-1.5 w-full max-w-60 ${kind === "speak" ? "progress-primary" : ""}`}
-              value={Math.max(0, remaining)}
-              max={phaseTotal}
-            />
+            <p
+              className={`text-4xl font-semibold tabular-nums tracking-tight ${timeUp ? "text-error" : ""}`}
+            >
+              {timeUp ? `+${mmss(-remaining)}` : mmss(remaining)}
+            </p>
+            {!timeUp && (
+              <progress
+                className={`progress h-1.5 w-full max-w-60 ${kind === "speak" ? "progress-primary" : ""}`}
+                value={Math.max(0, remaining)}
+                max={phaseTotal}
+              />
+            )}
           </>
         ) : (
           <span className="loading loading-dots loading-md text-secondary" />
@@ -416,7 +426,11 @@ export default function ToeicSpeakingExam() {
           <>
             <LevelBars levels={rec.levels} />
             <MicButton size="md" recording={rec.status === "recording"} onClick={stopEarly} />
-            <p className="text-xs text-secondary">다 말했으면 버튼을 눌러 다음 문제로</p>
+            <p className="text-xs text-secondary">
+              {timeUp
+                ? "녹음은 계속돼요. 다 말했으면 버튼을 눌러 다음 문제로"
+                : "다 말했으면 버튼을 눌러 다음 문제로"}
+            </p>
           </>
         ) : (
           <>

@@ -116,5 +116,9 @@ export function toeicSpeakingQuestionText(item: ToeicSpeakingItem) {
           .join("; "),
     );
   parts.push(item.part === 1 ? `Text to read aloud: ${item.prompt}` : `Question: ${item.prompt}`);
+  // 시간이 끝나도 녹음은 계속되므로, 제한 시간을 넘긴 부분을 구분할 수 있게 알려 준다
+  const speak = item.phases.find((ph) => ph.kind === "speak");
+  if (speak && "sec" in speak)
+    parts.push(`Answer time limit: ${speak.sec} seconds (recording continues after the limit)`);
   return parts.join("\n");
 }
