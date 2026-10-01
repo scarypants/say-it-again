@@ -6,7 +6,7 @@ export type Exam = 'TOEIC-Speaking' | 'opic';
 export type Language = 'ko' | 'en';
 export type Category = 'panic' | 'filler' | 'repeat' | 'expression' | 'grammar';
 
-/** 대본의 한 줄 = 한 문장. 2초 이상 정지는 pause 줄로 따로 들어간다. */
+/** 대본의 한 줄 = 한 문장. 2초(스피킹 1.5초) 이상 정지는 pause 줄로 따로 들어간다. */
 export type Line = {
   start: number;
   end: number;
@@ -27,6 +27,7 @@ export type Highlight = {
 
 export type Part = {
   comment?: string;
+  accuracy?: number; // 스피킹만: 답변 정확성 0~100 (LLM)
   duration: number;
   script: Line[];
   highlight: Highlight[];
@@ -40,7 +41,8 @@ export type Charts = {
 };
 
 export type Analysis = {
-  score: number;
+  score: number; // 스피킹: (habit + accuracy) / 2, 그 외: habit
+  scoreDetail?: { habit: number; accuracy: number }; // 스피킹만: 말하기 습관 점수 + 파트별 정확성 평균
   stats: {
     wpm: number;
     fillerCount: number;
