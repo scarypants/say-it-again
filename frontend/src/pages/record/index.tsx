@@ -5,6 +5,7 @@ import { LEVEL_LABEL } from "../../api/presentationLevels";
 import AnalyzingView from "../../components/common/AnalyzingView";
 import LevelBars from "../../components/common/LevelBars";
 import MicButton from "../../components/common/MicButton";
+import { DESKTOP_QUERY, useMediaQuery } from "../../components/common/useMediaQuery";
 import { useLeaveGuard } from "../../components/common/useLeaveGuard";
 import { useRecorder } from "../../components/common/useRecorder";
 import { useAnalysis } from "../../store/analysis";
@@ -30,6 +31,7 @@ export default function RecordPage() {
   const [analyzing, setAnalyzing] = useState(false);
   const [analyzeError, setAnalyzeError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const desktop = useMediaQuery(DESKTOP_QUERY);
   // 녹음을 시작한 뒤에는 다른 화면으로 가기 전에 확인
   const leaveGuard = useLeaveGuard(rec.status !== "idle");
 
@@ -94,157 +96,178 @@ export default function RecordPage() {
         )}
       </section>
 
-      {material && (
-        <MaterialPreview
-          file={material}
-          locked={rec.status !== "idle"}
-          onRemove={() => pickMaterial(null)}
-        />
-      )}
-
-      {/* 자료가 있으면 자료가 화면을 차지하고 녹음 영역은 아래로 작게 */}
-      <section
-        className={`flex flex-col items-center justify-center ${
-          material ? "gap-2 pt-3" : "flex-1 gap-4 py-6"
+      {/* 자료가 있으면 폰에선 자료가 위를 차지하고 녹음 영역은 아래로 작게,
+          PC에선 자료를 왼쪽에 크게 두고 녹음 패널은 오른쪽 */}
+      <div
+        className={`flex flex-1 flex-col ${
+          material
+            ? "lg:grid lg:grid-cols-[minmax(0,1fr)_22rem] lg:gap-8"
+            : "lg:mx-auto lg:w-full lg:max-w-md"
         }`}
       >
-        <p
-          className={`${material ? "text-2xl" : "text-4xl"} font-semibold tabular-nums tracking-tight ${
-            recording ? "text-base-content" : "text-secondary"
-          }`}
-          aria-live="off"
-        >
-          {mmss(rec.elapsed)}
-        </p>
-
-        {rec.status !== "recorded" && !paused && !material && <LevelBars levels={rec.levels} />}
-
-        {rec.status === "recorded" && rec.urls.length > 0 ? (
-          <div className="flex w-full flex-col items-center gap-3">
-            {rec.urls.length === 1 ? (
-              <audio src={rec.urls[0]} controls className="w-full" />
-            ) : (
-              // 5분짜리 파일 여러 개: 녹음 순서대로, 각 파일이 전체에서 몇 분 몇 초 구간인지
-              <ol className="flex w-full flex-col gap-2" aria-label="녹음 파일">
-                {rec.urls.map((u, i) => (
-                  <li key={u} className="flex flex-col gap-1">
-                    <div className="flex items-center justify-between text-xs text-secondary tabular-nums">
-                      <span>
-                        {mmss(i * MAX_SEC)} –{" "}
-                        {mmss(i === rec.urls.length - 1 ? rec.elapsed : (i + 1) * MAX_SEC)}
-                      </span>
-                      <a
-                        href={u}
-                        download={`part${i + 1}-${audioFileName(rec.blobs[i])}`}
-                        className="link link-hover"
-                      >
-                        파일 저장
-                      </a>
-                    </div>
-                    <audio src={u} controls className="w-full" />
-                  </li>
-                ))}
-              </ol>
-            )}
-            <div className="flex gap-2">
-              <button type="button" className="btn btn-ghost btn-sm" onClick={rec.reset}>
-                다시 녹음
-              </button>
-              {rec.urls.length === 1 && rec.blob && (
-                <a
-                  href={rec.urls[0]}
-                  download={audioFileName(rec.blob)}
-                  className="btn btn-ghost btn-sm"
-                >
-                  파일 저장
-                </a>
-              )}
-            </div>
-          </div>
-        ) : paused ? null : (
-          <MicButton
-            size={material ? "md" : "lg"}
-            recording={recording}
-            disabled={rec.status === "requesting"}
-            onClick={recording ? rec.stop : () => void rec.start()}
-          />
-        )}
-
-        <p className="min-h-5 text-sm text-secondary" role="status">
-          {rec.status === "idle" &&
-            (material
-              ? "자료를 보면서 말해 보세요. 버튼을 누르면 녹음이 시작돼요"
-              : `버튼을 누르면 녹음이 시작돼요. ${MAX_SEC / 60}분마다 이어서 녹음할 수 있어요`)}
-          {rec.status === "requesting" && "마이크 권한을 허용해 주세요"}
-          {recording &&
-            (remaining <= 30 && rec.limit < MAX_TOTAL_SEC
-              ? `${Math.ceil(remaining)}초 뒤 잠깐 멈춰요. 이어서 녹음할 수 있어요`
-              : remaining <= 30
-                ? `최대 ${MAX_TOTAL_SEC / 60}분이에요. ${Math.ceil(remaining)}초 뒤 녹음이 끝나요`
-                : "다 말했으면 버튼을 눌러 멈춰요")}
-          {paused &&
-            `${rec.limit / 60}분이 지나 잠깐 멈췄어요. 이어서 녹음하면 새 파일로 저장돼요 (${rec.blobs.length}/${MAX_FILES})`}
-          {rec.status === "recorded" && "들어 보고 괜찮으면 분석을 시작해요"}
-        </p>
-
-        {(rec.error || analyzeError || materialError) && (
-          <div role="alert" className="alert alert-error alert-soft w-full text-sm">
-            {rec.error ?? analyzeError ?? materialError}
-          </div>
-        )}
-      </section>
-
-      <div className="flex flex-col gap-2 pt-2">
-        {/* 와이어프레임: 자료는 녹음 전에 올린다. 올리면 이 버튼만 사라진다 */}
-        {!material && rec.status === "idle" && (
-          <>
-            <p className="text-center text-xs text-secondary">
-              PDF 발표 자료를 먼저 올리면 화면에 띄워 놓고 보면서 녹음할 수 있어요
-            </p>
-            <input
-              ref={fileRef}
-              type="file"
-              accept={MATERIAL_ACCEPT}
-              className="hidden"
-              onChange={(e) => pickMaterial(e.target.files?.[0] ?? null)}
+        {material && (
+          <div className="flex min-h-0 flex-1 flex-col lg:sticky lg:top-4 lg:h-[calc(100svh-11rem)] lg:min-h-[28rem]">
+            <MaterialPreview
+              file={material}
+              locked={rec.status !== "idle"}
+              onRemove={() => pickMaterial(null)}
             />
-            <button
-              type="button"
-              className="btn btn-outline btn-block border-base-300"
-              onClick={() => fileRef.current?.click()}
-            >
-              발표 자료 올리기
-            </button>
-          </>
-        )}
-        {/* 5분이 다 되면: 새 파일로 이어서 녹음하거나, 여기까지 바로 분석 */}
-        {paused && (
-          <div className="flex gap-2">
-            <button
-              type="button"
-              className="btn btn-outline btn-lg flex-1 border-base-300"
-              onClick={rec.resume}
-            >
-              이어서 녹음하기
-            </button>
-            <button
-              type="button"
-              className="btn btn-primary btn-lg flex-1"
-              onClick={() => rec.finish((_, all) => void runAnalyze(all))}
-            >
-              분석하기
-            </button>
           </div>
         )}
-        {rec.status === "recorded" && rec.blobs.length > 0 && (
-          <button
-            type="button"
-            className="btn btn-primary btn-lg btn-block"
-            onClick={() => void runAnalyze(rec.blobs)}
+
+        <div
+          className={`flex flex-col ${
+            material
+              ? "lg:sticky lg:top-4 lg:h-[calc(100svh-11rem)] lg:min-h-[28rem] lg:overflow-y-auto lg:rounded-box lg:border lg:border-base-300 lg:p-5"
+              : "flex-1"
+          }`}
+        >
+          <section
+            className={`flex flex-col items-center justify-center ${
+              material ? "gap-2 pt-3 lg:flex-1 lg:gap-4 lg:pt-0" : "flex-1 gap-4 py-6"
+            }`}
           >
-            {analyzeError ? "다시 분석하기" : "분석하기"}
-          </button>
-        )}
+            <p
+              className={`${material && !desktop ? "text-2xl" : "text-4xl"} font-semibold tabular-nums tracking-tight ${
+                recording ? "text-base-content" : "text-secondary"
+              }`}
+              aria-live="off"
+            >
+              {mmss(rec.elapsed)}
+            </p>
+
+            {rec.status !== "recorded" && !paused && (!material || desktop) && (
+              <LevelBars levels={rec.levels} />
+            )}
+
+            {rec.status === "recorded" && rec.urls.length > 0 ? (
+              <div className="flex w-full flex-col items-center gap-3">
+                {rec.urls.length === 1 ? (
+                  <audio src={rec.urls[0]} controls className="w-full" />
+                ) : (
+                  // 5분짜리 파일 여러 개: 녹음 순서대로, 각 파일이 전체에서 몇 분 몇 초 구간인지
+                  <ol className="flex w-full flex-col gap-2" aria-label="녹음 파일">
+                    {rec.urls.map((u, i) => (
+                      <li key={u} className="flex flex-col gap-1">
+                        <div className="flex items-center justify-between text-xs text-secondary tabular-nums">
+                          <span>
+                            {mmss(i * MAX_SEC)} –{" "}
+                            {mmss(i === rec.urls.length - 1 ? rec.elapsed : (i + 1) * MAX_SEC)}
+                          </span>
+                          <a
+                            href={u}
+                            download={`part${i + 1}-${audioFileName(rec.blobs[i])}`}
+                            className="link link-hover"
+                          >
+                            파일 저장
+                          </a>
+                        </div>
+                        <audio src={u} controls className="w-full" />
+                      </li>
+                    ))}
+                  </ol>
+                )}
+                <div className="flex gap-2">
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={rec.reset}>
+                    다시 녹음
+                  </button>
+                  {rec.urls.length === 1 && rec.blob && (
+                    <a
+                      href={rec.urls[0]}
+                      download={audioFileName(rec.blob)}
+                      className="btn btn-ghost btn-sm"
+                    >
+                      파일 저장
+                    </a>
+                  )}
+                </div>
+              </div>
+            ) : paused ? null : (
+              <MicButton
+                size={material && !desktop ? "md" : "lg"}
+                recording={recording}
+                disabled={rec.status === "requesting"}
+                onClick={recording ? rec.stop : () => void rec.start()}
+              />
+            )}
+
+            <p className="min-h-5 text-sm text-secondary" role="status">
+              {rec.status === "idle" &&
+                (material
+                  ? "자료를 보면서 말해 보세요. 버튼을 누르면 녹음이 시작돼요"
+                  : `버튼을 누르면 녹음이 시작돼요. ${MAX_SEC / 60}분마다 이어서 녹음할 수 있어요`)}
+              {rec.status === "requesting" && "마이크 권한을 허용해 주세요"}
+              {recording &&
+                (remaining <= 30 && rec.limit < MAX_TOTAL_SEC
+                  ? `${Math.ceil(remaining)}초 뒤 잠깐 멈춰요. 이어서 녹음할 수 있어요`
+                  : remaining <= 30
+                    ? `최대 ${MAX_TOTAL_SEC / 60}분이에요. ${Math.ceil(remaining)}초 뒤 녹음이 끝나요`
+                    : "다 말했으면 버튼을 눌러 멈춰요")}
+              {paused &&
+                `${rec.limit / 60}분이 지나 잠깐 멈췄어요. 이어서 녹음하면 새 파일로 저장돼요 (${rec.blobs.length}/${MAX_FILES})`}
+              {rec.status === "recorded" && "들어 보고 괜찮으면 분석을 시작해요"}
+            </p>
+
+            {(rec.error || analyzeError || materialError) && (
+              <div role="alert" className="alert alert-error alert-soft w-full text-sm">
+                {rec.error ?? analyzeError ?? materialError}
+              </div>
+            )}
+          </section>
+
+          <div className="flex flex-col gap-2 pt-2">
+            {/* 와이어프레임: 자료는 녹음 전에 올린다. 올리면 이 버튼만 사라진다 */}
+            {!material && rec.status === "idle" && (
+              <>
+                <p className="text-center text-xs text-secondary">
+                  PDF 발표 자료를 먼저 올리면 화면에 띄워 놓고 보면서 녹음할 수 있어요
+                </p>
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept={MATERIAL_ACCEPT}
+                  className="hidden"
+                  onChange={(e) => pickMaterial(e.target.files?.[0] ?? null)}
+                />
+                <button
+                  type="button"
+                  className="btn btn-outline btn-block border-base-300"
+                  onClick={() => fileRef.current?.click()}
+                >
+                  발표 자료 올리기
+                </button>
+              </>
+            )}
+            {/* 5분이 다 되면: 새 파일로 이어서 녹음하거나, 여기까지 바로 분석 */}
+            {paused && (
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  className="btn btn-outline btn-lg flex-1 border-base-300"
+                  onClick={rec.resume}
+                >
+                  이어서 녹음하기
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary btn-lg flex-1"
+                  onClick={() => rec.finish((_, all) => void runAnalyze(all))}
+                >
+                  분석하기
+                </button>
+              </div>
+            )}
+            {rec.status === "recorded" && rec.blobs.length > 0 && (
+              <button
+                type="button"
+                className="btn btn-primary btn-lg btn-block"
+                onClick={() => void runAnalyze(rec.blobs)}
+              >
+                {analyzeError ? "다시 분석하기" : "분석하기"}
+              </button>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
