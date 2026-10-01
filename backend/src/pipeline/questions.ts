@@ -1,5 +1,6 @@
 import { OPIC_HARD_LEVEL } from '../config';
 import { requestFollowUps, requestOpicQuestions, requestToeicQuestions, type FollowUpOutput } from '../llm/requests';
+import { TOEIC_INFO_KINDS, type ToeicInfoKind } from '../llm/prompts';
 import type {
   FollowUpQuestionsRequest,
   InitialQuestionsRequest,
@@ -118,14 +119,14 @@ function required(value: string | undefined, what: string): string {
 }
 
 async function toeicInitial(): Promise<Question[]> {
-  const out = await requestToeicQuestions(pick(TOEIC_THEMES));
+  const out = await requestToeicQuestions(pick(TOEIC_THEMES), pick(Object.keys(TOEIC_INFO_KINDS) as ToeicInfoKind[]));
   const passage = required(out.part1?.passage, 'Part 1 지문');
   const scene = out.part2?.scene?.trim() || CAFETERIA_SCENE; // 장면 설명이 비면 기본 사진 장면으로 생성
   const situation = required(out.part3?.situation, 'Part 3 상황');
   const p3 = required(out.part3?.question, 'Part 3 질문');
   const title = required(out.part4?.title, 'Part 4 제목');
   const rows = (out.part4?.rows ?? []).filter((r) => r.time?.trim() && r.session?.trim());
-  if (rows.length === 0) throw new Error('LLM 응답에 Part 4 일정표가 비어 있습니다.');
+  if (rows.length === 0) throw new Error('LLM 응답에 Part 4 자료가 비어 있습니다.');
   const p4 = required(out.part4?.question, 'Part 4 질문');
   const p5 = opinionText(required(out.part5?.statement, 'Part 5 진술'));
 

@@ -253,8 +253,20 @@ export function interviewQuestionMessages(language: Language, job: string) {
   return { system, user: `지원 직무: ${job}` };
 }
 
-/** 토익 스피킹 처음 질문 5개 (Part 1~5 하나씩). theme은 매번 다른 문항이 나오도록 코드가 고른 주제 힌트 */
-export function toeicQuestionMessages(theme: string) {
+/**
+ * 토익 Part 4 자료 종류. rows의 세 칸(time, session, speaker)은 그대로 쓰고 칸의 의미만 바꾼다
+ * (프론트 기본 문항 toeicSpeakingItems와 같은 종류, 계약 변경 없음)
+ */
+export const TOEIC_INFO_KINDS = {
+  event: '행사·학회·워크숍 일정표. time = 시간, session = 세션 이름, speaker = 발표자 (없으면 빈 문자열)',
+  trip: '출장 일정표. time = 날짜와 시간 (예: "May 12, 8:10 a.m."), session = 일정 (항공편·회의·방문 등), speaker = 장소 (게이트·사무실 등)',
+  interview: '채용 면접 일정표. time = 시간, session = 지원자 이름 (취소된 면접은 "(canceled)"를 붙인다), speaker = 면접 장소 (방 번호·화상 등)',
+  order: '온라인 주문·배송 내역. time = 날짜, session = 주문·배송 상태 (발송·지연·도착 예정 등), speaker = 금액이나 메모 (예: "$189.00", "Parcel 1 of 2")',
+} as const;
+export type ToeicInfoKind = keyof typeof TOEIC_INFO_KINDS;
+
+/** 토익 스피킹 처음 질문 5개 (Part 1~5 하나씩). theme·infoKind는 매번 다른 문항이 나오도록 코드가 고른 주제 힌트와 Part 4 자료 종류 */
+export function toeicQuestionMessages(theme: string, infoKind: ToeicInfoKind) {
   const system = [
     '너는 토익 스피킹(TOEIC Speaking) 모의시험 문항을 쓰는 출제자다. 실제 시험 형식과 난이도를 따르되, 기출을 옮기지 말고 새로 쓴다.',
     '모든 문항은 영어로 쓴다. 각 필드:',
@@ -262,10 +274,11 @@ export function toeicQuestionMessages(theme: string) {
     '- part2.scene: 사진 묘사 문제에 쓸 사진의 장면 설명 2~3문장. 이 설명으로 사진을 생성한다. 장소, 2~4명의 사람과 각자 분명한 동작, 눈에 띄는 사물을 구체적으로 쓴다. 글자가 보이는 간판·화면은 넣지 않는다.',
     '- part3.situation: 전화 설문 상황 한 문장 (예: "Imagine that a marketing firm is doing research in your area. You have agreed to participate in a telephone interview about ...").',
     '- part3.question: 그 설문의 질문 한 문장 (경험이나 선호를 묻고 이유를 함께 말하게).',
-    '- part4.title·rows: 일정표 제목과 4~6줄 (time, session, speaker. speaker가 없는 줄은 빈 문자열). part4.question: 일정표를 보고 답할 질문 한 문장 (특정 시간·세션에 대한 문의).',
+    `- part4.title·rows: 자료 제목과 4~6줄. 이번 자료 종류: ${TOEIC_INFO_KINDS[infoKind]}. 제목에는 자료 종류가 드러나게 쓴다 (예: "Business Trip Itinerary — Jenna Moore, Sales Team"). 칸이 비면 빈 문자열.`,
+    '- part4.question: 자료를 잃어버렸거나 확인하려는 사람이 전화로 묻는 질문 1~2문장. 자료의 특정 줄(시간·변경·취소·지연 등)을 찾아 답해야 하는 내용으로 쓴다.',
     '- part5.statement: 찬반 의견을 말할 진술 평서문 한 문장 (대학생이 의견을 낼 수 있는 일상·학교·직장 주제). 진술만 쓰고 "Do you agree or disagree ..." 같은 질문 문장은 붙이지 않는다 (서버가 붙인다). 예: "College students should be required to take a part-time job."',
   ].join('\n');
-  return { system, user: `이번 문항들의 주제 힌트: ${theme} (Part 1·3·4는 이 주제와 이어지게, Part 2·5는 자유롭게)` };
+  return { system, user: `이번 문항들의 주제 힌트: ${theme} (Part 1·3은 이 주제와 이어지게, Part 4는 정해진 자료 종류로 쓰되 어울리면 이 주제와 이어지게, Part 2·5는 자유롭게)` };
 }
 
 /** 오픽 처음 질문 5개: 자기소개 → 묘사 → 루틴 → 경험(같은 주제) → 롤플레이 */
