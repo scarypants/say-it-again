@@ -1,0 +1,22 @@
+{
+  "name": "say-it-again-main",
+  "version": "1.0.0",
+  "description": "",
+  "license": "ISC",
+  "author": "윤화영 <yhy032812@gmail.com>",
+  "contributors": [
+    "고민준 <3950minjoon@gmail.com>",
+    "박지호 <dugksdl12@naver.com>"
+  ],
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev:front": "npm run dev -w frontend",
+    "dev:back": "npm run dev -w backend"
+  },
+  "workspaces": [
+    "frontend",
+    "backend"
+  ]
+}
