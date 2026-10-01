@@ -8,7 +8,6 @@ export type AnalyzeRequest = {
   mode: Mode;
   language: Lang;
   level?: PresentationLevel; // 발표 모드에서만
-  material?: File;
 };
 
 // 발표 수준: 과제 발표 / 시험 발표 / 큰 강연

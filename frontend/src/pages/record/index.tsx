@@ -52,7 +52,6 @@ export default function RecordPage() {
         mode: settings.mode,
         language: settings.language,
         level: settings.level,
-        material: material ?? undefined,
       });
       setResult(result);
       navigate("/script");

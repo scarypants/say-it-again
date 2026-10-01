@@ -25,7 +25,6 @@ export async function analyze(req: AnalyzeRequest): Promise<AnalyzeResponse> {
   form.append("mode", req.mode);
   form.append("language", req.language);
   if (req.level) form.append("level", req.level);
-  if (req.material) form.append("material", req.material);
 
   return postAnalyze(form);
 }
