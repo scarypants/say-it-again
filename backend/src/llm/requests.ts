@@ -3,9 +3,28 @@ import { mockDelay, readFixture } from '../mock';
 import { checksGrammar } from '../modes';
 import { toScreenTerms } from '../text';
 import { getOpenAI } from '../openai';
-import type { Analysis, Charts, Compare, Highlight, Language, Line, Part, Retry } from '../types/api';
+import type {
+  Analysis,
+  Charts,
+  Compare,
+  FollowUpQuestionsRequest,
+  Highlight,
+  Language,
+  Line,
+  Part,
+  Retry,
+  ToeicSchedule,
+} from '../types/api';
 import type { AnalyzeInput, LlmPartResult, RetryInput } from '../types/internal';
-import { interviewQuestionMessages, partMessages, retryMessages, summaryMessages } from './prompts';
+import {
+  followUpMessages,
+  interviewQuestionMessages,
+  opicQuestionMessages,
+  partMessages,
+  retryMessages,
+  summaryMessages,
+  toeicQuestionMessages,
+} from './prompts';
 
 // ---- 응답 JSON schema (Structured Outputs, strict) ----
 
@@ -152,6 +171,86 @@ export async function summarizeRetry(
     remaining: out.remaining.slice(0, 3).map(toScreenTerms),
     comment: toScreenTerms(out.comment),
   };
+}
+
+// ---- 질문 생성 (POST /api/questions) ----
+
+const text = { type: 'string' } as const;
+const obj = (props: Record<string, object>) => ({
+  type: 'object',
+  additionalProperties: false,
+  required: Object.keys(props),
+  properties: props,
+});
+
+const TOEIC_SCHEMA = obj({
+  part1: obj({ passage: text }),
+  part2: obj({ scene: text }),
+  part3: obj({ situation: text, question: text }),
+  part4: obj({
+    title: text,
+    rows: { type: 'array', items: obj({ time: text, session: text, speaker: text }) },
+    question: text,
+  }),
+  part5: obj({ statement: text }),
+});
+
+export type ToeicOutput = {
+  part1: { passage: string };
+  part2: { scene: string };
+  part3: { situation: string; question: string };
+  part4: ToeicSchedule & { question: string };
+  part5: { statement: string };
+};
+
+const OPIC_SCHEMA = obj({ intro: text, description: text, routine: text, experience: text, rolePlay: text });
+
+export type OpicOutput = Record<'intro' | 'description' | 'routine' | 'experience' | 'rolePlay', string>;
+
+/** 꼬리질문: type은 모드별로 허용하는 값만 (enum) */
+const followUpSchema = (types: string[]) =>
+  obj({
+    questions: {
+      type: 'array',
+      items: obj({ type: { type: 'string', enum: types }, text, hint: text, about: { type: 'integer' }, situation: text }),
+    },
+  });
+
+export type FollowUpOutput = {
+  questions: { type: string; text: string; hint: string; about: number; situation: string }[];
+};
+
+/** 토익 처음 질문 원본 응답. mock 모드에서는 fixtures/llm-questions-toeic.json */
+export async function requestToeicQuestions(theme: string): Promise<ToeicOutput> {
+  if (MOCK_LLM) {
+    await mockDelay(800);
+    return readFixture<ToeicOutput>('llm-questions-toeic.json');
+  }
+  return callJson<ToeicOutput>('toeic_questions', TOEIC_SCHEMA, toeicQuestionMessages(theme));
+}
+
+/** 오픽 처음 질문 원본 응답. mock 모드에서는 fixtures/llm-questions-opic.json */
+export async function requestOpicQuestions(
+  topic: string,
+  rolePlayTopic: string,
+  level: number,
+  solve: boolean,
+): Promise<OpicOutput> {
+  if (MOCK_LLM) {
+    await mockDelay(800);
+    return readFixture<OpicOutput>('llm-questions-opic.json');
+  }
+  return callJson<OpicOutput>('opic_questions', OPIC_SCHEMA, opicQuestionMessages(topic, rolePlayTopic, level, solve));
+}
+
+/** 꼬리질문 원본 응답. mock 모드에서는 fixtures/llm-followup-{mode 또는 exam}.json */
+export async function requestFollowUps(input: FollowUpQuestionsRequest, types: string[]): Promise<FollowUpOutput> {
+  if (MOCK_LLM) {
+    await mockDelay(800);
+    const key = input.mode === 'speaking' ? (input.exam ?? 'opic') : input.mode;
+    return readFixture<FollowUpOutput>(`llm-followup-${key}.json`);
+  }
+  return callJson<FollowUpOutput>('follow_up_questions', followUpSchema(types), followUpMessages(input));
 }
 
 /**

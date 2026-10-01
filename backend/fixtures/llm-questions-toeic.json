@@ -1,0 +1,26 @@
+{
+  "part1": {
+    "passage": "Attention, library visitors. Starting next Monday, the Riverside Public Library will open at eight a.m. on weekdays. Our new study rooms on the third floor can be reserved online for up to two hours. Please return all borrowed books by the due date, and remember that food is not allowed in the reading area. Thank you."
+  },
+  "part2": {
+    "scene": "A bright public library reading room. A librarian at the front desk scans a book for a young woman holding a backpack. Two students sit at a long wooden table on the left, one typing on a laptop and the other taking notes. Tall bookshelves line the back wall, and a potted plant stands by the window."
+  },
+  "part3": {
+    "situation": "Imagine that a local library is doing research in your area. You have agreed to participate in a telephone interview about reading habits.",
+    "question": "How often do you visit a library, and what do you usually do there? Why?"
+  },
+  "part4": {
+    "title": "Riverside Library Weekend Workshop, Saturday, May 10",
+    "rows": [
+      { "time": "9:30 A.M.", "session": "Welcome and Library Tour", "speaker": "Grace Kim" },
+      { "time": "10:00 A.M.", "session": "Finding Books Online", "speaker": "Daniel Park" },
+      { "time": "11:00 A.M.", "session": "Study Room Reservation Guide", "speaker": "Grace Kim" },
+      { "time": "12:00 P.M.", "session": "Lunch", "speaker": "" },
+      { "time": "1:00 P.M.", "session": "Research Skills for Students", "speaker": "Mina Lee" }
+    ],
+    "question": "I heard there is a session about research skills. What time does it start, and who will lead it?"
+  },
+  "part5": {
+    "statement": "Public libraries are less important today because most information is available online."
+  }
+}
