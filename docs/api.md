@@ -24,12 +24,13 @@ Base URL: `http://localhost:8080/api`
 | 순서 | 엔드포인트 | 요청 | 응답 |
 |---|---|---|---|
 | 0 | `POST /api/questions` | JSON: `kind`(처음 질문 / 꼬리질문) + 모드 정보 | 질문 목록 (`QuestionsResponse`) |
+| 0-1 | `POST /api/questions/image` | JSON: 토익 Part 2 장면 설명 | 사진 1장 (data URL) |
 | 1 | `POST /api/transcribe` | multipart: 녹음 파일 + 모드 정보 | 파트별 문장 단위 대본 (`TranscribeResponse`) |
 | 2 | `POST /api/analyze` | JSON: 모드 정보 + 사용자가 고친 대본 | 분석 결과 (`AnalyzeResponse`) |
 | 3 | `POST /api/retry` | JSON: 2와 같음 + 이전 결과 요약(`previous`) | 재도전 결과 + 전후 비교 (`RetryResponse`) |
 
 ```
-(스피킹·면접) [0] questions(initial) → 질문마다 답변 녹음 ↓
+(스피킹·면접) [0] questions(initial) → 질문마다 답변 녹음 ↓   (토익은 [0-1] questions/image를 뒤에서 함께)
 녹음 → [1] transcribe → 대본을 사용자에게 보여 주고 전사 오류 수정 → [2] analyze → 대본 하이라이트·총평 화면
 재도전 → [1] transcribe → 전사 오류 수정 → [3] retry → 전후 비교·재도전 총평
 결과 화면 → (버튼) [0] questions(followUp) → 꼬리질문 1~3개 (스피킹·면접은 그 질문으로 다시 연습)
@@ -491,7 +492,7 @@ type QuestionsResponse = {
   exam?: "TOEIC-Speaking" | "opic";
   job?: string;              // 면접: 공백을 정리한 직무
   questions: Question[];
-  warnings?: string[];       // "llm_failed", "image_failed"
+  warnings?: string[];       // "llm_failed"
 };
 
 type Question = {
@@ -502,8 +503,14 @@ type Question = {
   // 토익 스피킹
   part?: 1 | 2 | 3 | 4 | 5;
   context?: string;          // Part 1 읽을 지문, Part 3 상황 설명
-  image?: string;            // Part 2 사진: 서버가 생성한 이미지 (data URL, "data:image/png;base64,...")
-  picture?: "cafeteria";     // Part 2 사진: 이미지 생성 실패 시 대신 쓰는 프론트 기본 사진 id (image가 있으면 없음)
+  picture?: {                // Part 2 사진 문제에만 있다. 사진은 POST /api/questions/image로 따로 받는다
+    scene: string;           // 생성할 사진의 장면 설명 (영어). /api/questions/image에 그대로 보낸다
+    prompt: string;          // 생성한 사진으로 출제했을 때 보내는 questions[i] (= 이 문항의 prompt)
+    fallback: {              // Part 2 차례까지 사진이 오지 않았거나 실패했을 때
+      id: "cafeteria";       // 프론트 기본 사진 id
+      prompt: string;        // 기본 사진으로 출제했을 때 보내는 questions[i]
+    };
+  };
   schedule?: { title: string; rows: { time: string; session: string; speaker: string }[] };  // Part 4 자료 (LLM이 만든다)
   // 오픽
   topic?: { id: string; label: string };
@@ -528,13 +535,47 @@ type Question = {
 | followUp · 오픽 | `followUp` (+ `topic`, `about`) | 1~3개 |
 | followUp · 면접 | `followUp` (+ `about`, `hint`) | 1~3개 |
 
-- **토익 Part 2 사진은 이미지 생성 모델로 만든다.** 사진 문제는 처음 질문(`initial` · 토익)의 Part 2 **한 문항뿐**이고, 꼬리질문에는 사진 문제를 넣지 않는다.
-  - 순서: LLM이 장면 설명(사람·사물·배경, 영어 2~3문장)을 쓴다 → 이미지 모델이 그 설명으로 사진 1장을 만든다 → 장면 설명을 `prompt`의 `Picture:` 줄에 넣는다 (analyze가 묘사의 정확성을 판단하는 근거).
-  - 모델은 환경 변수 `OPENAI_IMAGE_MODEL=gpt-image-2.5-flare`, API 키는 `OPENAI_API_KEY` 그대로. 크기는 가로형 1장, 속도를 위해 낮은 품질 설정을 쓴다.
-  - 이미지는 서버에 저장하지 않고 응답의 `image`(data URL)로 바로 보낸다. 응답이 1~2MB 정도 커질 수 있다.
-  - 이미지 생성은 10~30초 걸릴 수 있어 질문 텍스트 생성과 **동시에** 시작한다. 질문 화면 로딩 문구를 길게 잡아 둔다.
-  - **이미지 생성이 실패하거나 시간을 넘기면**: `image` 없이 `picture: "cafeteria"`(프론트 기본 사진)와 그 사진의 고정 설명을 쓰고 `warnings`에 `"image_failed"`를 붙인다. 나머지 질문은 그대로.
+- **토익 Part 2 사진은 이미지 생성 모델로 만들고, 질문과 따로 받는다.** 사진 문제는 처음 질문(`initial` · 토익)의 Part 2 **한 문항뿐**이고, 꼬리질문에는 사진 문제를 넣지 않는다.
+  - `/api/questions`는 사진을 기다리지 않고 질문 5개를 바로 돌려준다. Part 2에는 사진 대신 `picture`(장면 설명 + 두 가지 `prompt`)가 들어 있다.
+  - 장면 설명은 LLM이 질문과 함께 쓴다 (사람·사물·배경, 영어 2~3문장). `picture.prompt`의 `Picture:` 줄에 들어가 analyze가 묘사의 정확성을 판단하는 근거가 된다.
   - 질문 문장은 고정("Describe the picture in as much detail as you can.").
+  - 사진 받는 순서는 아래 "사진 생성"을 따른다.
+
+### 사진 생성: `POST /api/questions/image` (application/json)
+
+토익 Part 2 사진 1장을 만든다. 프론트가 `/api/questions` 응답을 받자마자 **뒤에서** 부르고, 사용자는 기다리지 않고 Part 1을 시작한다.
+
+```
+① POST /api/questions (토익 initial)        → 질문 5개 바로 응답. Part 2는 picture.scene만
+② 바로 뒤에서 POST /api/questions/image     → 사진 생성 (10~30초)
+③ 사용자는 Part 1 진행 (준비 45초 + 답변 45초)
+④ Part 2 차례가 되면
+   - 사진이 도착함        → 생성 사진으로 출제, questions[i] = picture.prompt
+   - 아직 안 옴 / 실패    → 기본 사진(picture.fallback.id)으로 출제, questions[i] = picture.fallback.prompt
+                            (그 뒤에 도착한 사진은 버린다)
+```
+
+요청:
+
+```ts
+type QuestionImageRequest = {
+  scene: string;   // /api/questions 응답의 picture.scene 그대로 (1~1000자)
+};
+```
+
+응답 200:
+
+```ts
+type QuestionImageResponse = {
+  image: string;   // "data:image/png;base64,..." (data URL, 1~2MB 정도)
+};
+```
+
+- **사진과 `questions[i]`는 반드시 짝을 맞춘다.** 화면에 보여 준 사진의 설명이 들어간 `prompt`를 보내야 analyze가 묘사를 맞게 평가한다.
+- 모델은 환경 변수 `OPENAI_IMAGE_MODEL=gpt-image-2.5-flare`, API 키는 `OPENAI_API_KEY` 그대로. 가로형 1장, 속도를 위해 낮은 품질 설정을 쓴다.
+- 서버는 사진을 저장하지 않는다.
+- 실패: `scene`이 비었거나 1000자를 넘으면 400, 이미지 생성 실패·시간 초과(서버 상한 60초)는 502. 프론트는 어느 경우든 기본 사진으로 출제한다.
+- 사용자가 Part 1 도중 나가면 이 요청의 결과는 버린다.
 - 꼬리질문으로 답변을 연습할 때(스피킹·면접): 받은 질문의 `prompt`를 `questions`로 해서 같은 모드로 녹음 → transcribe → analyze. 질문 수 = 녹음 수 (1~3개).
 
 ### LLM 실패 시
@@ -543,7 +584,6 @@ type Question = {
 |---|---|
 | initial · 면접 | 200. 직무를 넣은 기본 질문 5개 + `warnings: ["llm_failed"]` (아래 기본 질문) |
 | initial · 스피킹 | 200. `questions: []` + `warnings: ["llm_failed"]` → 프론트는 지금 가진 문항 데이터로 낸다 |
-| initial · 토익 Part 2 이미지만 실패 | 200. 질문 5개는 그대로, Part 2는 `picture: "cafeteria"` + 고정 설명, `warnings: ["image_failed"]` |
 | followUp | 200. `questions: []` + `warnings: ["llm_failed"]` → "질문을 만들지 못했어요. 다시 시도해 주세요" |
 
 - 면접 기본 질문(ko): "1분 동안 자기소개를 해 주세요." / "{job} 직무에 지원한 이유는 무엇인가요?" / "{job} 직무에서 가장 중요한 역량은 무엇이고, 본인은 그 역량을 어떻게 갖췄나요?" / "팀으로 일하며 갈등이나 어려움을 해결한 경험을 말해 주세요." / "마지막으로 하고 싶은 말이 있나요?" (en도 같은 구성)
@@ -666,7 +706,8 @@ analyze:    검증 → 파트별 코드 분석(패닉존, 필러, 중복) → �
             → 총평 LLM 1회 → 합산
 retry:      검증 → 파트별 코드 분석(패닉존, 필러, 중복) → 합산 + 전후 비교·대본 일치율 → 재도전 총평 LLM 1회
 questions:  검증 → 질문 생성 LLM 1회 (initial 면접은 실패 시 기본 질문, 나머지는 빈 목록)
-            토익 initial은 LLM의 Part 2 장면 설명 → 이미지 생성 1회 (실패 시 기본 사진)
+            (토익 initial은 Part 2 장면 설명까지 같은 LLM 호출로)
+questions/image: 검증 → 이미지 생성 1회 (실패·60초 초과 시 502 → 프론트가 기본 사진)
 ```
 
 - 파트는 서로 독립이다. 파일 사이를 이어 붙이지 않으므로 가짜 패닉존이 생기지 않는다.
@@ -686,7 +727,7 @@ questions:  검증 → 질문 생성 LLM 1회 (initial 면접은 실패 시 기�
 | STT 실패 (transcribe, 1회 재시도 후, 몇 번째인지 포함) | 502 |
 | LLM 실패 (analyze) | 200. `final`은 빈 배열, `summary`는 빈 문자열·빈 배열로 내려가고 `warnings: ["llm_failed"]`가 붙는다 |
 | LLM 실패 (questions) | 200. 면접 처음 질문은 기본 질문 5개, 나머지는 `questions: []`. 둘 다 `warnings: ["llm_failed"]` (6절) |
-| 이미지 생성 실패·시간 초과 (questions, 토익 Part 2) | 200. 기본 사진(`picture: "cafeteria"`) + `warnings: ["image_failed"]` |
+| 이미지 생성 실패·시간 초과 (questions/image) | 502. 프론트는 기본 사진(`picture.fallback`)으로 출제 |
 | LLM 실패 (retry) | 200. `retry`가 없고 `summary`는 빈 문자열·빈 배열, `warnings: ["llm_failed"]`. `compare`는 그대로 온다 |
 
 ## 확인이 필요한 항목
@@ -695,6 +736,6 @@ questions:  검증 → 질문 생성 LLM 1회 (initial 면접은 실패 시 기�
 - 점수에 패닉 길이·말 속도를 반영할지 (지금은 패닉존·군말·반복 단어 비율만. 샘플을 본 뒤 판단).
 - retry의 `RETRY_MATCH_LOW`(기본 40)가 적절한지 (대본을 보고 읽은 샘플과 즉흥 샘플을 녹음해 본 뒤 조정).
 - 이미지 모델 `gpt-image-2.5-flare`: 구현 후 실제 키로 호출해 동작·지원 크기·품질 옵션을 확인한다. 구현할 때 `backend/.env.example`에 키 이름 추가, README "외부 API·오픈소스" 표에 한 줄 추가.
-- 이미지 생성 시간 상한(초과 시 기본 사진)은 실제 응답 시간을 재 보고 정한다.
+- 이미지 생성 서버 상한 60초가 적절한지 실제 응답 시간을 재 보고 조정한다 (실제 출제 여부는 Part 2 시작 시점에 프론트가 정한다).
 - 발표 예상 질문에 답하는 연습을 할지: 하려면 발표 모드에서도 `questions`를 받도록 analyze를 바꿔야 한다. 지금은 질문과 `hint`를 보여 주기만 한다.
 - 오픽 처음 질문을 LLM으로 만들면 서베이 주제 목록(`data/opic/survey.json`)의 문항 예시는 실패 시 대체용으로만 쓰인다.
