@@ -1,13 +1,25 @@
 /// <reference types="node" />
 import assert from "node:assert/strict";
-import { test } from "node:test";
+import { after, test } from "node:test";
+import { fileURLToPath } from "node:url";
+import { register } from "tsx/esm/api";
+import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { MemoryRouter } from "react-router";
-import { AnalysisContext, type Session } from "../../store/analysis";
+import type { Session } from "../../store/analysis";
 import type { AnalyzeResponse } from "../../types/api";
-import SummaryPage from "./index";
 import { partTitle, totalDuration } from "../../components/common/scriptFormat";
 import { isFollowUpSummary } from "./followUp";
+
+// #112: tsconfig.json의 references는 tsx에 JSX 설정을 전달하지 않는다.
+// 실행 위치·CLI 옵션과 관계없이 앱과 같은 react-jsx로 화면과 하위 컴포넌트를 읽는다.
+const loader = register({
+  namespace: "summary-flow-test",
+  tsconfig: fileURLToPath(new URL("../../../tsconfig.app.json", import.meta.url)),
+});
+const { default: SummaryPage } = await loader.import("./index.tsx", import.meta.url) as typeof import("./index");
+const { AnalysisContext } = await loader.import("../../store/analysis.ts", import.meta.url) as typeof import("../../store/analysis");
+const { MemoryRouter } = await loader.import("react-router", import.meta.url) as typeof import("react-router");
+after(loader.unregister);
 
 const result: AnalyzeResponse = {
   mode: "presentation", language: "ko", level: "exam",
@@ -27,15 +39,13 @@ function render(source: AnalyzeResponse, questions?: string[], previous: Analyze
   const session: Session = { audio: [], questions, transcript: { ...source, parts: source.parts } };
   const noop = () => {};
   return renderToStaticMarkup(
-    <MemoryRouter>
-      <AnalysisContext.Provider value={{
+    createElement(MemoryRouter, null,
+      createElement(AnalysisContext.Provider, { value: {
         settings: { mode: source.mode, language: source.language }, setSettings: noop,
         result: source, setResult: noop, previous, setPrevious: noop,
         session, setSession: noop,
-      }}>
-        <SummaryPage />
-      </AnalysisContext.Provider>
-    </MemoryRouter>,
+      } }, createElement(SummaryPage)),
+    ),
   );
 }
 
