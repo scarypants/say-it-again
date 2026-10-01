@@ -82,9 +82,10 @@ export default function RecordPage() {
       <section className="flex items-start justify-between gap-3 pt-2 pb-4">
         <div className="min-w-0">
           <h1 className="text-xl font-bold">발표 연습</h1>
-          {settings.level && (
-            <p className="mt-0.5 text-sm text-secondary">{LEVEL_LABEL[settings.level]}</p>
-          )}
+          <p className="mt-0.5 text-sm text-secondary">
+            {settings.language === "en" ? "영어" : "한국어"}
+            {settings.level && ` 발표, ${LEVEL_LABEL[settings.level]}`}
+          </p>
         </div>
         {!recording && !paused && (
           <Link to="/" className="btn btn-ghost btn-sm shrink-0">

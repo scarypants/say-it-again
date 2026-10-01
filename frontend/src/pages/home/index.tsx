@@ -2,12 +2,18 @@ import { useState } from "react";
 import { useNavigate } from "react-router";
 import { PRESENTATION_LEVELS } from "../../api/presentationLevels";
 import { useAnalysis, type Exam, type PresentationLevel } from "../../store/analysis";
+import type { Lang } from "../../types/api";
 
 type Choice = "presentation" | "speaking";
 
 const MODES: { value: Choice; title: string; desc: string }[] = [
   { value: "presentation", title: "발표", desc: "강의·과제 발표를 소리 내어 연습해요" },
   { value: "speaking", title: "어학 스피킹", desc: "토익 스피킹·오픽 질문에 영어로 답해요" },
+];
+
+const LANGS: { value: Lang; label: string }[] = [
+  { value: "ko", label: "한국어" },
+  { value: "en", label: "영어" },
 ];
 
 const EXAMS: { value: Exam; label: string }[] = [
@@ -21,6 +27,10 @@ export default function HomePage() {
   const { settings, setSettings } = useAnalysis();
   const [mode, setMode] = useState<Choice | null>(null);
   const [level, setLevel] = useState<PresentationLevel | null>(settings.level ?? null);
+  // 발표 언어: 어학 모드에서 돌아와도 한국어로 시작
+  const [lang, setLang] = useState<Lang>(
+    settings.mode === "presentation" ? settings.language : "ko",
+  );
   const [exam, setExam] = useState<Exam | null>(settings.exam ?? null);
 
   const ready =
@@ -28,7 +38,7 @@ export default function HomePage() {
 
   function start() {
     if (mode === "presentation" && level) {
-      setSettings({ mode: "presentation", language: "ko", level });
+      setSettings({ mode: "presentation", language: lang, level });
       navigate("/record");
     } else if (mode === "speaking" && exam) {
       setSettings({ mode: "speaking", language: "en", exam });
@@ -79,6 +89,23 @@ export default function HomePage() {
 
               {selected && m.value === "presentation" && (
                 <div className="border-t border-base-300 px-4 pt-3 pb-4">
+                  <span className="mb-2 block text-sm font-medium">발표 언어</span>
+                  <div className="join mb-4 w-full" role="radiogroup" aria-label="발표 언어">
+                    {LANGS.map((l) => (
+                      <button
+                        key={l.value}
+                        type="button"
+                        role="radio"
+                        aria-checked={lang === l.value}
+                        className={`btn join-item flex-1 ${
+                          lang === l.value ? "btn-primary" : "btn-outline border-base-300"
+                        }`}
+                        onClick={() => setLang(l.value)}
+                      >
+                        {l.label}
+                      </button>
+                    ))}
+                  </div>
                   <span className="mb-2 block text-sm font-medium">발표 수준</span>
                   <div className="join w-full" role="radiogroup" aria-label="발표 수준">
                     {PRESENTATION_LEVELS.map((l) => (
