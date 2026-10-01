@@ -1,4 +1,4 @@
-import type { Mode } from "../../types/api";
+import type { InputMode } from "../../types/api";
 
 export const PART_SEC = 300; // 발표 녹음은 5분마다 파일(파트)이 나뉜다
 
@@ -7,9 +7,9 @@ export function mmss(sec: number) {
   return `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
 }
 
-// 파트 제목. 발표: 전체에서 몇 분 몇 초 구간인지 / 스피킹: 몇 번째 질문인지
-export function partTitle(mode: Mode, index: number, duration: number) {
-  if (mode === "speaking") return `질문 ${index + 1}`;
+// 파트 제목. 발표: 전체에서 몇 분 몇 초 구간인지 / 스피킹·면접: 몇 번째 질문인지
+export function partTitle(mode: InputMode, index: number, duration: number) {
+  if (mode !== "presentation") return `질문 ${index + 1}`;
   const from = index * PART_SEC;
   return `${mmss(from)} – ${mmss(from + duration)}`;
 }
