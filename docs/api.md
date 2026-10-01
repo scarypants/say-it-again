@@ -443,18 +443,19 @@ type InterviewQuestionsRequest = {
 ### 응답 200
 
 ```ts
-type InterviewQuestionType = "intro" | "motivation" | "job" | "experience" | "personality" | "closing";
+type InterviewQuestionType = "intro" | "motivation" | "job" | "experience" | "closing";
 
 type InterviewQuestionsResponse = {
   language: "ko" | "en";
   job: string;             // 공백을 지운 직무
-  questions: { type: InterviewQuestionType; text: string }[];  // 항상 5개
+  questions: { type: InterviewQuestionType; text: string }[];  // 항상 5개, 유형마다 하나씩 아래 순서
   warnings?: string[];     // LLM 실패 시 ["llm_failed"] (아래 기본 질문)
 };
 ```
 
-- 순서: `intro`(자기소개) → 가운데 3개(`motivation`·`job`·`experience`·`personality` 중, 직무에 맞게) → `closing`(마무리)
-- 유형: `intro` 자기소개, `motivation` 지원 동기, `job` 직무 지식·역량, `experience` 과거 경험(STAR로 답할 질문), `personality` 인성·협업, `closing` 마지막 한마디
+- 질문 5개 = 유형 5개, 순서 고정: `intro` → `motivation` → `job` → `experience` → `closing`
+  - `intro` 자기소개, `motivation` 지원 동기(직무 맞춤), `job` 직무 지식·역량, `experience` 과거 경험(STAR로 답할 질문, 협업·갈등 포함), `closing` 마지막 한마디
+  - LLM은 `motivation`·`job`·`experience`를 직무에 맞게 만든다. `intro`·`closing`도 LLM이 쓰지만 형식은 거의 고정이다.
 - `text`는 화면에 그대로 보여 주는 질문 한 문장이다 (`language`로 쓴다).
 - 같은 직무로 다시 부르면 다른 질문이 나올 수 있다 ("질문 다시 만들기").
 - **LLM 실패 시에도 200**으로 직무 이름을 넣은 기본 질문 5개를 돌려주고 `warnings: ["llm_failed"]`를 붙인다. 프론트는 그대로 질문을 보여 주면 된다.
@@ -497,7 +498,7 @@ type InterviewQuestionsResponse = {
   ]
   ```
 - 서버는 질문 문자열을 그대로 LLM에 전달한다. 사진 설명과 정보표가 글로 들어 있어서 LLM이 내용의 정확성까지 판단할 수 있다.
-- 면접은 질문 번호·유형, 지원 직무, 질문 문장을 한 문자열에 넣는다 (`job`은 별도 필드로 보내지 않는다). 유형 영어 이름: `intro`=Self-introduction, `motivation`=Motivation, `job`=Job knowledge, `experience`=Past experience (STAR), `personality`=Personality, `closing`=Closing
+- 면접은 질문 번호·유형, 지원 직무, 질문 문장을 한 문자열에 넣는다 (`job`은 별도 필드로 보내지 않는다). 유형 영어 이름: `intro`=Self-introduction, `motivation`=Motivation, `job`=Job knowledge, `experience`=Past experience (STAR), `closing`=Closing
   ```json
   [
     "Interview Q1 (Self-introduction)\nJob: 백엔드 개발자\nQuestion: 1분 동안 자기소개를 해 주세요.",
