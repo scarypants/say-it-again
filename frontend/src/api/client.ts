@@ -4,11 +4,14 @@ import type {
   ApiError,
   CompareStats,
   Exam,
+  FollowUpQuestionsRequest,
   InterviewQuestionsRequest,
   InterviewQuestionsResponse,
   Lang,
   Mode,
   PresentationLevel,
+  Question,
+  QuestionsResponse,
   RetryRequest,
   RetryResponse,
   TranscribeRequest,
@@ -85,6 +88,170 @@ async function mockInterviewQuestions({
           { type: "closing", text: "마지막으로 하고 싶은 말이 있나요?" },
         ];
   return { language, job, questions };
+}
+
+// [0] 꼬리질문: 결과 화면에서 버튼을 누르면 실제로 말한 대본으로 질문 1~3개를 받는다 (docs/api.md 6절)
+export async function followUpQuestions(req: FollowUpQuestionsRequest): Promise<QuestionsResponse> {
+  const res = USE_MOCK
+    ? await mockFollowUp(req)
+    : await post<QuestionsResponse>("/api/questions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(req),
+      });
+  // LLM 실패는 200 + 빈 목록으로 온다
+  if (!res.questions.length) throw new Error("질문을 만들지 못했어요. 다시 시도해 주세요.");
+  return res;
+}
+
+// mock 꼬리질문: 서버 없이 화면을 확인하려고 모드별 고정 질문을 docs/api.md 7절 머리말 형식으로 만든다.
+// 다시 받으면(asked) 다음 질문부터 돌려 쓴다
+async function mockFollowUp(req: FollowUpQuestionsRequest): Promise<QuestionsResponse> {
+  await new Promise((r) => setTimeout(r, 900));
+  const en = req.language === "en";
+  const pool: Omit<Question, "prompt">[] =
+    req.mode === "presentation"
+      ? [
+          {
+            type: "expected",
+            text: en
+              ? "How did you collect the numbers you showed?"
+              : "발표에서 말한 수치는 어떤 방법으로 조사했나요?",
+            hint: "조사 기간·표본 수·측정 방법을 짧게 밝히고 한계도 인정하세요.",
+          },
+          {
+            type: "expected",
+            text: en
+              ? "How much would your solution cost to put in place?"
+              : "제안한 해결책을 실제로 적용하려면 비용이 얼마나 드나요?",
+            hint: "정확한 금액이 없으면 비용이 드는 항목과 우선순위로 답하세요.",
+          },
+          {
+            type: "expected",
+            text: en
+              ? "What would you do if the plan did not work?"
+              : "계획대로 되지 않으면 어떤 대안이 있나요?",
+            hint: "대안 하나를 구체적으로 말하고, 언제 바꿀지 기준을 제시하세요.",
+          },
+          {
+            type: "expected",
+            text: en ? "Who benefits most from this idea?" : "이 제안으로 가장 큰 도움을 받는 사람은 누구인가요?",
+            hint: "대상을 좁혀 말하고, 그들이 얻는 변화를 숫자로 보여 주세요.",
+          },
+        ]
+      : req.mode === "interview"
+        ? [
+            {
+              type: "followUp",
+              about: req.answers.length - 1,
+              text: en
+                ? "What exactly did you do yourself in that situation?"
+                : "그 상황에서 본인이 직접 맡은 일은 구체적으로 무엇이었나요?",
+              hint: "팀의 성과와 본인의 역할을 구분하는지 보려는 질문입니다.",
+            },
+            {
+              type: "followUp",
+              about: 0,
+              text: en
+                ? "Which of the strengths you mentioned is the most relevant to this job, and why?"
+                : "말한 강점 중 이 직무에 가장 중요한 것 하나와 그 이유를 말해 주세요.",
+              hint: "직무 이해도와 우선순위 판단을 확인하려는 질문입니다.",
+            },
+            {
+              type: "followUp",
+              about: Math.min(1, req.answers.length - 1),
+              text: en
+                ? "If you could redo that, what would you change?"
+                : "그때로 돌아간다면 무엇을 다르게 하겠어요?",
+              hint: "경험에서 배운 점을 스스로 돌아보는지 보려는 질문입니다.",
+            },
+            {
+              type: "followUp",
+              about: 0,
+              text: en
+                ? "How would your last team describe you?"
+                : "지난 팀원들은 당신을 어떤 사람이라고 말할까요?",
+              hint: "자기 객관화와 협업 태도를 확인하려는 질문입니다.",
+            },
+          ]
+        : req.exam === "TOEIC-Speaking"
+          ? [
+              {
+                type: "opinion",
+                part: 5,
+                text: "Do you agree or disagree that students should take part-time jobs while in college? Give specific reasons.",
+              },
+              {
+                type: "respond",
+                part: 3,
+                context: "A marketing firm is doing research in your area about weekend activities.",
+                text: "Where do you usually go on weekends, and why?",
+              },
+              {
+                type: "opinion",
+                part: 5,
+                text: "Which is better for learning a new skill: taking a class or teaching yourself? Explain why.",
+              },
+              {
+                type: "respond",
+                part: 3,
+                context: "A friend is planning to visit your city and is asking you about it.",
+                text: "What is the best way to get around your city?",
+              },
+            ]
+          : [
+              {
+                type: "followUp",
+                about: 1,
+                topic: { id: "home", label: "사는 곳" },
+                text: "You mentioned your home. How has it changed since you first moved in?",
+              },
+              {
+                type: "followUp",
+                about: 2,
+                topic: { id: "home", label: "사는 곳" },
+                text: "Tell me about a problem you had at home and how you solved it.",
+              },
+              {
+                type: "followUp",
+                about: 1,
+                topic: { id: "home", label: "사는 곳" },
+                text: "What would you like to change about your home in the future?",
+              },
+              {
+                type: "followUp",
+                about: 3,
+                topic: { id: "home", label: "사는 곳" },
+                text: "Who do you usually spend time with at home, and what do you do together?",
+              },
+            ];
+  const asked = new Set(req.asked ?? []);
+  const fresh = pool.filter((q) => !asked.has(q.text));
+  const picked = (fresh.length ? fresh : pool).slice(0, req.count ?? 3);
+  const origin = (about?: number) =>
+    req.answers[about ?? 0]?.question?.match(/\bQ(\d+)\b/)?.[1] ?? String((about ?? 0) + 1);
+  const questions = picked.map((q, i): Question => {
+    const n = i + 1;
+    const prompt =
+      req.mode === "presentation"
+        ? `Presentation Q&A ${n}\nQuestion: ${q.text}`
+        : req.mode === "interview"
+          ? `Interview Follow-up ${n} (about Q${origin(q.about)})\nJob: ${req.job ?? ""}\nQuestion: ${q.text}`
+          : q.part === 3
+            ? `TOEIC Speaking Part 3 (질문에 답하기)\nSituation: ${q.context}\nQuestion: ${q.text}`
+            : q.part === 5
+              ? `TOEIC Speaking Part 5 (의견 제시하기)\nQuestion: ${q.text}`
+              : `OPIc Follow-up ${n} (topic: ${q.topic?.label ?? ""})\nQuestion: ${q.text}`;
+    return { ...q, prompt };
+  });
+  return {
+    kind: "followUp",
+    mode: req.mode,
+    language: req.language,
+    exam: req.exam,
+    job: req.job,
+    questions,
+  };
 }
 
 // [1] 녹음 → 문장 단위 대본. audio 필드를 녹음 순서대로 여러 번 붙인다 (서버는 붙인 순서를 파트 순서로 씀)
