@@ -42,4 +42,6 @@ npm run dev:front                    # http://localhost:5173
 | React, Vite, TypeScript | 프론트엔드 |
 | TailwindCSS, DaisyUI | 스타일 |
 | recharts | 총평 차트 |
+| react-router | 화면 이동(라우팅) |
+| pdfjs-dist (PDF.js) | 발표 자료 PDF 미리보기 |
 | Express, multer, cors, dotenv | 백엔드 |
