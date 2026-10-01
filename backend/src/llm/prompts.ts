@@ -12,7 +12,7 @@ const LEVEL_LABEL: Record<Level, string> = {
 
 const EXAM_LABEL = { 'TOEIC-Speaking': '토익 스피킹(TOEIC Speaking)', opic: '오픽(OPIc)' } as const;
 
-// 번호 붙은 스크립트 입력. 예) "[0] 0:오늘은 1:음 2:캠퍼스" / "[1] (침묵 3.2초)"
+/** 번호 붙은 스크립트 입력. 예) "[0] 0:오늘은 1:음 2:캠퍼스" / "[1] (침묵 3.2초)" */
 export function numberedScript(script: Line[]): string {
   return script
     .map((line, i) =>
@@ -33,7 +33,7 @@ function situation(input: AnalyzeInput, partIndex: number): string {
   return `상황: ${exam} 답변 연습 (영어). 아래 질문에 대한 답변이다.\n질문:\n${question}`;
 }
 
-// 파트 하나 분석 (패닉 원인·대안, 표현 개선, 문법, 최종 대본, 코멘트)
+/** 파트 하나 분석 (패닉 원인·대안, 표현 개선, 문법, 최종 대본, 코멘트) */
 export function partMessages(input: AnalyzeInput, script: Line[], partIndex: number) {
   const speaking = input.mode === 'speaking';
   const system = [
@@ -67,7 +67,7 @@ export function partMessages(input: AnalyzeInput, script: Line[], partIndex: num
   return { system, user };
 }
 
-// 총평: 파트별 요약만 받아 전체 총평을 쓴다 (원문 전체를 다시 넣지 않는다)
+/** 총평: 파트별 요약만 받아 전체 총평을 쓴다 (원문 전체를 다시 넣지 않는다) */
 export function summaryMessages(input: AnalyzeInput, parts: Part[]) {
   const system = [
     '너는 대학생의 말하기 연습을 돕는 코치다. 여러 녹음 구간의 분석 요약을 보고 전체 총평을 쓴다.',

@@ -5,7 +5,7 @@ import { analyze } from '../pipeline/analyze';
 import { transcribeAll } from '../pipeline/transcribe';
 import { parseAnalyzeRequest, parseTranscribeRequest } from './validate';
 
-// 파일은 디스크에 저장하지 않고 메모리로만 받는다.
+/** 파일은 디스크에 저장하지 않고 메모리로만 받는다. */
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { files: MAX_FILES, fileSize: MAX_FILE_BYTES },

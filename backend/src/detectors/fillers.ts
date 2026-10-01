@@ -6,10 +6,12 @@ import { FILLERS } from './fillerDict';
 
 const REASON = '군말(필러)입니다. 빼고 말해 보세요.';
 
-// 사전(fillerDict.ts)으로 필러를 찾는다. 단어 번호는 words 순서 = 파트 전체 단어 번호.
-// - certain / patterns: 항상 필러
-// - ambiguous / phrases: 바로 뒤 간격이 AMBIGUOUS_FILLER_GAP 이상이거나 마지막 단어일 때,
-//   또는 바로 앞 단어가 필러일 때만 필러 ("그… 저는", "그러니까 그")
+/**
+ * 사전(fillerDict.ts)으로 필러를 찾는다. 단어 번호는 words 순서 = 파트 전체 단어 번호.
+ * - certain / patterns: 항상 필러
+ * - ambiguous / phrases: 바로 뒤 간격이 AMBIGUOUS_FILLER_GAP 이상이거나 마지막 단어일 때,
+ *   또는 바로 앞 단어가 필러일 때만 필러 ("그… 저는", "그러니까 그")
+ */
 export function findFillers(words: Word[], language: Language): Highlight[] {
   const dict = FILLERS[language];
   const tokens = words.map((w) => normalize(w.word));

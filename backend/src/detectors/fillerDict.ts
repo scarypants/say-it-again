@@ -1,6 +1,6 @@
 import type { Language } from '../types/api';
 
-// 필러 사전. whisper 실측 후 조정한다.
+/** 필러 사전. whisper 실측 후 조정한다. */
 export type FillerDict = {
   certain: string[]; // 항상 필러로 본다
   patterns: RegExp[]; // 늘여 말한 형태 (예: 어어, 음음)

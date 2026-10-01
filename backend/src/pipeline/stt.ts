@@ -9,14 +9,16 @@ import { getOpenAI } from '../openai';
 import type { Language } from '../types/api';
 import type { Transcript } from '../types/internal';
 
-// whisper가 군말을 지우지 않고 받아 적도록 유도하는 힌트
+/** whisper가 군말을 지우지 않고 받아 적도록 유도하는 힌트 */
 const FILLER_PROMPT: Record<Language, string> = {
   ko: '음, 어, 그, 저기, 그러니까, 이제… 말하다가 멈칫하는 부분도 그대로 적어 주세요.',
   en: 'Um, uh, like, you know, so... I mean, er, hmm.',
 };
 
-// whisper로 전사해 단어별 타임스탬프와 녹음 길이를 돌려준다.
-// 단어가 거의 없으면 422, API 실패는 1회 재시도 후 502.
+/**
+ * whisper로 전사해 단어별 타임스탬프와 녹음 길이를 돌려준다.
+ * 단어가 거의 없으면 422, API 실패는 1회 재시도 후 502.
+ */
 export async function transcribe(
   file: Express.Multer.File,
   language: Language,
@@ -59,13 +61,13 @@ async function requestWhisper(file: Express.Multer.File, language: Language): Pr
   });
 }
 
-// mock 모드: 언어별 저장된 whisper 응답을 돌려준다 (녹음 내용과 상관없음)
+/** mock 모드: 언어별 저장된 whisper 응답을 돌려준다 (녹음 내용과 상관없음) */
 async function mockWhisper(language: Language): Promise<TranscriptionVerbose> {
   await mockDelay(800);
   return readFixture<TranscriptionVerbose>(MOCK_WHISPER[language]);
 }
 
-// 일시적인 오류(429, 5xx, 네트워크)만 1회 재시도한다. 형식 오류 같은 4xx는 바로 실패.
+/** 일시적인 오류(429, 5xx, 네트워크)만 1회 재시도한다. 형식 오류 같은 4xx는 바로 실패. */
 async function withRetry<T>(fn: () => Promise<T>): Promise<T> {
   try {
     return await fn();
@@ -77,7 +79,7 @@ async function withRetry<T>(fn: () => Promise<T>): Promise<T> {
   }
 }
 
-// STT_DUMP_DIR이 설정되어 있으면 whisper 원본 응답을 저장한다 (샘플·mock 데이터용)
+/** STT_DUMP_DIR이 설정되어 있으면 whisper 원본 응답을 저장한다 (샘플·mock 데이터용) */
 async function dump(result: TranscriptionVerbose, index: number): Promise<void> {
   if (!STT_DUMP_DIR || MOCK_STT) return;
   await mkdir(STT_DUMP_DIR, { recursive: true });
