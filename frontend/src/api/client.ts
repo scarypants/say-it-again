@@ -434,9 +434,9 @@ async function mockRetry(req: RetryRequest): Promise<RetryResponse> {
 }
 
 // mock 응답이 요청한 모드·언어·수준·시험을 따르게 한다 (실제 서버처럼). 면접도 mock으로 끝까지 돌 수 있게
-function echo(req: { mode: string; language: Lang; level?: PresentationLevel; exam?: Exam }) {
+function echo(req: { mode: Mode; language: Lang; level?: PresentationLevel; exam?: Exam }) {
   return {
-    mode: req.mode as Mode, // 응답 타입에 아직 "interview"가 없다 (types/api.ts InputMode 참고)
+    mode: req.mode,
     language: req.language,
     level: req.level,
     exam: req.exam,

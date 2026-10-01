@@ -2,7 +2,6 @@
 // 흐름: 녹음 → [1] POST /api/transcribe → 대본 검토·수정 → [2] POST /api/analyze → 결과
 
 export type Mode = "presentation" | "speaking" | "interview"; // 발표 / 어학 스피킹 / 면접
-export type InputMode = Mode;
 export type Lang = "ko" | "en";
 
 // 발표 성격: 과제 발표 / 시험 발표 / 큰 강연
@@ -24,7 +23,7 @@ export type ScriptPart = { duration: number; script: Line[] };
 
 // [1] transcribe 요청 (multipart). 프론트에선 객체로 들고 client.ts가 폼으로 바꾼다
 export type TranscribeRequest = {
-  mode: InputMode;
+  mode: Mode;
   language: Lang;
   audio: Blob[]; // 녹음 순서대로. 발표는 5분 단위 파일, 스피킹은 질문별 답변. 1~5개
   level?: PresentationLevel; // 발표만
