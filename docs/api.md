@@ -17,15 +17,17 @@ Base URL: `http://localhost:8080/api`
 - 파일 하나가 결과의 `parts` 하나가 된다. `audio`를 보낸 순서 = `parts` 순서.
 - `level`은 발표의 성격이다: 과제 발표(`assignment`), 시험 발표(`exam`), 큰 강연(`keynote`).
 
-## 2. API 목록 (2단계)
+## 2. API 목록
 
 | 순서 | 엔드포인트 | 요청 | 응답 |
 |---|---|---|---|
 | 1 | `POST /api/transcribe` | multipart: 녹음 파일 + 모드 정보 | 파트별 문장 단위 대본 (`TranscribeResponse`) |
 | 2 | `POST /api/analyze` | JSON: 모드 정보 + 사용자가 고친 대본 | 분석 결과 (`AnalyzeResponse`) |
+| 3 | `POST /api/retry` | JSON: 2와 같음 + 이전 결과 요약(`previous`) | 재도전 결과 + 전후 비교 (`RetryResponse`) |
 
 ```
 녹음 → [1] transcribe → 대본을 사용자에게 보여 주고 전사 오류 수정 → [2] analyze → 대본 하이라이트·총평 화면
+재도전 → [1] transcribe → 전사 오류 수정 → [3] retry → 전후 비교·재도전 총평
 ```
 
 - 서버는 아무것도 저장하지 않는다. 그래서 2단계 요청에 1단계 응답의 `parts`를 다시 보낸다 (녹음 파일은 다시 보내지 않는다).
@@ -235,10 +237,195 @@ type Analysis = {
 }
 ```
 
-## 5. 공통 규칙
+## 5. `POST /api/retry` (application/json) — "다시, 말해" 재도전
+
+총평 화면의 "다시, 말해"로 같은 설정에서 **전체를 다시 녹음**한 결과를 이전 결과와 비교한다.
+
+```
+이전 결과 보관 → 이전 최종 대본을 보며 다시 녹음 → [1] transcribe → 전사 오류 수정 → [3] retry → 전후 비교 + 재도전 총평
+```
+
+- analyze와 달리 **파트별 LLM을 부르지 않는다.** 패닉존·필러·중복은 코드가 찾고, LLM은 재도전 총평 1회만 부른다. 그래서 analyze보다 빠르다.
+- 서버는 이전 결과를 저장하지 않으므로 프론트가 `previous`로 다시 보낸다.
+
+### 요청
+
+```ts
+type RetryRequest = {
+  // AnalyzeRequest와 같다: 새 녹음을 transcribe → 사용자가 고친 대본
+  mode: "presentation" | "speaking";
+  level?: "assignment" | "exam" | "keynote";
+  exam?: "TOEIC-Speaking" | "opic";
+  language: "ko" | "en";
+  questions?: string[];
+  parts: { duration: number; script: Line[] }[];
+
+  // 이전 AnalyzeResponse에서 그대로 복사한다
+  previous: {
+    durationSec: number;                  // 이전 parts[].duration의 합
+    stats: Analysis["stats"];             // 이전 analysis.stats
+    categoryRatio: Charts["categoryRatio"];  // 이전 charts.categoryRatio
+    topPriorities: string[];              // 이전 analysis.summary.topPriorities
+    final: { words: string[] }[];         // 이전 parts[].final을 파트 순서대로 이어 붙인 것. 없으면 []
+  };
+};
+```
+
+- 새 녹음의 파일 개수가 이전과 달라도 된다 (비교는 전체 합산으로 한다).
+
+### 응답 200
+
+```ts
+type RetryResponse = {
+  mode: "presentation" | "speaking";
+  level?: "assignment" | "exam" | "keynote";
+  exam?: "TOEIC-Speaking" | "opic";
+  language: "ko" | "en";
+  parts: Part[];          // 새 녹음. 아래 "analyze와 다른 점" 참고
+  charts: Charts;         // 새 녹음. expression·grammar는 항상 0
+  analysis: Analysis;     // 새 녹음. score = compare.after.score
+  compare: Compare;       // 전후 비교 (서버가 같은 기준으로 계산)
+  retry?: Retry;          // 재도전 총평. LLM 실패 시 없음
+  warnings?: string[];    // "llm_failed", "script_mismatch"
+};
+
+type Compare = {
+  scriptMatch: number | null;  // 0~100. 이전 최종 대본 중 실제로 말한 비율. previous.final이 비었으면 null
+  before: CompareStats;        // 이전 결과
+  after: CompareStats;         // 새 녹음
+};
+
+type CompareStats = {
+  score: number;          // 코드 기준 점수: 100 − (panic + filler + repeat 비율)
+  durationSec: number;    // 녹음 길이 합 (초)
+  wpm: number;
+  fillerCount: number;
+  panicCount: number;
+  panicTotalSec: number;
+  repeatCount: number;
+  fillerPerMin: number;   // 녹음 1분당 횟수 (소수 첫째 자리)
+  panicPerMin: number;
+  repeatPerMin: number;
+};
+
+type Retry = {
+  improved: string[];     // 개선된 점 1~3개
+  remaining: string[];    // 아직 개선할 점 1~3개
+  comment: string;        // 재도전 한 줄 총평
+};
+```
+
+#### analyze와 다른 점
+
+| 항목 | analyze | retry |
+|---|---|---|
+| `highlight` | panic·filler·repeat·expression·grammar | panic·filler·repeat만 |
+| panic 하이라이트 | `reason`·`fixed`·`pauseSec` | `pauseSec`만 (원인·대안 없음) |
+| `parts[].final` | 최종 대본 | 항상 `[]` (이전 결과의 최종 대본을 그대로 쓴다) |
+| `parts[].comment` | 스피킹만 | 없음 |
+| `analysis.summary` | 총평 LLM | `retry`로 채운다: `headline` = `retry.comment`, `topPriorities` = `retry.remaining`, `comment` = `""` |
+| LLM 호출 | 파트 수 + 1회 | 재도전 총평 1회 |
+
+- `analysis.summary`는 기존 스크립트·총평 컴포넌트가 깨지지 않도록 채워 두는 것이다. 재도전 화면은 `compare`와 `retry`를 보여 준다.
+
+### 규칙
+- **점수 비교**: 이전 `analysis.score`는 표현 개선(`expression`)·문법(`grammar`)까지 감점한 값이라 그대로 비교하면 재도전 점수가 부풀려진다. 그래서 양쪽 모두 패닉·필러·중복만 반영한 점수로 비교한다. 우선순위가 panic > filler > repeat > expression > grammar라서 앞의 세 비율은 expression 유무와 상관없이 같다.
+  - `before.score` = `previous.categoryRatio`의 `normal + expression + grammar`
+  - `after.score` = 새 녹음의 `100 − (panic + filler + repeat)` (= 새 `charts.categoryRatio.normal`)
+- **길이 보정**: 다시 녹음하면 길이가 달라지므로 필러·패닉·중복은 `*PerMin`(녹음 1분당 횟수 = 횟수 ÷ `durationSec` × 60)으로 비교하는 것을 권한다. 횟수는 보조로 쓴다. `before`의 횟수·`wpm`·`panicTotalSec`은 `previous.stats` 값 그대로다.
+- **대본 일치율(`scriptMatch`)**: 새 녹음이 이전 최종 대본을 얼마나 따라갔는지를 코드로 잰다 (LLM 없음).
+  - 양쪽 모두 모든 파트·문장을 이어 붙이고 공백·문장부호를 지운 뒤(영어는 소문자로), 두 글자 단위(bigram)로 나눈다.
+  - `scriptMatch` = 이전 최종 대본의 bigram 중 새 녹음에도 있는 것의 비율(같은 bigram은 나온 횟수만큼만 센다) × 100, 정수 반올림.
+  - 기준이 이전 대본 쪽이라 일부만 읽으면 낮게 나온다.
+  - `scriptMatch`가 `RETRY_MATCH_LOW`(서버 `config.ts`, 기본 40) 미만이면 `warnings`에 `"script_mismatch"`를 붙인다. 결과는 그대로 돌려준다 (녹음을 거절하지 않는다). 프론트는 "이전과 내용이 많이 달라 비교는 참고용이에요" 같은 안내를 둔다.
+- **재도전 총평 LLM 입력**: `compare` 전체, `previous.topPriorities`, 새 녹음의 패닉존 문맥(pause 직전 문장 + 정지 시간), 새 `fillerTop`·`repeatTop`. `script_mismatch`면 "대본을 따라서" 같은 표현을 쓰지 않도록 지시한다.
+
+### 예시 (발표, 위 analyze 예시 결과로 재도전)
+
+요청:
+
+```json
+{
+  "mode": "presentation",
+  "level": "exam",
+  "language": "ko",
+  "parts": [
+    {
+      "duration": 7.0,
+      "script": [
+        { "start": 0.3, "end": 3.0, "offset": 0, "words": ["오늘은", "캠퍼스", "식당", "문제를", "이야기하려", "합니다"],
+          "wordTimes": [[0.3, 0.7], [0.8, 1.2], [1.3, 1.6], [1.7, 2.1], [2.2, 2.7], [2.75, 3.0]] },
+        { "start": 3.3, "end": 6.6, "offset": 6, "words": ["음", "점심시간", "대기", "시간이", "평균", "20분입니다"],
+          "wordTimes": [[3.3, 3.6], [3.8, 4.4], [4.5, 4.8], [4.9, 5.3], [5.4, 5.8], [5.9, 6.6]] }
+      ]
+    }
+  ],
+  "previous": {
+    "durationSec": 14.2,
+    "stats": { "wpm": 122, "fillerCount": 3, "panicCount": 1, "panicTotalSec": 3.2, "repeatCount": 0, "expressionCount": 1, "grammarCount": 0 },
+    "categoryRatio": { "panic": 25, "filler": 25, "repeat": 0, "expression": 33, "grammar": 0, "normal": 17 },
+    "topPriorities": ["주제 → 근거 연결 문장 준비", "'어/그러니까' 줄이기", "'~것 같아요' 대신 단정형"],
+    "final": [
+      { "words": ["오늘은", "캠퍼스", "식당", "문제를", "이야기하려", "합니다"] },
+      { "words": ["점심시간", "대기", "시간이", "평균", "20분입니다"] }
+    ]
+  }
+}
+```
+
+응답:
+
+```json
+{
+  "mode": "presentation",
+  "level": "exam",
+  "language": "ko",
+  "parts": [
+    {
+      "duration": 7.0,
+      "script": [
+        { "start": 0.3, "end": 3.0, "offset": 0, "words": ["오늘은", "캠퍼스", "식당", "문제를", "이야기하려", "합니다"],
+          "wordTimes": [[0.3, 0.7], [0.8, 1.2], [1.3, 1.6], [1.7, 2.1], [2.2, 2.7], [2.75, 3.0]] },
+        { "start": 3.3, "end": 6.6, "offset": 6, "words": ["음", "점심시간", "대기", "시간이", "평균", "20분입니다"],
+          "wordTimes": [[3.3, 3.6], [3.8, 4.4], [4.5, 4.8], [4.9, 5.3], [5.4, 5.8], [5.9, 6.6]] }
+      ],
+      "highlight": [
+        { "from": 6, "to": 6, "category": "filler", "reason": "군말(필러)입니다. 빼고 말해 보세요.", "fixed": "" }
+      ],
+      "final": []
+    }
+  ],
+  "charts": {
+    "categoryRatio": { "panic": 0, "filler": 8, "repeat": 0, "expression": 0, "grammar": 0, "normal": 92 },
+    "repeatTop": [],
+    "fillerTop": [{ "word": "음", "count": 1 }]
+  },
+  "analysis": {
+    "score": 92,
+    "stats": { "wpm": 120, "fillerCount": 1, "panicCount": 0, "panicTotalSec": 0, "repeatCount": 0, "expressionCount": 0, "grammarCount": 0 },
+    "summary": {
+      "headline": "연결 문장을 준비해 오니 도입 직후 막힘이 사라졌어요.",
+      "topPriorities": ["두 번째 문장 앞 '음' 없애기"],
+      "comment": ""
+    }
+  },
+  "compare": {
+    "scriptMatch": 97,
+    "before": { "score": 50, "durationSec": 14.2, "wpm": 122, "fillerCount": 3, "panicCount": 1, "panicTotalSec": 3.2, "repeatCount": 0, "fillerPerMin": 12.7, "panicPerMin": 4.2, "repeatPerMin": 0 },
+    "after":  { "score": 92, "durationSec": 7.0, "wpm": 120, "fillerCount": 1, "panicCount": 0, "panicTotalSec": 0, "repeatCount": 0, "fillerPerMin": 8.6, "panicPerMin": 0, "repeatPerMin": 0 }
+  },
+  "retry": {
+    "improved": ["패닉존이 1번(3.2초)에서 0번으로 사라졌어요", "필러가 분당 12.7회에서 8.6회로 줄었어요"],
+    "remaining": ["두 번째 문장 앞 '음' 없애기"],
+    "comment": "연결 문장을 준비해 오니 도입 직후 막힘이 사라졌어요."
+  }
+}
+```
+
+## 6. 공통 규칙
 
 ### `questions` (스피킹)
-- transcribe(multipart)에서는 `JSON.stringify(questions)` 문자열, analyze(JSON)에서는 배열 그대로 보낸다. `questions[i]`의 답이 `audio[i]`(= `parts[i]`)이고 개수가 같아야 한다.
+- transcribe(multipart)에서는 `JSON.stringify(questions)` 문자열, analyze·retry(JSON)에서는 배열 그대로 보낸다. `questions[i]`의 답이 `audio[i]`(= `parts[i]`)이고 개수가 같아야 한다.
 - 오픽은 질문 문장 그대로다.
   ```json
   ["Please introduce yourself in as much detail as possible.", "Tell me about the place where you live. What does it look like, and what do you like about it?"]
@@ -258,6 +445,7 @@ type Analysis = {
 ### 검증
 - `mode`와 `language` 조합: 발표는 `ko`·`en`, 스피킹은 `en`만 허용한다.
 - `level`은 발표에서, `exam`·`questions`는 스피킹에서 필수. 스피킹은 `questions` 개수 = 녹음(파트) 개수.
+- retry는 위 규칙에 더해 `previous`가 필수다. `previous.final`은 빈 배열이어도 된다.
 
 ### 길이 제한 (서버는 +5초 여유로 검증)
 
@@ -275,13 +463,14 @@ type Analysis = {
 transcribe: 검증 → 녹음마다 병렬 STT(whisper) → 문장 단위 분할 + pause 줄
 analyze:    검증 → 파트별 코드 분석(패닉존, 필러, 중복) → 파트별 LLM 병렬(패닉 원인, 표현 개선, 문법, 최종 대본)
             → 총평 LLM 1회 → 합산
+retry:      검증 → 파트별 코드 분석(패닉존, 필러, 중복) → 합산 + 전후 비교·대본 일치율 → 재도전 총평 LLM 1회
 ```
 
 - 파트는 서로 독립이다. 파일 사이를 이어 붙이지 않으므로 가짜 패닉존이 생기지 않는다.
 - 발표는 `level` 값을, 스피킹은 해당 파트의 질문 문자열과 `exam`을 LLM 프롬프트에 함께 전달한다.
 - 토익 Part 1(지문 읽기)은 최종 대본을 만들지 않는다. LLM이 질문 문자열의 파트 이름을 보고 `final`을 빈 배열로 돌려준다.
 
-## 6. 에러
+## 7. 에러
 
 `{ "error": "메시지" }` + 상태 코드
 
@@ -292,8 +481,10 @@ analyze:    검증 → 파트별 코드 분석(패닉존, 필러, 중복) → �
 | 음성이 감지되지 않음 (transcribe, 몇 번째 녹음인지 포함) | 422 |
 | STT 실패 (transcribe, 1회 재시도 후, 몇 번째인지 포함) | 502 |
 | LLM 실패 (analyze) | 200. `final`은 빈 배열, `summary`는 빈 문자열·빈 배열로 내려가고 `warnings: ["llm_failed"]`가 붙는다 |
+| LLM 실패 (retry) | 200. `retry`가 없고 `summary`는 빈 문자열·빈 배열, `warnings: ["llm_failed"]`. `compare`는 그대로 온다 |
 
 ## 확인이 필요한 항목
 
 - 토익 스피킹의 파트별 시간 검증을 서버가 할지 (질문 문자열의 `Part N` 표기를 읽는 방식). 지금은 서버 상한 60초 + 프론트 타이머.
 - 점수가 정상 단어 비율만으로 충분한지 (패닉 길이, 속도 반영 여부는 샘플을 본 뒤 판단).
+- retry의 `RETRY_MATCH_LOW`(기본 40)가 적절한지 (대본을 보고 읽은 샘플과 즉흥 샘플을 녹음해 본 뒤 조정).
