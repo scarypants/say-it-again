@@ -5,7 +5,7 @@ export const chartCategories = [
   { key: "filler", name: "군말", fill: "var(--color-hl-filler)" },
   { key: "repeat", name: "반복", fill: "var(--color-hl-repeat)" },
   { key: "expression", name: "표현 개선", fill: "var(--color-hl-expr)" },
-  { key: "normal", name: "정상", fill: "var(--color-success)" },
+  { key: "normal", name: "정상", fill: "var(--color-hl-normal)" },
 ] as const;
 export type ChartKey = (typeof chartCategories)[number]["key"];
 export type ChartItem = (typeof chartCategories)[number] & { value: number; percent: number };

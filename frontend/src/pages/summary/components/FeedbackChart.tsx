@@ -87,7 +87,10 @@ export default function FeedbackChart({
                       className="pointer-events-none fill-base-100 text-[13px] font-bold"
                       aria-hidden="true"
                       style={{
-                        fill: item.key === "filler" ? "var(--color-base-content)" : undefined,
+                        fill:
+                          item.key === "filler" || item.key === "normal"
+                            ? "var(--color-base-content)"
+                            : undefined,
                       }}
                     >
                       {item.percent}%
