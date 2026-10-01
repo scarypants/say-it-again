@@ -1,4 +1,6 @@
+import { useState } from "react";
 import { Link, Outlet, useLocation, useMatches } from "react-router";
+import HistoryPanel from "./HistoryPanel";
 import Logo from "./Logo";
 
 // 라우트에 handle: { wide: true }를 주면 PC(lg 이상)에서 넓게 쓴다. 안 주면 폰 폭 컬럼 그대로
@@ -9,6 +11,7 @@ export default function Layout() {
   const matches = useMatches();
   const { pathname } = useLocation();
   const wide = matches.some((m) => (m.handle as RouteHandle | undefined)?.wide);
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   return (
     <div className="flex min-h-svh flex-col bg-base-100">
@@ -17,8 +20,13 @@ export default function Layout() {
           <Link to="/" className="flex items-center" aria-label="다시, 말해 처음으로">
             <Logo />
           </Link>
-          {/* 기록: DB가 없어 스트레치 목표. 자리만 잡아 둔다 */}
-          <button type="button" className="btn btn-ghost btn-sm" disabled title="준비 중">
+          {/* 기록: 지난 연습을 이 기기(localStorage)에서 다시 본다 */}
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm"
+            aria-haspopup="dialog"
+            onClick={() => setHistoryOpen(true)}
+          >
             기록
           </button>
         </div>
@@ -33,6 +41,7 @@ export default function Layout() {
           <Outlet />
         </div>
       </main>
+      <HistoryPanel open={historyOpen} onClose={() => setHistoryOpen(false)} />
     </div>
   );
 }

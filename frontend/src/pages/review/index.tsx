@@ -8,6 +8,7 @@ import { mmss, partTitle, questionLine, totalDuration } from "../../components/c
 import { useClipPlayer } from "../../components/common/useClipPlayer";
 import { useLeaveGuard } from "../../components/common/useLeaveGuard";
 import { retryPrevious, useAnalysis } from "../../store/analysis";
+import { saveRecord } from "../../store/history";
 import type { AnalyzeResponse, ScriptPart, TranscribeResponse } from "../../types/api";
 import EditableWord from "./EditableWord";
 import { isFillerWord } from "./fillers";
@@ -106,6 +107,7 @@ function Review({ transcript, audio, questions, setResult, previous }: ReviewPro
           })
         : await analyze(req);
       setResult(result);
+      void saveRecord(audio, questions, result); // 기록에 남긴다 (실패해도 계속)
       navigate("/script");
     } catch (err) {
       setError(err instanceof Error ? err.message : "분석 요청에 실패했어요.");

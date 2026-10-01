@@ -9,6 +9,7 @@ import type {
   PresentationLevel,
   TranscribeResponse,
 } from "../types/api";
+import { loadAudio, recordTranscript, type HistoryRecord } from "./history";
 
 export type { Exam, PresentationLevel } from "../types/api";
 
@@ -44,15 +45,48 @@ export function useAnalysis() {
 
 // "다시, 말해": 지금 결과를 previous로 보관하고 같은 설정으로 녹음 화면에 간다 (발표 모드)
 export function useStartRetry() {
-  const { result, setPrevious, setResult, setSettings } = useAnalysis();
-  const navigate = useNavigate();
+  const { result } = useAnalysis();
+  const retryFrom = useRetryFrom();
   return useCallback(() => {
-    if (!result) return;
-    setSettings({ mode: result.mode, language: result.language, level: result.level });
-    setPrevious(result);
-    setResult(null);
-    navigate("/record");
-  }, [result, setPrevious, setResult, setSettings, navigate]);
+    if (result) retryFrom(result);
+  }, [result, retryFrom]);
+}
+
+// 지정한 결과(예: 기록)를 기준으로 "다시, 말해"를 시작한다
+export function useRetryFrom() {
+  const { setPrevious, setResult, setSession, setSettings } = useAnalysis();
+  const navigate = useNavigate();
+  return useCallback(
+    (from: AnalyzeResponse) => {
+      setSettings({ mode: from.mode, language: from.language, level: from.level });
+      setPrevious(from);
+      setResult(null);
+      setSession(null);
+      navigate("/record");
+    },
+    [setPrevious, setResult, setSession, setSettings, navigate],
+  );
+}
+
+// 기록 하나를 결과 화면으로 연다 (총평 또는 스크립트)
+export function useOpenRecord() {
+  const { setPrevious, setResult, setSession, setSettings } = useAnalysis();
+  const navigate = useNavigate();
+  return useCallback(
+    (record: HistoryRecord, to: "/summary" | "/script" = "/summary") => {
+      const { mode, language, level, exam } = record.result;
+      setSettings({ mode, language, level, exam });
+      setPrevious(null);
+      setSession({
+        audio: loadAudio(record),
+        questions: record.questions,
+        transcript: recordTranscript(record),
+      });
+      setResult(record.result);
+      navigate(to);
+    },
+    [setPrevious, setResult, setSession, setSettings, navigate],
+  );
 }
 
 // 재도전 때 따라 말할 대본. 재도전 결과는 서버가 final을 비워 보내므로(docs/api.md 5절)
