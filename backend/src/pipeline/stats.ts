@@ -1,5 +1,5 @@
 import { CATEGORY_PRIORITY, TOP_N } from '../config';
-import { normalize } from '../text';
+import { normalize, stem } from '../text';
 import type { Analysis, Category, Charts, Part } from '../types/api';
 import { flattenWords } from './script';
 
@@ -25,9 +25,11 @@ export function buildCharts(parts: Part[]): Charts {
         const current = top[i];
         if (!current || rank(h.category) < rank(current)) top[i] = h.category;
       }
-      const text = normalize(words.slice(from, to + 1).join(' '));
-      if (h.category === 'filler') increment(fillerWords, text);
-      if (h.category === 'repeat') increment(repeatWords, text);
+      if (h.category === 'filler') {
+        increment(fillerWords, words.slice(from, to + 1).map(normalize).join(' '));
+      }
+      // 중복은 어간으로 묶어 센다 ("문제를", "문제는" → "문제"). 바로 반복("하지만 하지만")은 1회로 센다.
+      if (h.category === 'repeat') increment(repeatWords, stem(words[to] ?? ''));
     }
 
     for (const category of top) counts[category ?? 'normal']++;

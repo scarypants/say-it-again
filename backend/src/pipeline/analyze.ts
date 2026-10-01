@@ -27,7 +27,7 @@ export async function analyze(input: AnalyzeInput): Promise<AnalyzeResponse> {
       const codeHighlight = [
         ...panics.map((p) => p.highlight),
         ...findFillers(words, input.language),
-        ...findRepeats(script),
+        ...findRepeats(script, input.language),
       ];
       try {
         const llm = await analyzePart(input, script, i);
