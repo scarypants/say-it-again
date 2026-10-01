@@ -61,6 +61,10 @@
   --color-hl-expr-soft: #dfe9fc;
   --color-hl-grammar: #e0789e; /* 문법 (연한 핑크) */
   --color-hl-grammar-soft: #fde3ed;
+  /* 정상(아무 하이라이트도 안 걸린 말). 총평 원형차트의 6번째 색.
+     대개 가장 큰 조각이라 하이라이트 5색이 돋보이게 차분한 회청색으로 둔다 */
+  --color-hl-normal: #c9d1df;
+  --color-hl-normal-soft: #eef1f6;
   --color-silence: #8b93a7; /* 침묵 마커 */
 }
 
