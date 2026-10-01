@@ -1,3 +1,4 @@
+import PageHeader from "../../components/common/PageHeader";
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import PlayLineButton from "../../components/common/PlayLineButton";
@@ -71,12 +72,12 @@ export default function ScriptPage() {
   return (
     <div className="flex flex-1 flex-col lg:grid lg:grid-cols-[minmax(0,1fr)_24rem] lg:items-start lg:gap-10">
       <div className="flex flex-1 flex-col lg:min-h-full">
-        <section className="pt-2 pb-3">
-          <h1 className="text-xl font-bold">대본</h1>
-          <p className="mt-1 text-sm text-secondary tabular-nums">
-            총 {mmss(totalDuration(result.parts))} · 색칠된 부분을 누르면 분석이 나와요
-          </p>
-          <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 text-xs" aria-label="색 설명">
+        <PageHeader
+          title="대본"
+          description={`총 ${mmss(totalDuration(result.parts))} · 색칠된 부분을 누르면 분석이 나와요`}
+        />
+        <section className="pb-3">
+          <ul className="flex flex-wrap gap-x-4 gap-y-1.5 text-xs" aria-label="색 설명">
             {legend.map((c) => (
               <li key={c} className="flex items-center gap-1.5" title={CATEGORY[c].desc}>
                 <span className={`h-2.5 w-2.5 rounded-full ${CATEGORY[c].dot}`} aria-hidden />

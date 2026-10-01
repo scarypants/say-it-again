@@ -6,7 +6,7 @@ export type Exam = 'TOEIC-Speaking' | 'opic';
 export type Language = 'ko' | 'en';
 export type Category = 'panic' | 'filler' | 'repeat' | 'expression' | 'grammar';
 
-// 대본의 한 줄 = 한 문장. 2초 이상 정지는 pause 줄로 따로 들어간다.
+/** 대본의 한 줄 = 한 문장. 2초 이상 정지는 pause 줄로 따로 들어간다. */
 export type Line = {
   start: number;
   end: number;

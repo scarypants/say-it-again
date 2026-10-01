@@ -3,7 +3,7 @@ import { normalize, stem } from '../text';
 import type { Highlight, Language, Line } from '../types/api';
 import { FILLERS } from './fillerDict';
 
-// 원래 자주 쓰는 말이라 반복으로 보지 않는 단어 (정규화·어간 기준)
+/** 원래 자주 쓰는 말이라 반복으로 보지 않는 단어 (정규화·어간 기준) */
 const STOPWORDS: Record<Language, Set<string>> = {
   ko: new Set([
     '저', '제', '저희', '우리', '것', '수', '등', '때', '더', '잘', '안', '못', '또', '또한', '그리고', '이런', '그런',
@@ -17,11 +17,13 @@ const STOPWORDS: Record<Language, Set<string>> = {
   ]),
 };
 
-// 중복 단어를 찾는다. 단어 번호는 파트 전체 번호(line.offset 기준)이고, script의 offset이 계산되어 있어야 한다.
-// 1) 바로 반복: 같은 말(1~3단어 묶음)이 연달아 나오면("하지만 하지만", "every day every day")
-//    반복된 범위를 묶고, fixed에 한 번만 쓴 표현을 넣는다.
-// 2) 잦은 반복: REPEAT_WINDOW_LINES 문장 안에서 같은 어간이 REPEAT_MIN_COUNT번 이상이면 각 단어를 표시한다.
-// 필러와 STOPWORDS는 제외한다.
+/**
+ * 중복 단어를 찾는다. 단어 번호는 파트 전체 번호(line.offset 기준)이고, script의 offset이 계산되어 있어야 한다.
+ * 1) 바로 반복: 같은 말(1~3단어 묶음)이 연달아 나오면("하지만 하지만", "every day every day")
+ *    반복된 범위를 묶고, fixed에 한 번만 쓴 표현을 넣는다.
+ * 2) 잦은 반복: REPEAT_WINDOW_LINES 문장 안에서 같은 어간이 REPEAT_MIN_COUNT번 이상이면 각 단어를 표시한다.
+ * 필러와 STOPWORDS는 제외한다.
+ */
 export function findRepeats(script: Line[], language: Language): Highlight[] {
   const fillers = new Set([...FILLERS[language].certain, ...FILLERS[language].ambiguous]);
   const stopwords = STOPWORDS[language];
@@ -83,7 +85,7 @@ export function findRepeats(script: Line[], language: Language): Highlight[] {
   return highlights;
 }
 
-// tokens[i..i+n)과 바로 뒤 tokens[i+n..i+2n)이 같은지. 묶음이 전부 필러거나 빈 토큰이면 반복으로 보지 않는다.
+/** tokens[i..i+n)과 바로 뒤 tokens[i+n..i+2n)이 같은지. 묶음이 전부 필러거나 빈 토큰이면 반복으로 보지 않는다. */
 function isRepeatedChunk(tokens: string[], i: number, n: number, fillers: Set<string>): boolean {
   if (i + n * 2 > tokens.length) return false;
   const chunk = tokens.slice(i, i + n);

@@ -1,4 +1,6 @@
 // 주인: 고민준 — 자유롭게 교체
+import PageHeader from "../../components/common/PageHeader";
+
 export default function UploadPage() {
-  return <h1 className="text-xl font-bold">발표 자료 업로드</h1>;
+  return <PageHeader title="발표 자료 업로드" />;
 }

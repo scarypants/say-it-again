@@ -1,3 +1,4 @@
+import PageHeader from "../../components/common/PageHeader";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 import { audioFileName } from "../../api/client";
@@ -240,12 +241,14 @@ export default function OpicExam() {
     const ready = topicIds.length > 0 && level !== null;
     return (
       <div className="flex flex-1 flex-col">
-        <section className="flex items-center justify-between gap-3 pt-2 pb-4">
-          <h1 className="text-xl font-bold">오픽 모의시험</h1>
-          <Link to="/" className="btn btn-ghost btn-sm">
-            설정 바꾸기
-          </Link>
-        </section>
+        <PageHeader
+          title="오픽 모의시험"
+          action={
+            <Link to="/" className="btn btn-ghost btn-sm">
+              설정 바꾸기
+            </Link>
+          }
+        />
         <p className="text-[0.9375rem] leading-relaxed">
           실제 시험처럼 자기소개, 고른 주제의 질문 세 개, 롤플레이 순서로 다섯 문제를 풀어요. 질문은
           소리로만 나오고, 끝나면 신호음과 함께 자동으로 녹음돼요.
@@ -335,12 +338,10 @@ export default function OpicExam() {
     return (
       <div className="flex flex-1 flex-col">
         {leaveGuard}
-        <section className="pt-2 pb-4">
-          <h1 className="text-xl font-bold">시험이 끝났어요</h1>
-          <p className="mt-1 text-sm text-secondary">
-            질문과 답변을 확인하고, 다섯 문제를 한 번에 분석해요.
-          </p>
-        </section>
+        <PageHeader
+          title="시험이 끝났어요"
+          description="질문과 답변을 확인하고, 다섯 문제를 한 번에 분석해요."
+        />
         <ul className="flex flex-col gap-3">
           {items.map((it, i) => (
             <li key={i} className="rounded-box border border-base-300 p-4">

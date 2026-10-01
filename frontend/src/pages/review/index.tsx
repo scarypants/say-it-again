@@ -1,3 +1,4 @@
+import PageHeader from "../../components/common/PageHeader";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { analyze } from "../../api/client";
@@ -127,12 +128,10 @@ function Review({ transcript, audio, questions, setResult }: ReviewProps) {
     <div className="flex flex-1 flex-col lg:grid lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start lg:gap-10">
       <div className="flex flex-col">
         {leaveGuard}
-        <section className="pt-2 pb-4">
-          <h1 className="text-xl font-bold">대본 확인</h1>
-          <p className="mt-1 text-sm text-secondary">
-            총 {mmss(totalDuration(parts))} · 문장을 눌러 들어 보고, 잘못 들린 단어만 고쳐 주세요.
-          </p>
-        </section>
+        <PageHeader
+          title="대본 확인"
+          description={`총 ${mmss(totalDuration(parts))} · 문장을 눌러 들어 보고, 잘못 들린 단어만 고쳐 주세요.`}
+        />
 
         <div className="mb-4 lg:hidden">{fillerNote}</div>
 

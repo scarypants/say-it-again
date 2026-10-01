@@ -8,8 +8,10 @@ import { toWords, withOffsets } from './script';
 import { buildCharts, buildStats } from './stats';
 import { checkDurations } from './transcribe';
 
-// 2단계: 사용자가 고친 대본 → 코드 분석 → 파트별 LLM → 총평 LLM → 합산
-// LLM이 실패해도 코드가 만든 결과(대본, 패닉존, 필러, 통계)는 그대로 돌려준다.
+/**
+ * 2단계: 사용자가 고친 대본 → 코드 분석 → 파트별 LLM → 총평 LLM → 합산
+ * LLM이 실패해도 코드가 만든 결과(대본, 패닉존, 필러, 통계)는 그대로 돌려준다.
+ */
 export async function analyze(input: AnalyzeInput): Promise<AnalyzeResponse> {
   checkDurations(input, input.parts.map((p) => p.duration));
 
