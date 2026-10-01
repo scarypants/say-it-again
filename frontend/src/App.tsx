@@ -6,7 +6,6 @@ import RecordPage from "./pages/record";
 import ReviewPage from "./pages/review";
 import ScriptPage from "./pages/script";
 import SummaryPage from "./pages/summary";
-import UploadPage from "./pages/upload";
 import { AnalysisProvider } from "./store/AnalysisContext";
 
 // PC에서 넓게 쓰는 화면 (Layout.tsx 참고). 나머지는 폰 폭 컬럼
@@ -19,7 +18,6 @@ const router = createBrowserRouter([
     children: [
       { path: "/", element: <HomePage />, handle: wide }, // 고민준: 모드 선택
       { path: "/record", element: <RecordPage />, handle: wide }, // 고민준: 녹음
-      { path: "/upload", element: <UploadPage /> }, // 고민준: 발표 자료 업로드
       { path: "/question", element: <QuestionPage /> }, // 고민준: 어학 질문
       { path: "/review", element: <ReviewPage />, handle: wide }, // 고민준: 대본 검토·수정
       { path: "/script", element: <ScriptPage />, handle: wide }, // 고민준: 스크립트 하이라이트
