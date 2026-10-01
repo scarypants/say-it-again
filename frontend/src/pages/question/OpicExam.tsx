@@ -4,6 +4,7 @@ import { Link } from "react-router";
 import { audioFileName } from "../../api/client";
 import { useTranscribe } from "../../api/useTranscribe";
 import AnalyzingView from "../../components/common/AnalyzingView";
+import CountdownBar from "../../components/common/CountdownBar";
 import LevelBars from "../../components/common/LevelBars";
 import MicButton from "../../components/common/MicButton";
 import { useLeaveGuard } from "../../components/common/useLeaveGuard";
@@ -465,9 +466,20 @@ export default function OpicExam({ onRestart }: { onRestart: () => void }) {
       <section className="flex flex-col items-center gap-3 pt-2 pb-2">
         {phase === "replay" && (
           <>
-            <p className="text-4xl font-semibold tabular-nums tracking-tight">
+            <p
+              key={Math.ceil(replayLeft)}
+              className="animate-tick text-4xl font-semibold tabular-nums tracking-tight"
+            >
               {Math.max(0, Math.ceil(replayLeft))}
             </p>
+            {replayEndsAt && (
+              <CountdownBar
+                key={replayEndsAt}
+                leftMs={replayEndsAt - now}
+                totalSec={REPLAY_WINDOW_SEC}
+                className="max-w-60 text-secondary"
+              />
+            )}
             <div className="flex w-full gap-2">
               <button
                 type="button"

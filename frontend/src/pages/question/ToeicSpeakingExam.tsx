@@ -4,6 +4,7 @@ import { Link } from "react-router";
 import { audioFileName } from "../../api/client";
 import { useTranscribe } from "../../api/useTranscribe";
 import AnalyzingView from "../../components/common/AnalyzingView";
+import CountdownBar from "../../components/common/CountdownBar";
 import LevelBars from "../../components/common/LevelBars";
 import MicButton from "../../components/common/MicButton";
 import { useLeaveGuard } from "../../components/common/useLeaveGuard";
@@ -428,16 +429,19 @@ export default function ToeicSpeakingExam({ onRestart }: { onRestart: () => void
         </p>
         {remaining !== null ? (
           <>
+            {/* 1초마다 숫자가 살짝 내려오며 바뀐다 */}
             <p
-              className={`text-4xl font-semibold tabular-nums tracking-tight ${timeUp ? "text-error" : ""}`}
+              key={Math.ceil(remaining)}
+              className={`animate-tick text-4xl font-semibold tabular-nums tracking-tight ${timeUp ? "text-error" : ""}`}
             >
               {timeUp ? `+${mmss(-remaining)}` : mmss(remaining)}
             </p>
             {!timeUp && (
-              <progress
-                className={`progress h-1.5 w-full max-w-60 ${kind === "speak" ? "progress-primary" : ""}`}
-                value={Math.max(0, remaining)}
-                max={phaseTotal}
+              <CountdownBar
+                key={endsAt}
+                leftMs={remaining * 1000}
+                totalSec={phaseTotal}
+                className={`max-w-60 ${kind === "speak" ? "text-primary" : "text-secondary"}`}
               />
             )}
           </>
