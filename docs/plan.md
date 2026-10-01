@@ -79,10 +79,10 @@ mode: lecture | language | interview, language: ko | en
 7. "다시 말해보기": 가장 문제 큰 구간의 대안 대본 1~2개
 
 ## 7. 기술 스택
-- client: React(Vite) + TypeScript + TailwindCSS + DaisyUI, MediaRecorder(webm), recharts. 모바일 우선 반응형.
-- server: Node.js + Express + TypeScript, multer, cors, dotenv
+- frontend: React(Vite) + TypeScript + TailwindCSS + DaisyUI, MediaRecorder(webm), recharts. 모바일 우선 반응형.
+- backend: Node.js + Express + TypeScript, multer, cors, dotenv
 - STT: `openai` 패키지, whisper-1, timestamp_granularities ["word","segment"], response_format verbose_json. webm 그대로 전송. 한국어 침묵 검출 초반 실측.
-- LLM: Anthropic API, claude-sonnet-5-5, tool_use 강제로 구조화 JSON
+- LLM: OpenAI API (`openai` 패키지), Structured Outputs(JSON schema)로 구조화 JSON. 모델명은 서버 설정 상수로 관리
 - 저장: DB 없음. 로컬 실행, 모바일 필요 시 ngrok.
 
 ## 8. LLM 응답 스키마
@@ -96,7 +96,7 @@ mode: lecture | language | interview, language: ko | en
 - 호출 1회. 표현 개선 최대 8개 명시.
 
 ## 9. 팀 역할
-- 윤화영(백엔드): STT 연동, 스크립트 분할, 필러/중복 계산, Claude 연동, `docs/api.md`
+- 윤화영(백엔드): STT 연동, 스크립트 분할, 필러/중복 계산, LLM(OpenAI) 연동, `docs/api.md`
 - 고민준(프론트): 초기화면·모드 선택, 녹음, 자료 업로드, 어학 질문 화면, 프론트 공용(라우터·API 클라이언트·타입·공통 컴포넌트)
 - 김왁수(프론트): 스크립트 하이라이트 화면, LLM 결과 패널, 총평 화면
 - 발표 준비는 09:00 이후 전원
