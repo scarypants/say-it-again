@@ -28,7 +28,11 @@ export const MAX_AUDIO_SEC = {
   presentation: 5 * 60,
   opic: 2 * 60,
   'TOEIC-Speaking': 60,
+  interview: 2 * 60,
 } as const;
+
+/** 면접 질문 생성: 지원 직무 글자 수 상한 (앞뒤 공백 제거 후) */
+export const MAX_JOB_LENGTH = 50;
 
 /** 단어가 이보다 적으면 음성이 없는 것으로 본다 (422) */
 export const MIN_WORDS = 3;

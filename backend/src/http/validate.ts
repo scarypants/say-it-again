@@ -1,7 +1,16 @@
 import type { Request } from 'express';
-import { MAX_FILES } from '../config';
+import { MAX_FILES, MAX_JOB_LENGTH } from '../config';
 import { HttpError } from '../errors';
-import type { Analysis, Charts, Exam, Level, Line, RetryPrevious, TranscriptPart } from '../types/api';
+import type {
+  Analysis,
+  Charts,
+  Exam,
+  InterviewQuestionsRequest,
+  Level,
+  Line,
+  RetryPrevious,
+  TranscriptPart,
+} from '../types/api';
 import type { AnalyzeInput, ModeInfo, RetryInput, TranscribeInput } from '../types/internal';
 
 const LEVELS: Level[] = ['assignment', 'exam', 'keynote'];
@@ -93,7 +102,30 @@ function parseModeInfo(body: Record<string, unknown>, count: number): ModeInfo {
     return { mode, language, exam: exam as Exam, questions };
   }
 
+  if (mode === 'interview') {
+    if (language !== 'ko' && language !== 'en') {
+      throw new HttpError(400, '면접 모드의 language는 ko 또는 en이어야 합니다.');
+    }
+    const questions = parseQuestions(body.questions);
+    if (questions.length !== count) {
+      throw new HttpError(400, '질문 수와 녹음(파트) 수가 같아야 합니다.');
+    }
+    return { mode, language, questions };
+  }
+
   throw new HttpError(400, 'mode가 올바르지 않습니다.');
+}
+
+/** POST /api/interview/questions (JSON): 언어와 지원 직무(자유 입력)를 검증한다. 실패하면 400. */
+export function parseInterviewQuestionsRequest(req: Request): InterviewQuestionsRequest {
+  const { language, job } = (req.body ?? {}) as Record<string, unknown>;
+  if (language !== 'ko' && language !== 'en') throw new HttpError(400, 'language는 ko 또는 en이어야 합니다.');
+  // 줄바꿈 등은 공백 하나로 (질문 문자열·프롬프트 안에 한 줄로 들어간다)
+  const trimmed = typeof job === 'string' ? job.replace(/\s+/g, ' ').trim() : '';
+  if (trimmed.length < 1 || trimmed.length > MAX_JOB_LENGTH) {
+    throw new HttpError(400, `지원 직무를 1~${MAX_JOB_LENGTH}자로 입력해 주세요.`);
+  }
+  return { language, job: trimmed };
 }
 
 /** multipart에서는 JSON 문자열, JSON 요청에서는 배열로 온다. */

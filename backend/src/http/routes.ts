@@ -2,9 +2,15 @@ import { Router } from 'express';
 import multer from 'multer';
 import { MAX_FILE_BYTES, MAX_FILES } from '../config';
 import { analyze } from '../pipeline/analyze';
+import { generateInterviewQuestions } from '../pipeline/interview';
 import { retry } from '../pipeline/retry';
 import { transcribeAll } from '../pipeline/transcribe';
-import { parseAnalyzeRequest, parseRetryRequest, parseTranscribeRequest } from './validate';
+import {
+  parseAnalyzeRequest,
+  parseInterviewQuestionsRequest,
+  parseRetryRequest,
+  parseTranscribeRequest,
+} from './validate';
 
 /** 파일은 디스크에 저장하지 않고 메모리로만 받는다. */
 const upload = multer({
@@ -27,4 +33,9 @@ router.post('/analyze', async (req, res) => {
 // 재도전: 다시 녹음한 대본(JSON) + 이전 결과 요약 → 코드 분석 + 전후 비교 + 재도전 총평
 router.post('/retry', async (req, res) => {
   res.json(await retry(parseRetryRequest(req)));
+});
+
+// 면접: 지원 직무 → 질문 5개 (LLM 실패 시 기본 질문)
+router.post('/interview/questions', async (req, res) => {
+  res.json(await generateInterviewQuestions(parseInterviewQuestionsRequest(req)));
 });

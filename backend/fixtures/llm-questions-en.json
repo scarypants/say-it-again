@@ -1,0 +1,7 @@
+{
+  "intro": "Please introduce yourself in about one minute.",
+  "motivation": "Why do you want to work as a {job}?",
+  "job": "What skills are most important for a {job}, and how have you built them?",
+  "experience": "Tell me about a time you resolved a conflict in a team project. What was the result?",
+  "closing": "Is there anything else you would like to tell us?"
+}

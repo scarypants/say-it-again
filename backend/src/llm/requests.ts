@@ -1,10 +1,11 @@
 import { LLM_MODEL, LLM_REASONING_EFFORT, LLM_TIMEOUT_MS, MAX_EXPRESSIONS, MOCK_LLM } from '../config';
 import { mockDelay, readFixture } from '../mock';
+import { checksGrammar } from '../modes';
 import { toScreenTerms } from '../text';
 import { getOpenAI } from '../openai';
-import type { Analysis, Charts, Compare, Highlight, Line, Part, Retry } from '../types/api';
+import type { Analysis, Charts, Compare, Highlight, Language, Line, Part, Retry } from '../types/api';
 import type { AnalyzeInput, LlmPartResult, RetryInput } from '../types/internal';
-import { partMessages, retryMessages, summaryMessages } from './prompts';
+import { interviewQuestionMessages, partMessages, retryMessages, summaryMessages } from './prompts';
 
 // ---- 응답 JSON schema (Structured Outputs, strict) ----
 
@@ -72,6 +73,22 @@ const RETRY_SCHEMA = {
   },
 };
 
+/** 면접 질문 5개. 유형마다 필드를 따로 두어 5개·순서를 schema로 보장한다 */
+const QUESTIONS_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['intro', 'motivation', 'job', 'experience', 'closing'],
+  properties: {
+    intro: { type: 'string' },
+    motivation: { type: 'string' },
+    job: { type: 'string' },
+    experience: { type: 'string' },
+    closing: { type: 'string' },
+  },
+};
+
+export type InterviewQuestionsOutput = Record<'intro' | 'motivation' | 'job' | 'experience' | 'closing', string>;
+
 /**
  * 파트 하나에 대해 패닉 원인·대안, expression / grammar 하이라이트, 최종 대본, 코멘트를 받는다.
  * LLM의 줄·단어 번호는 파트 전체 단어 번호(offset 기준)로 바꾸고, 범위를 벗어나면 버린다.
@@ -84,7 +101,7 @@ export async function analyzePart(input: AnalyzeInput, script: Line[], partIndex
   for (const issue of out.issues) {
     const line = script[issue.line];
     if (!line || line.pause || issue.from < 0 || issue.to < issue.from || issue.to >= line.words.length) continue;
-    if (issue.category === 'grammar' && input.mode !== 'speaking') continue;
+    if (issue.category === 'grammar' && !checksGrammar(input)) continue;
     if (issue.category === 'expression' && ++expressions > MAX_EXPRESSIONS) continue;
     highlight.push({
       from: line.offset + issue.from,
@@ -138,13 +155,29 @@ export async function summarizeRetry(
 }
 
 /**
+ * 면접 질문 생성 원본 응답. mock 모드에서는 저장된 질문(fixtures/llm-questions-*.json)의 {job}을 직무로 바꿔 돌려준다.
+ */
+export async function requestInterviewQuestions(language: Language, job: string): Promise<InterviewQuestionsOutput> {
+  if (MOCK_LLM) {
+    await mockDelay(800);
+    const fixture = await readFixture<InterviewQuestionsOutput>(`llm-questions-${language}.json`);
+    return Object.fromEntries(
+      Object.entries(fixture).map(([key, text]) => [key, text.replaceAll('{job}', job)]),
+    ) as InterviewQuestionsOutput;
+  }
+  return callJson<InterviewQuestionsOutput>('interview_questions', QUESTIONS_SCHEMA, interviewQuestionMessages(language, job));
+}
+
+/**
  * LLM 원본 응답. mock 모드에서는 언어별로 저장된 응답(fixtures/llm-*.json)을 돌려준다.
  * 저장된 응답의 줄·단어 번호가 지금 대본과 안 맞으면 analyzePart에서 범위 밖으로 걸러진다.
  */
 export async function requestPartOutput(input: AnalyzeInput, script: Line[], partIndex: number): Promise<PartOutput> {
   if (MOCK_LLM) {
     await mockDelay(1500);
-    return readFixture<PartOutput>(`llm-part-${input.language}.json`);
+    // 한국어 저장 응답은 발표용이라 코멘트가 없어서, 한국어 면접은 코멘트가 있는 면접용을 쓴다
+    const file = input.mode === 'interview' && input.language === 'ko' ? 'llm-part-interview-ko.json' : `llm-part-${input.language}.json`;
+    return readFixture<PartOutput>(file);
   }
   return callJson<PartOutput>('part_analysis', PART_SCHEMA, partMessages(input, script, partIndex));
 }
