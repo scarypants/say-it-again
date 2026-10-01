@@ -147,3 +147,7 @@ vite.config.ts.timestamp-*
 Thumbs.db
 .idea/
 .vscode/
+
+# Uploads
+uploads/
+server/uploads/
