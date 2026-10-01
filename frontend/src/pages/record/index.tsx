@@ -1,3 +1,4 @@
+import PageHeader from "../../components/common/PageHeader";
 import { useRef, useState } from "react";
 import { Link } from "react-router";
 import { audioFileName } from "../../api/client";
@@ -74,20 +75,21 @@ export default function RecordPage() {
   return (
     <div className="flex flex-1 flex-col">
       {leaveGuard}
-      <section className="flex items-start justify-between gap-3 pt-2 pb-4">
-        <div className="min-w-0">
-          <h1 className="text-xl font-bold">발표 연습</h1>
-          <p className="mt-0.5 text-sm text-secondary">
-            {settings.language === "en" ? "영어" : "한국어"}
-            {settings.level && ` 발표, ${LEVEL_LABEL[settings.level]}`}
-          </p>
-        </div>
-        {!recording && !paused && (
-          <Link to="/" className="btn btn-ghost btn-sm shrink-0">
-            설정 바꾸기
-          </Link>
-        )}
-      </section>
+      <PageHeader
+        title="발표 연습"
+        description={
+          (settings.language === "en" ? "영어" : "한국어") +
+          (settings.level ? ` 발표, ${LEVEL_LABEL[settings.level]}` : "")
+        }
+        action={
+          !recording &&
+          !paused && (
+            <Link to="/" className="btn btn-ghost btn-sm">
+              설정 바꾸기
+            </Link>
+          )
+        }
+      />
 
       {/* 자료가 있으면 폰에선 자료가 위를 차지하고 녹음 영역은 아래로 작게,
           PC에선 자료를 왼쪽에 크게 두고 녹음 패널은 오른쪽 */}
