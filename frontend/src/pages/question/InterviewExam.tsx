@@ -513,6 +513,14 @@ export default function InterviewExam({ onRestart }: { onRestart: () => void }) 
             {item.context}
           </p>
         )}
+        {item.hint && (
+          <details className="mt-4 rounded-box bg-base-200 px-4 py-3 text-sm">
+            <summary className="cursor-pointer font-medium">
+              {qna ? "답변 방향 힌트" : "질문 의도 힌트"}
+            </summary>
+            <p className="mt-2 leading-relaxed">{item.hint}</p>
+          </details>
+        )}
         {modelAnswer && (
           <details className="mt-4 rounded-box bg-base-200 px-4 py-3 text-sm">
             <summary className="cursor-pointer font-medium">지난번 모범 답안 보기</summary>

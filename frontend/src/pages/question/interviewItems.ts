@@ -11,6 +11,7 @@ export type ExamItem = {
   context?: string; // 토익 Part 3 상황
   goalSec?: number; // 권장 답변 시간 (없으면 ANSWER_GOAL_SEC)
   prepSec?: number; // 질문을 듣고 답하기 전 준비 시간 (토익 연습 문제)
+  hint?: string; // 꼬리질문의 답변 방향(발표)·질문 의도(면접). 녹음 화면에 눌러서 펼치는 힌트로
 };
 
 // 결과 화면에서 받은 꼬리질문 → 질문 화면 문항. 토익은 실제 시험의 준비·답변 시간을 쓴다
@@ -33,6 +34,7 @@ export function practiceItem(q: Question, mode: Mode): ExamItem {
     context: q.context,
     goalSec,
     prepSec,
+    hint: q.hint,
   };
 }
 
