@@ -180,16 +180,25 @@ export default function ScriptPage() {
                           {questionLine(questions?.[pi])}
                         </p>
                       )}
-                      {part.comment && <p className="mt-1 text-sm">{part.comment}</p>}
+                      {part.comment && (
+                        <p className="mt-2 rounded-field bg-base-200 px-3 py-2 text-sm leading-relaxed">
+                          {part.comment}
+                        </p>
+                      )}
                     </header>
                   )}
-                  <ol className="flex flex-col">
+                  <ol className="flex flex-col divide-y divide-base-200">
                     {part.script.map((line, li) => {
                       const key = `${pi}:${li}`;
                       if (line.pause)
                         return (
-                          <li key={key} className="py-1 text-xs text-hl-panic tabular-nums">
+                          <li
+                            key={key}
+                            className="flex items-center gap-2 py-1.5 text-xs font-medium text-hl-panic tabular-nums"
+                          >
+                            <span className="h-px flex-1 border-t border-dashed border-current opacity-40" />
                             {(line.end - line.start).toFixed(1)}초 멈춤
+                            <span className="h-px flex-1 border-t border-dashed border-current opacity-40" />
                           </li>
                         );
                       const openHere =
@@ -197,11 +206,11 @@ export default function ScriptPage() {
                       return (
                         <li key={key}>
                           <div
-                            className={`flex items-start gap-1 rounded-field py-1 transition-colors ${
+                            className={`flex items-start gap-1 rounded-field py-1.5 transition-colors ${
                               player.playing === key ? "bg-base-200" : ""
                             }`}
                           >
-                            <p className="min-w-0 flex-1 py-1 text-[1.0625rem] leading-8">
+                            <p className="min-w-0 flex-1 py-1 text-[1.0625rem] leading-9 break-keep lg:text-lg lg:leading-10">
                               {lineRuns(line, part.highlight).map((run) => {
                                 const items = runSelection(run, part);
                                 const hint =
