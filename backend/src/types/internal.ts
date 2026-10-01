@@ -19,3 +19,10 @@ export type LlmPartResult = {
   final: { words: string[] }[];
   comment?: string;
 };
+
+// STT 결과
+export type Transcript = {
+  words: Word[];
+  duration: number;
+  segmentEnds: number[]; // whisper segment(대략 문장) 끝 시각
+};

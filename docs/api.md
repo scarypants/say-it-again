@@ -9,7 +9,7 @@ Base URL: `http://localhost:8080/api`
 
 | | 발표 (`presentation`) | 어학 스피킹 (`speaking`) |
 |---|---|---|
-| 언어 | `ko` 고정 | `en` 고정 |
+| 언어 | `ko` 또는 `en` | `en` 고정 |
 | 세부 | `level`: `assignment` \| `exam` \| `keynote` | `exam`: `TOEIC-Speaking` \| `opic` |
 | 녹음 | 5분 단위로 나눈 파일, 1~5개 | 질문별 답변 파일, 1~5개 |
 | 추가 입력 | - | `questions` (질문 문자열 배열) |
@@ -30,7 +30,7 @@ Base URL: `http://localhost:8080/api`
 | 필드 | 타입 | 필수 | 설명 |
 |---|---|---|---|
 | `mode` | `"presentation"` \| `"speaking"` | O | 발표 / 어학 스피킹 |
-| `language` | `"ko"` \| `"en"` | O | 발표는 `ko`, 스피킹은 `en` |
+| `language` | `"ko"` \| `"en"` | O | 발표는 `ko` 또는 `en`, 스피킹은 `en` |
 | `audio` | File[] (1~5개) | O | 보낸 순서대로. 발표는 5분 단위로 나눈 파일, 스피킹은 질문별 답변 |
 | `level` | `"assignment"` \| `"exam"` \| `"keynote"` | 발표만 | 발표 성격 |
 | `exam` | `"TOEIC-Speaking"` \| `"opic"` | 스피킹만 | 시험 종류 |
@@ -63,7 +63,7 @@ Base URL: `http://localhost:8080/api`
 - 서버는 질문 문자열을 그대로 LLM에 전달한다. 사진 설명과 정보표가 글로 들어 있어서 LLM이 내용의 정확성까지 판단할 수 있다.
 
 ### 검증
-- `mode`와 `language` 조합: 발표는 `ko`, 스피킹은 `en`만 허용한다.
+- `mode`와 `language` 조합: 발표는 `ko`·`en`, 스피킹은 `en`만 허용한다.
 - `level`은 발표에서, `exam`·`questions`는 스피킹에서 필수. 스피킹은 `questions` 개수 = `audio` 개수.
 - 오디오는 webm·mp4만 허용한다.
 - 정해진 필드(`audio` 외 파일)가 오면 400이다. 발표 자료(PDF)는 받지 않으므로 `material`을 보내면 안 된다.

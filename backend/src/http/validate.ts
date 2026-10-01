@@ -23,7 +23,9 @@ export function parseRequest(req: Request): AnalyzeInput {
   }
 
   if (mode === 'presentation') {
-    if (language !== 'ko') throw new HttpError(400, '발표 모드의 language는 ko여야 합니다.');
+    if (language !== 'ko' && language !== 'en') {
+      throw new HttpError(400, '발표 모드의 language는 ko 또는 en이어야 합니다.');
+    }
     if (!LEVELS.includes(level as Level)) throw new HttpError(400, 'level이 올바르지 않습니다.');
     return { mode, language, level: level as Level, audio };
   }
