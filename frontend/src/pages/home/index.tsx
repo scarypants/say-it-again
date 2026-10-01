@@ -126,7 +126,7 @@ export default function HomePage() {
                       ))}
                     </div>
                     <p className="mt-2 text-xs text-secondary">
-                      어떤 자리의 발표인지에 맞춰 AI가 기준을 달리해 봐요.
+                      고른 발표 상황에 맞춰 AI가 피드백해 드려요.
                     </p>
                   </div>
                 )}
