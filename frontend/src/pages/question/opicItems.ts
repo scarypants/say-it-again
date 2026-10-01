@@ -4,6 +4,7 @@ import intro from "./data/opic/intro.json";
 import rolePlays from "./data/opic/rolePlays.json";
 import selfAssessment from "./data/opic/selfAssessment.json";
 import survey from "./data/opic/survey.json";
+import type { Question } from "../../types/api";
 
 export type SurveyTopic = {
   id: string;
@@ -30,6 +31,7 @@ export type OpicItem = {
   name: string; // 화면 표시용 유형 이름
   topic?: { id: string; label: string };
   text: string; // Ava가 읽어 주는 질문
+  prompt?: string; // 서버가 만든 질문 문자열. 있으면 분석에 그대로 보낸다
 };
 
 // JSON 형식이 타입과 다르면 여기서 빌드가 깨진다
@@ -75,8 +77,24 @@ export function buildOpicExam(topicIds: string[], level: number): OpicItem[] {
   ];
 }
 
+const TYPE_NAME: Record<OpicQuestionType, string> = {
+  intro: "자기소개",
+  description: "묘사",
+  routine: "루틴",
+  experience: "과거 경험",
+  rolePlayAsk: "롤플레이 (질문하기)",
+  rolePlaySolve: "롤플레이 (문제 해결)",
+};
+
+// 서버가 만든 질문(POST /api/questions) → 시험 문항
+export function opicItemFromServer(q: Question): OpicItem {
+  const type = (q.type in TYPE_NAME ? q.type : "description") as OpicQuestionType;
+  return { type, name: TYPE_NAME[type], topic: q.topic, text: q.text, prompt: q.prompt };
+}
+
 // 백엔드(LLM)에 넘길 질문 문장. 유형과 난이도를 같이 적어 답변이 질문에 맞는지 판단할 수 있게
 export function opicQuestionText(item: OpicItem, index: number, level: number) {
+  if (item.prompt) return item.prompt;
   const head = `OPIc Q${index + 1} (${TYPE_EN[item.type]}${item.topic ? `, topic: ${item.topic.id}` : ""})`;
   return `${head}\nSelf-assessment level: ${level}\nQuestion: ${item.text}`;
 }

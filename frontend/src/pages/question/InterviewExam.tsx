@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router";
-import { audioFileName, interviewQuestions } from "../../api/client";
+import { audioFileName, initialQuestions } from "../../api/client";
 import { useTranscribe } from "../../api/useTranscribe";
 import AnalyzingView from "../../components/common/AnalyzingView";
 import LevelBars from "../../components/common/LevelBars";
@@ -176,11 +176,12 @@ export default function InterviewExam({ onRestart }: { onRestart: () => void }) 
   useEffect(() => {
     if (!job || retry || practice) return;
     let cancelled = false;
-    interviewQuestions({ language, job })
+    initialQuestions({ kind: "initial", mode: "interview", language, job })
       .then((res) => {
         if (cancelled) return;
         if (res.questions.length === 0) throw new Error("질문을 받지 못했어요.");
-        setItems(res.questions);
+        // 서버가 만든 질문 문자열(prompt)을 그대로 분석에 보낸다
+        setItems(res.questions.map((q) => ({ type: q.type, text: q.text, prompt: q.prompt })));
       })
       .catch((err: unknown) => {
         if (cancelled) return;

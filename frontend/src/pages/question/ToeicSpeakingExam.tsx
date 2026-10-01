@@ -1,7 +1,7 @@
 import PageHeader from "../../components/common/PageHeader";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
-import { audioFileName } from "../../api/client";
+import { audioFileName, questionImage } from "../../api/client";
 import { useTranscribe } from "../../api/useTranscribe";
 import AnalyzingView from "../../components/common/AnalyzingView";
 import CountdownBar from "../../components/common/CountdownBar";
@@ -12,10 +12,12 @@ import { useRecorder } from "../../components/common/useRecorder";
 import CafeteriaScene from "./CafeteriaScene";
 import {
   buildToeicExam,
+  toeicItemFromServer,
   toeicSpeakingQuestionText,
   type Phase,
   type ToeicSpeakingItem,
 } from "./toeicSpeakingItems";
+import { speakingQuestions } from "./serverQuestions";
 
 const PHASE_LABEL: Record<Phase["kind"], string> = {
   read: "자료 읽기",
@@ -24,6 +26,7 @@ const PHASE_LABEL: Record<Phase["kind"], string> = {
   speak: "답변 시간",
 };
 
+const PICTURE_WAIT_MS = 5000; // Part 2 차례에 사진이 아직 생성 중이면 이만큼만 기다리고 기본 사진으로 (docs/api.md 6절)
 const ANSWER_HARD_MAX_SEC = 60; // 서버가 받는 답변 하나의 최대 길이
 const canSpeak = typeof window !== "undefined" && "speechSynthesis" in window;
 
@@ -45,8 +48,19 @@ type Stage = "intro" | "running" | "done";
 export default function ToeicSpeakingExam({ onRestart }: { onRestart: () => void }) {
   // 답변 시간이 끝나도 녹음은 계속하되, 서버 상한(답변당 60초, docs/api.md)에서 멈추고 다음 문제
   const rec = useRecorder(ANSWER_HARD_MAX_SEC);
-  // 시험마다 Part별로 문제를 새로 고른다 (다시 시작하면 다른 문제)
-  const [items] = useState(buildToeicExam);
+  // 서버(LLM)가 문제를 만든다. 받기 전·실패하면 문항 데이터에서 Part별로 무작위 (다시 시작하면 다른 문제)
+  const [items, setItems] = useState(buildToeicExam);
+  const [loading, setLoading] = useState(true);
+  // Part 2 사진: 문제를 받자마자 뒤에서 생성. promise는 사진(data URL) 또는 실패면 null
+  const imageRef = useRef<{
+    done: boolean;
+    src: string | null;
+    promise: Promise<string | null>;
+  } | null>(null);
+  // 실제로 낸 사진. 한 번 정하면 바꾸지 않는다 (src null = 기본 사진)
+  const [picture, setPicture] = useState<{ src: string | null; prompt: string } | null>(null);
+  const [waitingPicture, setWaitingPicture] = useState(false);
+  const pickDefaultRef = useRef<(() => void) | null>(null);
 
   const [stage, setStage] = useState<Stage>("intro");
   const [qi, setQi] = useState(0);
@@ -120,8 +134,38 @@ export default function ToeicSpeakingExam({ onRestart }: { onRestart: () => void
   }
 
   function nextQuestion(q: number) {
-    if (q + 1 < items.length) runPhase(q + 1, 0);
+    if (q + 1 < items.length) startQuestion(q + 1);
     else finishExam();
+  }
+
+  // 문제 시작. 서버 문제의 Part 2는 낼 사진을 먼저 정한다:
+  // 도착함 → 생성 사진 / 실패 → 기본 사진 / 생성 중 → 최대 5초 기다리거나 "기본 사진으로 시작"
+  function startQuestion(q: number) {
+    const req = items[q].pictureReq;
+    const image = imageRef.current;
+    if (!req || picture) return runPhase(q, 0);
+    const choose = (src: string | null) => {
+      setWaitingPicture(false);
+      setPicture({ src, prompt: src ? req.prompt : req.fallback.prompt });
+      runPhase(q, 0);
+    };
+    if (!image || image.done) return choose(image?.src ?? null);
+
+    clearTimer();
+    const token = ++tokenRef.current;
+    posRef.current = { q, p: 0 };
+    setQi(q);
+    setPhase(null);
+    setEndsAt(null);
+    setWaitingPicture(true);
+    const decide = (src: string | null) => {
+      if (tokenRef.current !== token) return;
+      pickDefaultRef.current = null;
+      choose(src);
+    };
+    pickDefaultRef.current = () => decide(null);
+    timerRef.current = window.setTimeout(() => decide(null), PICTURE_WAIT_MS);
+    void image.promise.then(decide);
   }
 
   function runPhase(q: number, p: number) {
@@ -178,7 +222,7 @@ export default function ToeicSpeakingExam({ onRestart }: { onRestart: () => void
     }
     beepCtxRef.current = new AudioContext();
     setStage("running");
-    runPhase(0, 0);
+    startQuestion(0);
   }
 
   // 준비·자료 읽기를 건너뛰고 다음 단계로 (준비 → 신호음과 함께 바로 답변)
@@ -196,7 +240,15 @@ export default function ToeicSpeakingExam({ onRestart }: { onRestart: () => void
   // 질문과 답변을 모두 한 번에 백엔드로 (녹음이 없는 문제는 빼고 순서 유지)
   async function runAnalyze() {
     const pairs = items.flatMap((it, i) =>
-      answers[i] ? [{ question: toeicSpeakingQuestionText(it), audio: answers[i]! }] : [],
+      answers[i]
+        ? [
+            {
+              // Part 2는 화면에 낸 사진과 짝이 맞는 질문 문자열을 보낸다
+              question: it.pictureReq && picture ? picture.prompt : toeicSpeakingQuestionText(it),
+              audio: answers[i]!,
+            },
+          ]
+        : [],
     );
     if (pairs.length === 0) return;
     await tx.run({
@@ -207,6 +259,44 @@ export default function ToeicSpeakingExam({ onRestart }: { onRestart: () => void
       audio: pairs.map((p) => p.audio),
     });
   }
+
+  // 문제 받기: 화면을 열자마자. Part 2가 있으면 사진 생성을 바로 뒤에서 시작한다.
+  // 화면을 떠나면 사진 요청을 끊고 결과는 버린다
+  useEffect(() => {
+    let cancelled = false;
+    const abort = new AbortController();
+    void speakingQuestions(
+      { kind: "initial", mode: "speaking", language: "en", exam: "TOEIC-Speaking" },
+      5,
+    ).then((qs) => {
+      if (cancelled) return;
+      if (qs) {
+        const next = qs.map(toeicItemFromServer);
+        const scene = next.find((it) => it.pictureReq)?.pictureReq?.scene;
+        if (scene) {
+          const image = {
+            done: false,
+            src: null as string | null,
+            promise: Promise.resolve<string | null>(null),
+          };
+          image.promise = questionImage(scene, abort.signal)
+            .catch(() => null)
+            .then((src) => {
+              image.done = true;
+              image.src = src;
+              return src;
+            });
+          imageRef.current = image;
+        }
+        setItems(next);
+      }
+      setLoading(false);
+    });
+    return () => {
+      cancelled = true;
+      abort.abort();
+    };
+  }, []);
 
   // 남은 시간 표시용 시계
   useEffect(() => {
@@ -278,8 +368,20 @@ export default function ToeicSpeakingExam({ onRestart }: { onRestart: () => void
           </div>
         )}
         <div className="mt-auto pt-6">
-          <button type="button" className="btn btn-primary btn-lg btn-block" onClick={startExam}>
-            시험 시작
+          <button
+            type="button"
+            className="btn btn-primary btn-lg btn-block"
+            onClick={startExam}
+            disabled={loading}
+          >
+            {loading ? (
+              <>
+                <span className="loading loading-spinner loading-sm" />
+                문제 만드는 중
+              </>
+            ) : (
+              "시험 시작"
+            )}
           </button>
         </div>
       </div>
@@ -389,11 +491,34 @@ export default function ToeicSpeakingExam({ onRestart }: { onRestart: () => void
         {item.context && (
           <p className="text-sm leading-relaxed text-secondary italic">{item.context}</p>
         )}
-        {item.picture === "cafeteria" && (
-          <div className="aspect-[8/5] overflow-hidden rounded-box border border-base-300">
-            <CafeteriaScene />
-          </div>
-        )}
+        {item.picture === "cafeteria" &&
+          (waitingPicture ? (
+            <div className="flex aspect-[8/5] flex-col items-center justify-center gap-3 rounded-box border border-base-300 bg-base-200 p-4 text-center">
+              <span className="loading loading-spinner loading-md text-secondary" />
+              <p lang="ko" className="text-sm font-medium">
+                사진을 준비하고 있어요
+              </p>
+              <button
+                type="button"
+                className="btn btn-outline btn-sm border-base-300"
+                onClick={() => pickDefaultRef.current?.()}
+              >
+                기본 사진으로 시작
+              </button>
+            </div>
+          ) : (
+            <div className="aspect-[8/5] overflow-hidden rounded-box border border-base-300">
+              {picture?.src ? (
+                <img
+                  src={picture.src}
+                  alt="묘사할 사진"
+                  className="h-full w-full animate-fade object-cover"
+                />
+              ) : (
+                <CafeteriaScene />
+              )}
+            </div>
+          ))}
         {item.schedule && (
           <div className="overflow-hidden rounded-box border border-base-300 text-sm">
             <p className="bg-base-200 px-3 py-2 font-semibold">{item.schedule.title}</p>

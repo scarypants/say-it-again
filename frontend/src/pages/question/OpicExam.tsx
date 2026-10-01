@@ -14,12 +14,14 @@ import {
   ANSWER_MAX_SEC,
   buildOpicExam,
   HARD_LEVEL,
+  opicItemFromServer,
   opicQuestionText,
   REPLAY_WINDOW_SEC,
   SELF_LEVELS,
   SURVEY_TOPICS,
   type OpicItem,
 } from "./opicItems";
+import { speakingQuestions } from "./serverQuestions";
 
 const canSpeak = typeof window !== "undefined" && "speechSynthesis" in window;
 
@@ -49,6 +51,7 @@ export default function OpicExam({ onRestart }: { onRestart: () => void }) {
   const [answers, setAnswers] = useState<(Blob | null)[]>([]);
   const [answerUrls, setAnswerUrls] = useState<(string | null)[]>([]);
   const [startError, setStartError] = useState<string | null>(null);
+  const [preparing, setPreparing] = useState(false); // 서버가 문제를 만드는 중
   const tx = useTranscribe(); // 녹음 → 대본 → 검토 화면
   const analyzing = tx.busy;
   const analyzeError = tx.error;
@@ -183,7 +186,20 @@ export default function OpicExam({ onRestart }: { onRestart: () => void }) {
       return;
     }
     beepCtxRef.current = new AudioContext();
-    const exam = buildOpicExam(topicIds, level);
+    // 고른 주제·단계로 서버가 문제를 만든다. 실패하면 문항 데이터에서 고른다
+    setPreparing(true);
+    const token = tokenRef.current; // 기다리는 사이 화면을 떠나면 시작하지 않는다
+    const topics = SURVEY_TOPICS.filter((t) => topicIds.includes(t.id)).map((t) => ({
+      id: t.id,
+      label: t.label,
+    }));
+    const server = await speakingQuestions(
+      { kind: "initial", mode: "speaking", language: "en", exam: "opic", opic: { topics, level } },
+      5,
+    );
+    if (tokenRef.current !== token) return;
+    setPreparing(false);
+    const exam = server ? server.map(opicItemFromServer) : buildOpicExam(topicIds, level);
     itemsRef.current = exam;
     answersRef.current = exam.map(() => null);
     setItems(exam);
@@ -327,9 +343,16 @@ export default function OpicExam({ onRestart }: { onRestart: () => void }) {
             type="button"
             className="btn btn-primary btn-lg btn-block"
             onClick={startExam}
-            disabled={!ready}
+            disabled={!ready || preparing}
           >
-            시험 시작
+            {preparing ? (
+              <>
+                <span className="loading loading-spinner loading-sm" />
+                문제 만드는 중
+              </>
+            ) : (
+              "시험 시작"
+            )}
           </button>
         </div>
       </div>

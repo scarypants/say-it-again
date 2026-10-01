@@ -142,29 +142,24 @@ export type Retry = {
 // AnalyzeResponse와 같은 모양 + compare(항상). expression·grammar는 0, parts[].final은 []
 export type RetryResponse = AnalyzeResponse & Required<Pick<AnalyzeResponse, "compare">>;
 
-// 면접 질문 생성 (JSON). 지원 직무에 맞춘 질문 5개를 받는다
-// docs/api.md 6절. 질문 5개 = 유형 5개, 순서 고정: intro → motivation → job → experience → closing
+// [0] 질문 생성 (JSON) POST /api/questions (docs/api.md 6절)
+// 처음 질문(initial): 녹음 전 질문 화면에서. 면접·토익·오픽 5개, 순서 고정
+// 꼬리질문(followUp): 결과 화면에서 사용자가 버튼을 눌렀을 때만. 1~3개
 export type InterviewQuestionType = "intro" | "motivation" | "job" | "experience" | "closing";
 
-export type InterviewQuestionsRequest = {
-  language: Lang;
-  job: string; // 지원 직무 (예: "백엔드 개발자"). 1~50자
-};
+export type OpicTopic = { id: string; label: string };
 
-export type InterviewQuestion = {
-  type: InterviewQuestionType;
-  text: string; // 화면에 보여 줄 질문 (language로)
-};
+export type InitialQuestionsRequest =
+  | { kind: "initial"; mode: "speaking"; language: "en"; exam: "TOEIC-Speaking" }
+  | {
+      kind: "initial";
+      mode: "speaking";
+      language: "en";
+      exam: "opic";
+      opic: { topics: OpicTopic[]; level: number }; // 서베이에서 고른 주제, 자가 평가 1~6
+    }
+  | { kind: "initial"; mode: "interview"; language: Lang; job: string }; // job: 1~50자
 
-export type InterviewQuestionsResponse = {
-  language: Lang;
-  job: string;
-  questions: InterviewQuestion[]; // 5개. 자기소개 → 지원 동기·직무·경험·인성 → 마무리
-};
-
-// [0] 질문 생성 (JSON) POST /api/questions — 꼬리질문 (docs/api.md 6절)
-// 결과 화면에서 사용자가 버튼을 눌렀을 때만 받는다. 1~3개.
-// 처음 질문(kind: "initial")은 아직 위 /api/interview/questions를 쓴다 (서버 구현 후 옮긴다)
 export type FollowUpQuestionsRequest = {
   kind: "followUp";
   mode: Mode;
@@ -178,14 +173,21 @@ export type FollowUpQuestionsRequest = {
 };
 
 export type Question = {
-  type: string; // 꼬리질문: 발표 expected, 토익 respond·opinion, 오픽·면접 followUp
-  text: string; // 화면에 보여 주는 질문 한 문장
+  type: string; // 처음 질문: 면접 intro… / 토익 readAloud… / 오픽 intro… · 꼬리질문: expected·respond·opinion·followUp
+  text: string; // 화면에 보여 주는(토익·오픽은 TTS로 읽어 주는) 질문 한 문장
   prompt: string; // transcribe·analyze·retry의 questions[i]로 그대로 보낸다
   part?: 1 | 2 | 3 | 4 | 5; // 토익
-  context?: string; // 토익 Part 3 상황
-  topic?: { id: string; label: string }; // 오픽
+  context?: string; // 토익 Part 1 읽을 지문, Part 3 상황
+  picture?: {
+    // 토익 Part 2. 사진은 POST /api/questions/image로 따로 받는다
+    scene: string; // /api/questions/image에 그대로 보낸다
+    prompt: string; // 생성 사진으로 출제했을 때의 questions[i]
+    fallback: { id: "cafeteria"; prompt: string }; // 기본 사진으로 출제했을 때
+  };
+  schedule?: { title: string; rows: { time: string; session: string; speaker: string }[] }; // 토익 Part 4
+  topic?: OpicTopic; // 오픽
   hint?: string; // 발표: 답변 방향 / 면접: 질문 의도 (한국어)
-  about?: number; // 이어지는 답변 번호 (answers 기준, 0부터)
+  about?: number; // 꼬리질문이 이어지는 답변 번호 (answers 기준, 0부터)
 };
 
 export type QuestionsResponse = {
@@ -193,9 +195,12 @@ export type QuestionsResponse = {
   mode: Mode;
   language: Lang;
   exam?: Exam;
-  job?: string;
+  job?: string; // 면접: 공백을 정리한 직무
   questions: Question[];
-  warnings?: string[]; // "llm_failed"면 questions가 비어 있다
+  warnings?: string[]; // "llm_failed": 면접 처음 질문은 기본 질문, 나머지는 빈 목록
 };
+
+// POST /api/questions/image: 토익 Part 2 사진 1장 (10~30초). 실패하면 400·502 → 기본 사진
+export type QuestionImageResponse = { image: string }; // data URL
 
 export type ApiError = { error: string };

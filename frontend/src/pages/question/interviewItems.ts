@@ -1,4 +1,4 @@
-// 면접 모의 연습 (#76): 질문 5개는 백엔드가 지원 직무에 맞춰 만든다 (POST /api/interview/questions)
+// 면접 모의 연습 (#76): 질문 5개는 백엔드가 지원 직무에 맞춰 만든다 (POST /api/questions, kind: "initial")
 // 순서: Q1 자기소개 → Q2 지원 동기 → Q3 직무 → Q4 경험 → Q5 마무리 (docs/api.md 6절)
 import type { InterviewQuestionType, Mode, Question } from "../../types/api";
 
