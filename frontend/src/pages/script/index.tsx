@@ -6,15 +6,15 @@ import { mmss, partTitle, questionLine, totalDuration } from "../../components/c
 import { useClipPlayer } from "../../components/common/useClipPlayer";
 import { DESKTOP_QUERY, useMediaQuery } from "../../components/common/useMediaQuery";
 import { useAnalysis } from "../../store/analysis";
-import type { AnalyzeResponse, Highlight, HighlightCategory } from "../../types/api";
+import type { AnalyzeResponse, Highlight } from "../../types/api";
 import FeedbackDetail from "./FeedbackDetail";
 import {
   byPriority,
   CATEGORY,
   countByCategory,
+  DISPLAY_CATEGORIES,
   lineOfWord,
   lineRuns,
-  PRIORITY,
 } from "./highlights";
 
 const canLoadSample = import.meta.env.DEV || import.meta.env.VITE_USE_MOCK === "true";
@@ -38,7 +38,9 @@ export default function ScriptPage() {
     const w = Number(linkWord);
     const part = result.parts[pi];
     if (!part) return null;
-    const items = part.highlight.filter((h) => w >= h.from && w <= h.to).sort(byPriority);
+    const items = part.highlight
+      .filter((h) => h.category !== "panic" && w >= h.from && w <= h.to)
+      .sort(byPriority);
     return items.length ? { part: pi, line: lineOfWord(part, w), first: w, items } : null;
   });
   useEffect(() => {
@@ -59,9 +61,7 @@ export default function ScriptPage() {
   const audio = session?.audio ?? [];
   const questions = session?.questions;
   const counts = countByCategory(result.parts);
-  const legend = (Object.keys(PRIORITY) as HighlightCategory[]).filter(
-    (c) => counts[c] > 0 || (c !== "grammar" && result.mode === "presentation"),
-  );
+  const legend = DISPLAY_CATEGORIES.filter((c) => counts[c] > 0 || result.mode === "presentation");
   const close = () => setSelected(null);
   const summaryButton = (
     <Link to="/summary" className="btn btn-primary btn-lg btn-block">
@@ -74,7 +74,7 @@ export default function ScriptPage() {
       <div className="flex flex-1 flex-col lg:min-h-full">
         <PageHeader
           title="대본"
-          description={`총 ${mmss(totalDuration(result.parts))} · 색칠된 부분을 누르면 분석이 나와요`}
+          description={`총 ${mmss(totalDuration(result.parts))} · 군말·반복·표현 개선을 누르면 분석이 나와요`}
         />
         <section className="pb-3">
           <ul className="flex flex-wrap gap-x-4 gap-y-1.5 text-xs" aria-label="색 설명">
@@ -128,20 +128,39 @@ export default function ScriptPage() {
                       >
                         <p className="min-w-0 flex-1 py-1 text-[1.0625rem] leading-8">
                           {lineRuns(line, part.highlight).map((run) => {
+                            const items = run.items.filter((h) => h.category !== "panic");
+                            const hint =
+                              run.top && ["panic", "filler"].includes(run.top.category)
+                                ? CATEGORY[run.top.category].desc
+                                : undefined;
                             const isSelected =
                               selected?.part === pi &&
                               selected.items.some((h) => run.items.includes(h));
                             return run.top ? (
-                              <span key={run.first}>
-                                <button
+                              <span
+                                key={run.first}
+                                className={hint ? "tooltip tooltip-bottom" : undefined}
+                                data-tip={hint}
+                              >
+                                {run.top.category === "panic" ? (
+                                  <mark
+                                    tabIndex={0}
+                                    data-word={`${pi}:${run.first}`}
+                                    aria-label={`${run.text} — ${CATEGORY.panic.desc}`}
+                                    className={`box-decoration-clone rounded-[4px] px-1 py-0.5 text-base-content focus-visible:outline-2 focus-visible:outline-offset-1 ${CATEGORY.panic.mark}`}
+                                  >
+                                    {run.text}
+                                  </mark>
+                                ) : (
+                                  <button
                                   type="button"
                                   data-word={`${pi}:${run.first}`}
                                   aria-expanded={isSelected}
                                   className={`box-decoration-clone rounded-[4px] px-1 py-0.5 text-left outline-2 outline-offset-1 transition-[outline-color] duration-150 ${
                                     CATEGORY[run.top.category].mark
                                   } ${isSelected ? "outline-base-content" : "outline-transparent"}`}
-                                  aria-label={`${run.text} — ${run.items
-                                    .map((h) => CATEGORY[h.category].label)
+                                  aria-label={`${run.text} — ${[...new Set(items
+                                    .map((h) => CATEGORY[h.category].label))]
                                     .join(", ")}`}
                                   onClick={() =>
                                     setSelected(
@@ -151,13 +170,14 @@ export default function ScriptPage() {
                                             part: pi,
                                             line: li,
                                             first: run.first,
-                                            items: run.items,
+                                            items,
                                           },
                                     )
                                   }
                                 >
                                   {run.text}
-                                </button>{" "}
+                                </button>
+                                )}{" "}
                               </span>
                             ) : (
                               <span key={run.first} data-word={`${pi}:${run.first}`}>

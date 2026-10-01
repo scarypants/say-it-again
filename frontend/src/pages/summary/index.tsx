@@ -1,11 +1,13 @@
 import { lazy, Suspense, useEffect, useState } from "react";
 import { Link } from "react-router";
 import sample from "../../mocks/analyze.sample.json";
-import { useAnalysis } from "../../store/analysis";
+import { useAnalysis, useStartRetry } from "../../store/analysis";
 import type { AnalyzeResponse } from "../../types/api";
 import { createChartData } from "./chartData";
 import { feedbackRows } from "./feedbackRows";
 import WordFrequency from "./components/WordFrequency";
+import RetryComparison from "./components/RetryComparison";
+import { comparablePrevious, retryReference } from "./retryComparison";
 import { totalDuration } from "../../components/common/scriptFormat";
 const FeedbackChart = lazy(() => import("./components/FeedbackChart"));
 
@@ -20,7 +22,8 @@ function timestamp(seconds: number) {
 }
 
 export default function SummaryPage() {
-  const { result, setResult } = useAnalysis();
+  const { result, setResult, previous, setPrevious, setSession } = useAnalysis();
+  const startRetry = useStartRetry();
   const [selection, setSelection] = useState<{
     result: AnalyzeResponse;
     category: "filler" | "repeat";
@@ -31,6 +34,8 @@ export default function SummaryPage() {
   const selected = selection?.result === result ? selection.category : null;
   const chart = result ? createChartData(result) : [];
   const improvements = result && selected ? feedbackRows(result, selected) : [];
+  const comparison = result ? comparablePrevious(result, previous) : null;
+  const isRetry = Boolean(result?.compare || comparison);
   const score =
     result && Number.isFinite(result.analysis.score)
       ? Math.min(100, Math.max(0, result.analysis.score))
@@ -61,10 +66,25 @@ export default function SummaryPage() {
             className="btn btn-outline btn-sm"
             onClick={() => {
               setSelection(null);
+              setPrevious(null);
+              setSession(null);
               setResult(sampleResult);
             }}
           >
             샘플 불러오기
+          </button>
+          <button
+            type="button"
+            className="btn btn-outline btn-sm"
+            onClick={async () => {
+              const retrySample = (await import("../../mocks/analyze.retry.sample.json")).default;
+              setSelection(null);
+              setSession(null);
+              setPrevious(sampleResult);
+              setResult(retrySample as AnalyzeResponse);
+            }}
+          >
+            재도전 샘플
           </button>
         </div>
       )}
@@ -89,7 +109,7 @@ export default function SummaryPage() {
               <div className="flex items-center justify-between gap-4 p-5">
                 <div className="flex flex-col items-start gap-2">
                   <h2 id="score-title" className="card-title text-lg">
-                    말하기 점수
+                    {isRetry ? "재도전 점수" : "말하기 점수"}
                   </h2>
                   <span className="badge badge-outline">
                     {modeNames[result.mode]} · {timestamp(totalDuration(result.parts))}
@@ -118,6 +138,7 @@ export default function SummaryPage() {
             </Suspense>
           </div>
           <div className="flex min-w-0 flex-col gap-8">
+            {isRetry && <RetryComparison previous={comparison} result={result} />}
             {selected && (
               <section
                 aria-labelledby="improvements-title"
@@ -191,7 +212,7 @@ export default function SummaryPage() {
                 )}
               </section>
             )}
-            <section aria-labelledby="priorities-title">
+            {!isRetry && <section aria-labelledby="priorities-title">
               <h2 id="priorities-title" className="text-lg font-bold">
                 먼저 고칠 3가지
               </h2>
@@ -212,11 +233,21 @@ export default function SummaryPage() {
                   {result.analysis.summary.comment}
                 </p>
               )}
-            </section>
+            </section>}
             <div className="flex flex-col gap-3 xl:flex-row">
-              <Link to="/record" className="btn btn-primary btn-lg btn-block xl:flex-1">
-                다시 말해보기
-              </Link>
+              {result.mode === "presentation" ? (
+                <button type="button" onClick={() => {
+                  const reference = retryReference(result, previous);
+                  startRetry();
+                  setPrevious(reference);
+                }} className="btn btn-primary btn-lg btn-block xl:flex-1">
+                  다시, 말해
+                </button>
+              ) : (
+                <Link to="/record" className="btn btn-primary btn-lg btn-block xl:flex-1">
+                  다시 말해보기
+                </Link>
+              )}
               <Link to="/script" className="btn btn-outline btn-lg btn-block xl:flex-1">
                 전체 대본 보기
               </Link>
