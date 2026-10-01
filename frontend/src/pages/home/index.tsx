@@ -79,7 +79,7 @@ export default function HomePage() {
                 <div className="border-t border-base-300 px-4 pt-3 pb-4">
                   <label className="flex flex-col gap-1.5">
                     <span className="text-sm font-medium">
-                      발표 키워드 <span className="font-normal text-secondary">(선택)</span>
+                      발표 키워드
                     </span>
                     <input
                       type="text"
@@ -89,7 +89,7 @@ export default function HomePage() {
                       onChange={(e) => setKeywords(e.target.value)}
                     />
                     <span className="text-xs text-secondary">
-                      쉼표로 구분해요. 발표 흐름을 판단할 때 참고해요.
+                      발표에 꼭 들어가야 할 단어를 쉼표로 구분해 적어요. AI가 실제 발표와 비교해 봐요.
                     </span>
                   </label>
                 </div>
