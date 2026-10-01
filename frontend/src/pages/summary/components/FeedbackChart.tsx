@@ -36,7 +36,7 @@ export default function FeedbackChart({
         말하기 항목별 비율
       </h2>
       <p className="mt-2 text-sm text-base-content/70">
-        보라색 반복, 노란색 군말를 누르면 개선안을 볼 수 있어요.
+        보라색 반복, 노란색 군말을 누르면 개선안을 볼 수 있어요.
       </p>
       {total > 0 ? (
         <>

@@ -4,6 +4,7 @@ import sample from "../../mocks/analyze.sample.json";
 import { useAnalysis } from "../../store/analysis";
 import type { AnalyzeResponse } from "../../types/api";
 import { createChartData } from "./chartData";
+import WordFrequency from "./components/WordFrequency";
 import { totalDuration } from "../../components/common/scriptFormat";
 const FeedbackChart = lazy(() => import("./components/FeedbackChart"));
 
@@ -42,9 +43,24 @@ export default function SummaryPage() {
                 {
                   key: `${partIndex}-${h.from}-${h.to}`,
                   original: line.words.join(" "),
-                  improved: line.words
-                    .filter((_, i) => line.offset + i < h.from || line.offset + i > h.to)
+                  before: line.words.slice(0, h.from - line.offset).join(" "),
+                  problem: line.words
+                    .slice(
+                      h.from - line.offset,
+                      Math.min(h.to - line.offset + 1, line.words.length),
+                    )
                     .join(" "),
+                  after: line.words.slice(h.to - line.offset + 1).join(" "),
+                  improved:
+                    h.fixed === undefined
+                      ? undefined
+                      : [
+                          ...line.words.slice(0, h.from - line.offset),
+                          h.fixed,
+                          ...line.words.slice(h.to - line.offset + 1),
+                        ]
+                          .filter(Boolean)
+                          .join(" "),
                   partIndex,
                   start: line.start,
                   end: line.end,
@@ -60,11 +76,13 @@ export default function SummaryPage() {
       : null;
 
   return (
-    <div className="flex flex-1 flex-col gap-6 pt-6">
+    <div className="flex flex-1 flex-col gap-8 pt-6 font-sans">
       <header>
-        <p className="text-xs font-semibold tracking-widest text-secondary">말하기 분석</p>
-        <h1 className="mt-2 text-[1.75rem] leading-tight font-bold tracking-tight">
-          이번 말하기를 돌아봐요
+        <p className="text-sm font-medium text-base-content/70">
+          {result ? "이 녹음의 한 줄 요약" : "말하기 분석"}
+        </p>
+        <h1 className="mt-3 max-w-[28ch] text-[1.75rem] leading-snug font-bold tracking-tight sm:text-4xl">
+          {result?.analysis.summary.headline || "이번 말하기를 돌아봐요"}
         </h1>
         <p className="mt-3 text-sm leading-relaxed text-base-content/70">
           전체 흐름을 확인하고, 다음 연습에서 바꿀 한 가지를 찾아보세요.
@@ -105,7 +123,7 @@ export default function SummaryPage() {
         </section>
       ) : (
         <>
-          <section className="card card-border bg-base-100" aria-labelledby="score-title">
+          <section className="rounded-box bg-base-200" aria-labelledby="score-title">
             <div className="card-body gap-4">
               <div className="flex items-center justify-between gap-3">
                 <h2 id="score-title" className="card-title text-lg">
@@ -118,9 +136,6 @@ export default function SummaryPage() {
               <p className="tabular-nums">
                 <span className="text-5xl font-bold">{score ?? "—"}</span>
                 <span className="ml-2 text-sm text-base-content/70">/ 100점</span>
-              </p>
-              <p className="text-base leading-relaxed font-semibold wrap-anywhere">
-                {result.analysis.summary.headline || "한 줄 총평을 준비하고 있어요."}
               </p>
             </div>
           </section>
@@ -141,13 +156,19 @@ export default function SummaryPage() {
           </Suspense>
           <section
             aria-labelledby="improvements-title"
-            className="rounded-box border border-base-300 bg-base-200 p-4"
+            className="rounded-box border border-base-300 bg-base-100 p-5 sm:p-6"
           >
             <h2 id="improvements-title" className="text-lg font-bold">
               {selected
                 ? `${selected === "filler" ? "군말" : "반복"} 표현 개선안`
                 : "색상을 눌러 개선안을 확인하세요"}
             </h2>
+            {selected && (
+              <WordFrequency
+                category={selected}
+                rows={selected === "filler" ? result.charts.fillerTop : result.charts.repeatTop}
+              />
+            )}
             {selected ? (
               <div className="mt-4 flex flex-col gap-4" aria-live="polite">
                 {improvements.length ? (
@@ -160,18 +181,26 @@ export default function SummaryPage() {
                         {timestamp(item.start)} – {timestamp(item.end)}
                       </p>
                       <p className="mt-2 text-xs font-semibold text-base-content/65">말한 문장</p>
-                      <p className="mt-1 font-script text-base leading-relaxed wrap-anywhere">
-                        {item.original}
+                      <p className="mt-2 max-w-prose text-lg leading-[1.9] wrap-anywhere">
+                        {item.before && <>{item.before} </>}
+                        <mark
+                          className={`box-decoration-clone rounded px-1 py-0.5 font-semibold text-base-content ${selected === "filler" ? "bg-hl-filler-soft" : "bg-hl-repeat-soft"}`}
+                        >
+                          {item.problem}
+                        </mark>
+                        {item.after && <> {item.after}</>}
                       </p>
                       <p className="mt-3 text-xs font-semibold text-base-content/65">개선한 문장</p>
-                      <p className="mt-1 font-script text-lg leading-relaxed wrap-anywhere">
-                        {item.improved || "이 표현은 생략하고 다음 문장으로 이어 말해보세요."}
+                      <p className="mt-2 max-w-prose text-lg leading-[1.9] wrap-anywhere">
+                        {item.improved === ""
+                          ? "이 표현은 생략하고 문장을 이어 말해보세요."
+                          : (item.improved ?? "이 구간에는 개선안이 제공되지 않았어요.")}
                       </p>
                       <Link
                         to={`/script?part=${item.partIndex}&word=${item.word}`}
                         className="link mt-3 inline-block text-xs"
                       >
-                        대본에서 보기 →
+                        대본에서 보기
                       </Link>
                     </article>
                   ))
@@ -181,7 +210,7 @@ export default function SummaryPage() {
               </div>
             ) : (
               <p className="mt-2 text-sm leading-relaxed text-base-content/70">
-                원형 차트의 보라색 반복 또는 노란색 군말를 선택해 주세요.
+                원형 차트의 보라색 반복 또는 노란색 군말을 선택해 주세요.
               </p>
             )}
           </section>
