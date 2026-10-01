@@ -1,0 +1,173 @@
+{
+  "topics": [
+    {
+      "id": "home",
+      "label": "사는 곳",
+      "group": "거주",
+      "description": [
+        "In the survey, you said you live in a house or an apartment. Describe your home to me. What does it look like? How many rooms does it have? Which room do you like the most, and why?"
+      ],
+      "routine": [
+        "What do you usually do at home on weekdays and on weekends? Who do you spend time with at home? Tell me about your typical routine at home."
+      ],
+      "experience": [
+        "Have you ever changed something in your home, like moving furniture or redecorating a room? What did you change, and why? Tell me what happened from beginning to end."
+      ]
+    },
+    {
+      "id": "movies",
+      "label": "영화 보기",
+      "group": "여가",
+      "description": [
+        "You indicated that you like to go to the movies. What kinds of movies do you enjoy watching? Who is your favorite actor or actress? Why do you like that person?",
+        "Tell me about a movie theater you often go to. Where is it, and what does it look like inside? Why do you like going there?"
+      ],
+      "routine": [
+        "What do you usually do before and after you watch a movie? Who do you go with? Describe a typical day when you go to see a movie."
+      ],
+      "experience": [
+        "Tell me about the most memorable movie you have ever seen. When did you see it, and who were you with? What made it so memorable?"
+      ]
+    },
+    {
+      "id": "concerts",
+      "label": "공연 보기",
+      "group": "여가",
+      "description": [
+        "You mentioned that you like to go to concerts or shows. What kinds of performances do you like? Where do you usually go to see them? Describe the place for me."
+      ],
+      "routine": [
+        "How do you usually get tickets for a concert? What do you do on the day of the show, from the time you leave home until you come back?"
+      ],
+      "experience": [
+        "Tell me about a performance that you still remember clearly. Who performed, and where was it? What happened during the show that made it special?"
+      ]
+    },
+    {
+      "id": "cafe",
+      "label": "카페 가기",
+      "group": "여가",
+      "description": [
+        "In the survey, you said you like going to cafés. Describe your favorite café. Where is it located, and what does it look like? Why do you like going there?"
+      ],
+      "routine": [
+        "How often do you go to cafés? What do you usually order, and what do you do while you are there? Who do you usually go with?"
+      ],
+      "experience": [
+        "Tell me about something interesting or unexpected that happened to you at a café. When was it, and what exactly happened?"
+      ]
+    },
+    {
+      "id": "shopping",
+      "label": "쇼핑하기",
+      "group": "여가",
+      "description": [
+        "You indicated that you enjoy shopping. Tell me about a store or shopping area you like to visit. What does it look like, and what do they sell there?"
+      ],
+      "routine": [
+        "What do you usually buy when you go shopping? Do you prefer shopping online or in stores? Describe how you usually shop, step by step."
+      ],
+      "experience": [
+        "Tell me about a time when you had a problem while shopping, such as getting the wrong item or a broken product. What happened, and how did you deal with it?"
+      ]
+    },
+    {
+      "id": "music",
+      "label": "음악 감상",
+      "group": "취미",
+      "description": [
+        "You said you like listening to music. What kind of music do you enjoy? Who are your favorite singers or musicians? What do you like about their music?"
+      ],
+      "routine": [
+        "When and where do you usually listen to music? What device do you use? Tell me about your typical habits when you listen to music."
+      ],
+      "experience": [
+        "How did you first become interested in music? Tell me about how your taste in music has changed from when you were young until now."
+      ]
+    },
+    {
+      "id": "jogging",
+      "label": "조깅",
+      "group": "운동",
+      "description": [
+        "In the survey, you indicated that you go jogging. Where do you usually jog? Describe the place for me in detail."
+      ],
+      "routine": [
+        "How often do you go jogging, and for how long? What do you do to get ready before you jog, and what do you do afterward?"
+      ],
+      "experience": [
+        "Tell me about a memorable experience you had while jogging. Did anything unusual or difficult happen? Describe it from beginning to end."
+      ]
+    },
+    {
+      "id": "walking",
+      "label": "걷기",
+      "group": "운동",
+      "description": [
+        "You mentioned that you like to take walks. Where do you usually go walking? What can you see along the way?"
+      ],
+      "routine": [
+        "When do you usually go for a walk, and who do you go with? What do you usually do or think about while you are walking?"
+      ],
+      "experience": [
+        "Tell me about a walk that you remember well. Where did you go, and what happened? Why do you still remember it?"
+      ]
+    },
+    {
+      "id": "park",
+      "label": "공원 가기",
+      "group": "여가",
+      "description": [
+        "You indicated that you like to go to parks. Tell me about a park you often visit. Where is it, and what does it look like? What kinds of facilities does it have?"
+      ],
+      "routine": [
+        "What do you usually do when you go to the park? Who do you go with, and how long do you usually stay?"
+      ],
+      "experience": [
+        "Tell me about a special day you spent at a park. When was it, who were you with, and what did you do there?"
+      ]
+    },
+    {
+      "id": "domesticTravel",
+      "label": "국내 여행",
+      "group": "여행",
+      "description": [
+        "In the survey, you said you enjoy traveling in your country. Tell me about a place in your country that you like to visit. What is it like, and why do you like it?"
+      ],
+      "routine": [
+        "What do you usually do to prepare for a trip? How do you plan where to go and what to pack? Tell me about your process."
+      ],
+      "experience": [
+        "Tell me about your most memorable trip in your country. Where did you go, who did you go with, and what happened during the trip?"
+      ]
+    },
+    {
+      "id": "overseasTravel",
+      "label": "해외 여행",
+      "group": "여행",
+      "description": [
+        "You indicated that you have traveled abroad. Tell me about a foreign country or city you have visited. What was it like? How was it different from your country?"
+      ],
+      "routine": [
+        "What do you usually do when you arrive in a new country? Describe what you typically do during the first day of an overseas trip."
+      ],
+      "experience": [
+        "Tell me about a problem or an unexpected situation you had while traveling abroad. What happened, and how did you handle it?"
+      ]
+    },
+    {
+      "id": "homeVacation",
+      "label": "집에서 보내는 휴가",
+      "group": "여행",
+      "description": [
+        "You said you like to spend your vacations at home. Who do you usually see during your vacation at home, and what do you like to do with them?"
+      ],
+      "routine": [
+        "Describe what you typically do on a day off at home, from the time you wake up until you go to bed."
+      ],
+      "experience": [
+        "Tell me about a memorable vacation you spent at home. What did you do, and why was it special?"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,53 @@
+{
+  "situations": [
+    {
+      "id": "hotel",
+      "label": "호텔",
+      "ask": "I'd like to give you a situation and ask you to act it out. You are planning a trip and want to stay at a hotel. Call the hotel and ask three or four questions to find out about the rooms and the services they offer.",
+      "solve": "I'm sorry, but there is a problem I need you to resolve. When you arrive at the hotel, you find out that your reservation was canceled by mistake and there are no rooms left. Explain the situation to the front desk staff and suggest two or three ways to solve the problem.",
+      "experience": "Have you ever had a problem with a reservation, at a hotel or anywhere else? What happened, and how was the problem solved?"
+    },
+    {
+      "id": "bank",
+      "label": "은행",
+      "ask": "I'd like to give you a situation and ask you to act it out. You want to open a new bank account. Call the bank and ask three or four questions about opening an account.",
+      "solve": "I'm sorry, but there is a problem I need you to resolve. You just found out that your bank card is not working, and you need to pay for something important today. Call the bank, explain the situation, and suggest two or three ways to fix the problem.",
+      "experience": "Tell me about a time when you had a problem with money or a bank card. What happened, and how did you deal with it?"
+    },
+    {
+      "id": "transport",
+      "label": "대중교통",
+      "ask": "I'd like to give you a situation and ask you to act it out. You are visiting a new city and want to use public transportation. Go to the information center and ask three or four questions about how to get around the city.",
+      "solve": "I'm sorry, but there is a problem I need you to resolve. You left your bag on the bus, and it has your wallet and phone in it. Call the bus company, describe your bag, and suggest two or three ways they could help you get it back.",
+      "experience": "Have you ever lost something while you were using public transportation? Tell me what happened and how the situation ended."
+    },
+    {
+      "id": "concertTicket",
+      "label": "공연 예매",
+      "ask": "I'd like to give you a situation and ask you to act it out. You want to see a concert with a friend this weekend. Call the ticket office and ask three or four questions about the tickets and the concert.",
+      "solve": "I'm sorry, but there is a problem I need you to resolve. You bought concert tickets for you and your friend, but you just realized you can't go because of an urgent matter. Call your friend, explain the situation, and suggest two or three alternatives.",
+      "experience": "Have you ever had to cancel plans with a friend at the last minute? What happened, and how did your friend react?"
+    },
+    {
+      "id": "phoneStore",
+      "label": "휴대폰 구매",
+      "ask": "I'd like to give you a situation and ask you to act it out. You want to buy a new phone. Go to an electronics store and ask the salesperson three or four questions about the phone you are interested in.",
+      "solve": "I'm sorry, but there is a problem I need you to resolve. The phone you bought last week has stopped working. Go back to the store, explain the problem to the staff, and suggest two or three ways to solve it.",
+      "experience": "Tell me about a time when a device or product you bought did not work properly. What was the problem, and what did you do about it?"
+    },
+    {
+      "id": "gym",
+      "label": "헬스장 등록",
+      "ask": "I'd like to give you a situation and ask you to act it out. You want to join a gym near your home. Call the gym and ask three or four questions about memberships and classes.",
+      "solve": "I'm sorry, but there is a problem I need you to resolve. You signed up for a gym membership, but you hurt your leg and can't exercise for a month. Call the gym, explain the situation, and suggest two or three options.",
+      "experience": "Have you ever had to stop doing something you enjoy because of an injury or another problem? Tell me what happened."
+    },
+    {
+      "id": "restaurant",
+      "label": "식당 예약",
+      "ask": "I'd like to give you a situation and ask you to act it out. You want to have a birthday dinner for a friend at a new restaurant. Call the restaurant and ask three or four questions to make a reservation.",
+      "solve": "I'm sorry, but there is a problem I need you to resolve. You ordered food for delivery, but the restaurant sent the wrong order. Call the restaurant, explain what went wrong, and suggest two or three ways to fix it.",
+      "experience": "Tell me about a time when you had a problem at a restaurant or with a food order. What happened, and how was it handled?"
+    }
+  ]
+}
