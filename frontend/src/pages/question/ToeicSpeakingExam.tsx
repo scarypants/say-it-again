@@ -390,7 +390,7 @@ export default function ToeicSpeakingExam() {
           <p
             className={
               item.part === 1
-                ? "rounded-box border border-base-300 p-4 font-script text-[1.0625rem] leading-loose"
+                ? "rounded-box border border-base-300 p-4 text-[1.0625rem] leading-loose"
                 : "text-lg leading-relaxed font-medium"
             }
           >
