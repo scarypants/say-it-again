@@ -1,24 +1,33 @@
+import { findFillers } from '../detectors/fillers';
+import { findPanics } from '../detectors/panics';
+import { findRepeats } from '../detectors/repeats';
+import { analyzePart, summarize } from '../llm/requests';
 import type { AnalyzeResponse, Part } from '../types/api';
 import type { AnalyzeInput } from '../types/internal';
-import { findFillers } from '../detectors/fillers';
-import { analyzePart, summarize } from '../llm/requests';
-import { findRepeats } from '../detectors/repeats';
-import { splitLines } from './script';
+import { toWords, withOffsets } from './script';
 import { buildCharts, buildStats } from './stats';
-import { transcribe } from './stt';
+import { checkDurations } from './transcribe';
 
-// 분석 파이프라인: STT → 코드 분석 → 파트별 LLM → 총평 LLM → 합산
+// 2단계: 사용자가 고친 대본 → 코드 분석 → 파트별 LLM → 총평 LLM → 합산
+// LLM이 실패해도 코드가 만든 결과(대본, 패닉존, 필러, 통계)는 그대로 돌려준다.
 export async function analyze(input: AnalyzeInput): Promise<AnalyzeResponse> {
-  const warnings: string[] = [];
+  checkDurations(input, input.parts.map((p) => p.duration));
 
-  // 녹음마다 병렬 STT
-  const transcripts = await Promise.all(input.audio.map((file) => transcribe(file, input.language)));
+  const warnings: string[] = [];
+  const warn = (code: string) => {
+    if (!warnings.includes(code)) warnings.push(code);
+  };
 
   // 파트별 코드 분석 + 파트별 LLM (병렬)
   const parts: Part[] = await Promise.all(
-    transcripts.map(async ({ words, duration }, i) => {
-      const script = splitLines(words);
-      const codeHighlight = [...findFillers(script, input.language), ...findRepeats(script)];
+    input.parts.map(async ({ duration, script: edited }, i) => {
+      const script = withOffsets(edited); // 단어를 고쳤으면 단어 수가 바뀌므로 offset을 다시 계산
+      const words = toWords(script);
+      const codeHighlight = [
+        ...findPanics(script),
+        ...findFillers(words, input.language),
+        ...findRepeats(script),
+      ];
       try {
         const llm = await analyzePart(input, script, i);
         return {
@@ -29,8 +38,8 @@ export async function analyze(input: AnalyzeInput): Promise<AnalyzeResponse> {
           final: llm.final,
         };
       } catch (err) {
-        console.error(err);
-        if (!warnings.includes('llm_failed')) warnings.push('llm_failed');
+        console.error(`[llm] ${i + 1}번째 파트 분석 실패`, err);
+        warn('llm_failed');
         return { duration, script, highlight: codeHighlight, final: [] };
       }
     }),
@@ -43,8 +52,8 @@ export async function analyze(input: AnalyzeInput): Promise<AnalyzeResponse> {
   try {
     summary = await summarize(input, parts);
   } catch (err) {
-    console.error(err);
-    if (!warnings.includes('llm_failed')) warnings.push('llm_failed');
+    console.error('[llm] 총평 실패', err);
+    warn('llm_failed');
   }
 
   return {

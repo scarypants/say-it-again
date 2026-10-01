@@ -6,10 +6,13 @@ export type Exam = 'TOEIC-Speaking' | 'opic';
 export type Language = 'ko' | 'en';
 export type Category = 'panic' | 'filler' | 'repeat' | 'expression' | 'grammar';
 
+// 대본의 한 줄 = 한 문장. 2초 이상 정지는 pause 줄로 따로 들어간다.
 export type Line = {
   start: number;
   end: number;
-  words: string[];
+  offset: number; // 이 줄 첫 단어의 파트 전체 단어 번호 (하이라이트 from/to 기준)
+  words: string[]; // pause 줄은 빈 배열
+  wordTimes?: [number, number][]; // 단어별 [start, end]. 프론트는 받은 그대로 돌려보낸다
   pause?: boolean;
 };
 
@@ -59,4 +62,28 @@ export type AnalyzeResponse = {
   charts: Charts;
   analysis: Analysis;
   warnings?: string[];
+};
+
+// ---- POST /api/transcribe 응답, POST /api/analyze 요청 ----
+
+export type TranscriptPart = {
+  duration: number;
+  script: Line[];
+};
+
+export type TranscribeResponse = {
+  mode: Mode;
+  level?: Level;
+  exam?: Exam;
+  language: Language;
+  parts: TranscriptPart[];
+};
+
+export type AnalyzeRequest = {
+  mode: Mode;
+  level?: Level;
+  exam?: Exam;
+  language: Language;
+  questions?: string[]; // 스피킹만
+  parts: TranscriptPart[]; // transcribe 응답의 parts에서 words만 고쳐서 보낸다
 };
