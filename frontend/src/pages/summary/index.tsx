@@ -250,11 +250,11 @@ export default function SummaryPage() {
                   처음으로
                 </Link>
               )}
-              <Link to="/script" className="btn btn-outline btn-lg btn-block border-base-300 xl:flex-1">
+              <Link to="/script?view=final" className="btn btn-outline btn-lg btn-block border-base-300 xl:flex-1">
                 전체 대본 보기
               </Link>
             </div>
-            {!result.compare && (
+            {!result.compare && !isFollowUp && (
               <Suspense fallback={<p role="status" className="text-sm text-secondary">추가 질문 기능을 불러오고 있어요.</p>}>
                 <FollowUpQuestions result={result} questions={session?.questions} />
               </Suspense>
