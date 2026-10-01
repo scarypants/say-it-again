@@ -44,7 +44,7 @@ export async function transcribe(req: TranscribeRequest): Promise<TranscribeResp
   if (req.level) form.append("level", req.level);
   if (req.exam) form.append("exam", req.exam);
   if (req.questions) form.append("questions", JSON.stringify(req.questions));
-  const prefix = req.mode === "speaking" ? "q" : "part";
+  const prefix = req.mode === "presentation" ? "part" : "q";
   const audio = await Promise.all(req.audio.map(fix3gp));
   audio.forEach((a, i) =>
     form.append("audio", a, `${prefix}${i + 1}-${audioFileName(req.audio[i])}`),

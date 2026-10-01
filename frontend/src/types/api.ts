@@ -2,6 +2,9 @@
 // 흐름: 녹음 → [1] POST /api/transcribe → 대본 검토·수정 → [2] POST /api/analyze → 결과
 
 export type Mode = "presentation" | "speaking"; // 발표 / 어학 스피킹
+// 면접 모드(#76)는 백엔드·결과 화면이 받기 전까지 입력 쪽(설정·transcribe 요청)에만 둔다.
+// 백엔드가 docs/api.md에 추가하면 Mode에 합친다
+export type InputMode = Mode | "interview";
 export type Lang = "ko" | "en";
 
 // 발표 성격: 과제 발표 / 시험 발표 / 큰 강연
@@ -23,12 +26,12 @@ export type ScriptPart = { duration: number; script: Line[] };
 
 // [1] transcribe 요청 (multipart). 프론트에선 객체로 들고 client.ts가 폼으로 바꾼다
 export type TranscribeRequest = {
-  mode: Mode;
+  mode: InputMode;
   language: Lang;
   audio: Blob[]; // 녹음 순서대로. 발표는 5분 단위 파일, 스피킹은 질문별 답변. 1~5개
   level?: PresentationLevel; // 발표만
   exam?: Exam; // 스피킹만
-  questions?: string[]; // 스피킹만. audio와 같은 순서·같은 개수
+  questions?: string[]; // 스피킹·면접. audio와 같은 순서·같은 개수
 };
 
 export type TranscribeResponse = {
