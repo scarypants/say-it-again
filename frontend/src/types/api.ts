@@ -121,7 +121,7 @@ export type Compare = {
   after: CompareStats;
 };
 
-// 서버가 같은 기준(필러·패닉·중복만)으로 계산한 전후 수치. 전후 비교는 이 숫자만 쓴다
+// 서버가 같은 기준(군말·패닉존·반복만)으로 계산한 전후 수치. 전후 비교는 이 숫자만 쓴다
 export type CompareStats = {
   score: number;
   durationSec: number;

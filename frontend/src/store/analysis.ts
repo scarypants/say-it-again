@@ -113,7 +113,7 @@ export function useOpenRecord() {
 }
 
 // 재도전 때 따라 말할 대본. 재도전 결과는 서버가 final을 비워 보내므로(docs/api.md 5절)
-// 그때는 실제로 말한 대본에서 필러만 뺀 것을 쓴다. 그래야 재도전을 또 이어 할 수 있다
+// 그때는 실제로 말한 대본에서 군말만 뺀 것을 쓴다. 그래야 재도전을 또 이어 할 수 있다
 export function retryFinal(r: AnalyzeResponse): { words: string[] }[] {
   const final = r.parts.flatMap((p) => p.final);
   if (final.length) return final;
