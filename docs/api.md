@@ -518,7 +518,7 @@ type Question = {
       prompt: string;        // 기본 사진으로 출제했을 때 보내는 questions[i]
     };
   };
-  schedule?: { title: string; rows: { time: string; session: string; speaker: string }[] };  // Part 4 자료 (LLM이 만든다)
+  schedule?: { title: string; rows: { time: string; session: string; speaker: string }[] };  // Part 4 자료 (LLM이 만든다). 아래 표 참고
   // 오픽
   topic?: { id: string; label: string };  // 처음 질문의 묘사·루틴·경험·롤플레이
   // 꼬리질문
@@ -526,6 +526,15 @@ type Question = {
   about?: number;            // 면접·스피킹 꼬리질문: 이어지는 답변 번호(answers 기준, 0부터). 면접 prompt 머리말의 QM은 이 답변의 원래 질문 번호
 };
 ```
+
+- 토익 Part 4 `schedule`은 서버가 아래 자료 종류 중 하나를 무작위로 골라 만든다. 세 칸 이름은 그대로이고 의미만 다르다 (프론트 기본 문항과 같은 종류).
+
+  | 자료 | `time` | `session` | `speaker` |
+  |---|---|---|---|
+  | 행사·학회 일정표 | 시간 | 세션 이름 | 발표자 (없으면 `""`) |
+  | 출장 일정표 | 날짜·시간 | 일정 (항공편·회의 등) | 장소 |
+  | 면접 일정표 | 시간 | 지원자 (취소면 `(canceled)`) | 면접 장소 |
+  | 주문·배송 내역 | 날짜 | 주문·배송 상태 | 금액·메모 |
 
 - **`prompt`를 서버가 만들어 준다.** 프론트는 질문 문자열 형식(7절)을 직접 조립하지 않고 `prompt`를 그대로 `questions[i]`로 보낸다. analyze·retry는 형식 변경 없음.
 - 토익의 시간(준비·답변 초), 안내문(directions)은 지금처럼 프론트가 Part 번호로 정한다.

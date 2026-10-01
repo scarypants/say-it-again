@@ -24,6 +24,7 @@ import {
   retryMessages,
   summaryMessages,
   toeicQuestionMessages,
+  type ToeicInfoKind,
 } from './prompts';
 
 // ---- 응답 JSON schema (Structured Outputs, strict) ----
@@ -225,12 +226,12 @@ export type FollowUpOutput = {
 };
 
 /** 토익 처음 질문 원본 응답. mock 모드에서는 fixtures/llm-questions-toeic.json */
-export async function requestToeicQuestions(theme: string): Promise<ToeicOutput> {
+export async function requestToeicQuestions(theme: string, infoKind: ToeicInfoKind): Promise<ToeicOutput> {
   if (MOCK_LLM) {
     await mockDelay(800);
     return readFixture<ToeicOutput>('llm-questions-toeic.json');
   }
-  return callJson<ToeicOutput>('toeic_questions', TOEIC_SCHEMA, toeicQuestionMessages(theme));
+  return callJson<ToeicOutput>('toeic_questions', TOEIC_SCHEMA, toeicQuestionMessages(theme, infoKind));
 }
 
 /** 오픽 처음 질문 원본 응답. mock 모드에서는 fixtures/llm-questions-opic.json */
