@@ -68,7 +68,11 @@ export const TOSS_ITEMS: TossItem[] = [
         { time: "10:00 – 10:50", session: "Writing a Résumé That Stands Out", speaker: "Dana Lee" },
         { time: "11:00 – 11:50", session: "Job Interview Basics", speaker: "Mark Chen" },
         { time: "12:00 – 1:00", session: "Lunch Break", speaker: "" },
-        { time: "1:00 – 1:50", session: "Mock Interviews with Recruiters", speaker: "Career Center" },
+        {
+          time: "1:00 – 1:50",
+          session: "Mock Interviews with Recruiters",
+          speaker: "Career Center",
+        },
         { time: "2:00 – 2:50", session: "Internships Abroad", speaker: "Sofia Park" },
       ],
     },
@@ -107,7 +111,9 @@ export function tossQuestionText(item: TossItem) {
   if (item.schedule)
     parts.push(
       `Information: ${item.schedule.title}. ` +
-        item.schedule.rows.map((r) => `${r.time} ${r.session}${r.speaker ? ` (${r.speaker})` : ""}`).join("; "),
+        item.schedule.rows
+          .map((r) => `${r.time} ${r.session}${r.speaker ? ` (${r.speaker})` : ""}`)
+          .join("; "),
     );
   parts.push(item.part === 1 ? `Text to read aloud: ${item.prompt}` : `Question: ${item.prompt}`);
   return parts.join("\n");

@@ -71,7 +71,9 @@ export default function OpicQuestions() {
   // 답한 질문과 녹음을 모두 한 번에 백엔드로 (순서 유지)
   async function runAnalyze() {
     if (!questions) return;
-    const pairs = questions.flatMap((q, i) => (answers[i] ? [{ question: q, audio: answers[i]! }] : []));
+    const pairs = questions.flatMap((q, i) =>
+      answers[i] ? [{ question: q, audio: answers[i]! }] : [],
+    );
     if (pairs.length === 0) return;
     setAnalyzing(true);
     setAnalyzeError(null);

@@ -50,6 +50,7 @@ export default function TossExam() {
 
   const timerRef = useRef<number | null>(null);
   const tokenRef = useRef(0); // 단계가 바뀌면 이전 단계의 콜백(타이머·TTS·녹음 종료)을 무시
+  const posRef = useRef({ q: 0, p: 0 }); // 지금 진행 중인 문제·단계 (건너뛰기용)
   const answersRef = useRef<(Blob | null)[]>(answers);
   const urlsRef = useRef<string[]>([]);
   const beepCtxRef = useRef<AudioContext | null>(null);
@@ -116,6 +117,7 @@ export default function TossExam() {
     const ph = item.phases[p];
     if (!ph) return nextQuestion(q);
 
+    posRef.current = { q, p };
     setQi(q);
     setPhase(ph);
     const next = () => tokenRef.current === token && runPhase(q, p + 1);
@@ -155,12 +157,20 @@ export default function TossExam() {
       const s = await navigator.mediaDevices.getUserMedia({ audio: true });
       s.getTracks().forEach((t) => t.stop());
     } catch {
-      setStartError("마이크 권한이 필요해요. 주소창 왼쪽 아이콘에서 마이크를 허용한 뒤 다시 눌러 주세요.");
+      setStartError(
+        "마이크 권한이 필요해요. 주소창 왼쪽 아이콘에서 마이크를 허용한 뒤 다시 눌러 주세요.",
+      );
       return;
     }
     beepCtxRef.current = new AudioContext();
     setStage("running");
     runPhase(0, 0);
+  }
+
+  // 준비·자료 읽기를 건너뛰고 다음 단계로 (준비 → 신호음과 함께 바로 답변)
+  function skipPhase() {
+    const { q, p } = posRef.current;
+    runPhase(q, p + 1);
   }
 
   // 답변 중 마이크 버튼 = 지금 답변을 끝내고 바로 다음 문제
@@ -235,6 +245,7 @@ export default function TossExam() {
           ))}
         </ol>
         <ul className="mt-4 list-disc space-y-1 pl-5 text-sm text-secondary">
+          <li>준비가 끝났으면 바로 답하기를 눌러 준비 시간을 건너뛸 수 있어요.</li>
           <li>답변 중 마이크 버튼을 누르면 바로 다음 문제로 넘어가요.</li>
           <li>이전 문제로는 돌아갈 수 없어요.</li>
           <li>소리가 나오니 스피커나 이어폰을 켜 주세요.</li>
@@ -379,10 +390,7 @@ export default function TossExam() {
         )}
       </article>
 
-      <section
-        className="mt-auto flex flex-col items-center gap-3 pt-6 pb-2"
-        aria-live="polite"
-      >
+      <section className="mt-auto flex flex-col items-center gap-3 pt-6 pb-2" aria-live="polite">
         <p className="text-sm font-semibold">{kind ? PHASE_LABEL[kind] : ""}</p>
         {remaining !== null ? (
           <>
@@ -404,11 +412,22 @@ export default function TossExam() {
             <p className="text-xs text-secondary">다 말했으면 버튼을 눌러 다음 문제로</p>
           </>
         ) : (
-          <p className="text-xs text-secondary">
-            {kind === "prep" && "신호음이 울리면 바로 녹음이 시작돼요"}
-            {kind === "read" && "자료를 읽어 두세요. 곧 질문이 나와요"}
-            {kind === "listen" && "질문을 잘 들어 주세요"}
-          </p>
+          <>
+            <p className="text-xs text-secondary">
+              {kind === "prep" && "신호음이 울리면 바로 녹음이 시작돼요"}
+              {kind === "read" && "자료를 읽어 두세요. 곧 질문이 나와요"}
+              {kind === "listen" && "질문을 잘 들어 주세요"}
+            </p>
+            {(kind === "prep" || kind === "read") && phaseTotal > 5 && (
+              <button
+                type="button"
+                className="btn btn-outline btn-sm border-base-300"
+                onClick={skipPhase}
+              >
+                {kind === "prep" ? "준비 끝, 바로 답하기" : "다 읽었어요"}
+              </button>
+            )}
+          </>
         )}
 
         {rec.error && (

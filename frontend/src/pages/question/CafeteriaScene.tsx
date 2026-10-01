@@ -11,7 +11,16 @@ export default function CafeteriaScene() {
       <rect width="320" height="200" fill="#eef1f5" />
       <rect y="150" width="320" height="50" fill="#d9cfc1" />
       {/* 창문과 나무 */}
-      <rect x="190" y="18" width="110" height="70" rx="3" fill="#cfe3f2" stroke="#9aa6b8" strokeWidth="2" />
+      <rect
+        x="190"
+        y="18"
+        width="110"
+        height="70"
+        rx="3"
+        fill="#cfe3f2"
+        stroke="#9aa6b8"
+        strokeWidth="2"
+      />
       <line x1="245" y1="18" x2="245" y2="88" stroke="#9aa6b8" strokeWidth="2" />
       <circle cx="222" cy="58" r="16" fill="#7fb07f" />
       <rect x="220" y="66" width="4" height="22" fill="#8a6a4a" />
@@ -32,7 +41,15 @@ export default function CafeteriaScene() {
       <path d="M78 66 q10 -12 20 0 v-4 q-10 -10 -20 0z" fill="#3b2f2f" />
       <rect x="76" y="80" width="24" height="28" rx="6" fill="#3d5a99" />
       <rect x="82" y="84" width="12" height="18" fill="#e8ecf2" />
-      <line x1="100" y1="90" x2="114" y2="98" stroke="#f0c9a5" strokeWidth="5" strokeLinecap="round" />
+      <line
+        x1="100"
+        y1="90"
+        x2="114"
+        y2="98"
+        stroke="#f0c9a5"
+        strokeWidth="5"
+        strokeLinecap="round"
+      />
       <rect x="112" y="92" width="8" height="10" rx="1.5" fill="#fff" stroke="#7d5d40" />
       {/* 손님 (계산대 앞, 컵을 받음) */}
       <circle cx="136" cy="96" r="9" fill="#d9a77f" />
@@ -40,7 +57,15 @@ export default function CafeteriaScene() {
       <rect x="126" y="105" width="20" height="34" rx="6" fill="#d4483b" />
       <rect x="128" y="139" width="7" height="14" fill="#2b3550" />
       <rect x="138" y="139" width="7" height="14" fill="#2b3550" />
-      <line x1="127" y1="112" x2="120" y2="100" stroke="#d9a77f" strokeWidth="5" strokeLinecap="round" />
+      <line
+        x1="127"
+        y1="112"
+        x2="120"
+        y2="100"
+        stroke="#d9a77f"
+        strokeWidth="5"
+        strokeLinecap="round"
+      />
       {/* 테이블과 학생 두 명 */}
       <rect x="196" y="122" width="100" height="8" rx="2" fill="#7d5d40" />
       <rect x="242" y="130" width="6" height="26" fill="#7d5d40" />
