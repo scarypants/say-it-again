@@ -441,7 +441,7 @@ type Retry = {
 
 - 발표는 처음 질문이 없다 (`initial` + `presentation`은 400).
 - 꼬리질문은 모드마다 성격이 다르다.
-  - 발표: 발표를 마친 뒤 **학우나 교수님에게 받을 법한 예상 질문**과 답변 방향(`hint`)
+  - 발표: 발표를 마친 뒤 **청중(학우·교수님 등 누구나)에게 받을 법한 예상 질문**과 답변 방향(`hint`)
   - 스피킹: 같은 시험 형식의 **추가 연습 질문** (토익은 그림·표가 필요 없는 Part 3·5 형식, 오픽은 같은 주제의 연관 질문)
   - 면접: 답변 내용을 파고드는 **꼬리질문** (어느 답변에서 나온 질문인지 `about`)
 - 기존 `POST /api/interview/questions`는 이 API(`kind: "initial"`, `mode: "interview"`)로 대체한다. 프론트가 옮길 때까지 같은 동작으로 남겨 두고, 옮긴 뒤 삭제한다.
@@ -469,8 +469,8 @@ type FollowUpQuestionsRequest = {
   level?: "assignment" | "exam" | "keynote";   // 발표
   exam?: "TOEIC-Speaking" | "opic";            // 스피킹
   job?: string;                                // 면접 (처음 질문 응답의 job)
-  count?: 1 | 2 | 3;                           // 기본 3
-  answers: {                                   // 파트 순서대로. 1~5개
+  count?: 1 | 2 | 3;                           // 받을 꼬리질문 개수. 기본 3
+  answers: {                                   // 꼬리질문을 만들 재료: 원래 연습의 녹음(파트)마다 하나씩, 파트 순서대로 1~5개 (꼬리질문 개수와 무관)
     question?: string;                         // 그 파트의 questions[i] (발표는 없음)
     text: string;                              // 실제로 말한 대본: 분석 결과 parts[i].script의 words를 공백으로 이어 붙인 것
   }[];
@@ -503,11 +503,10 @@ type Question = {
   part?: 1 | 2 | 3 | 4 | 5;
   context?: string;          // Part 1 읽을 지문, Part 3 상황 설명
   picture?: "cafeteria";     // Part 2 사진 (프론트가 그릴 수 있는 사진 id)
-  schedule?: { title: string; rows: { time: string; session: string; speaker: string }[] };  // Part 4 자료
+  schedule?: { title: string; rows: { time: string; session: string; speaker: string }[] };  // Part 4 자료 (LLM이 만든다)
   // 오픽
   topic?: { id: string; label: string };
   // 꼬리질문
-  from?: "student" | "professor";  // 발표 예상 질문: 누가 물을 법한지
   hint?: string;             // 발표: 답변 방향 한 줄 / 면접: 이 질문의 의도 한 줄 (한국어)
   about?: number;            // 면접·스피킹 꼬리질문: 이어지는 답변 번호(answers 기준, 0부터)
 };
@@ -523,7 +522,7 @@ type Question = {
 | initial · 면접 | `intro` → `motivation` → `job` → `experience` → `closing` | 5개, 순서 고정 |
 | initial · 토익 | `readAloud`(Part 1) → `describePicture`(Part 2) → `respond`(Part 3) → `information`(Part 4) → `opinion`(Part 5) | 5개, 순서 고정 |
 | initial · 오픽 | `intro` → `description` → `routine` → `experience` → `rolePlayAsk` 또는 `rolePlaySolve`(level 5 이상) | 5개, 순서 고정. 묘사·루틴·경험은 같은 주제 |
-| followUp · 발표 | `expected` (+ `from`, `hint`) | 1~3개 |
+| followUp · 발표 | `expected` (+ `hint`) | 1~3개 |
 | followUp · 토익 | `respond` 또는 `opinion` | 1~3개 |
 | followUp · 오픽 | `followUp` (+ `topic`, `about`) | 1~3개 |
 | followUp · 면접 | `followUp` (+ `about`, `hint`) | 1~3개 |
@@ -583,14 +582,14 @@ type Question = {
   "mode": "presentation",
   "language": "ko",
   "questions": [
-    { "type": "expected", "from": "professor",
+    { "type": "expected",
       "text": "대기 시간 20분이라는 수치는 어떤 방법으로 조사했나요?",
       "hint": "조사 기간·표본 수·측정 방법을 짧게 밝히고 한계도 인정하세요.",
-      "prompt": "Presentation Q&A 1 (Professor)\nQuestion: 대기 시간 20분이라는 수치는 어떤 방법으로 조사했나요?" },
-    { "type": "expected", "from": "student",
+      "prompt": "Presentation Q&A 1\nQuestion: 대기 시간 20분이라는 수치는 어떤 방법으로 조사했나요?" },
+    { "type": "expected",
       "text": "제안한 해결책을 실제로 적용하려면 비용이 얼마나 드나요?",
       "hint": "정확한 금액이 없으면 비용이 드는 항목과 우선순위로 답하세요.",
-      "prompt": "Presentation Q&A 2 (Student)\nQuestion: 제안한 해결책을 실제로 적용하려면 비용이 얼마나 드나요?" }
+      "prompt": "Presentation Q&A 2\nQuestion: 제안한 해결책을 실제로 적용하려면 비용이 얼마나 드나요?" }
   ]
 }
 ```
@@ -632,7 +631,7 @@ type Question = {
     "Interview Q2 (Motivation)\nJob: 백엔드 개발자\nQuestion: 백엔드 개발자 직무에 지원한 이유는 무엇인가요?"
   ]
   ```
-- 꼬리질문은 머리말만 다르다: 면접 `Interview Follow-up N (about QM)`, 오픽 `OPIc Follow-up N (topic: …)`, 토익 `TOEIC Speaking Part 3/5 (…)` (처음 질문과 같은 형식), 발표 예상 질문 `Presentation Q&A N (Professor|Student)`.
+- 꼬리질문은 머리말만 다르다: 면접 `Interview Follow-up N (about QM)`, 오픽 `OPIc Follow-up N (topic: …)`, 토익 `TOEIC Speaking Part 3/5 (…)` (처음 질문과 같은 형식), 발표 예상 질문 `Presentation Q&A N`.
 
 ### 검증
 - `mode`와 `language` 조합: 발표·면접은 `ko`·`en`, 스피킹은 `en`만 허용한다.
