@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { LEVEL_LABEL } from "../../api/presentationLevels";
-import { useOpenRecord, useRetryFrom } from "../../store/analysis";
+import { canRetry, useOpenRecord, useRetryFrom } from "../../store/analysis";
 import { clearRecords, deleteRecord, listRecords, type HistoryRecord } from "../../store/history";
 import type { InputMode } from "../../types/api";
 import { mmss, totalDuration } from "./scriptFormat";
@@ -105,7 +105,7 @@ export default function HistoryPanel({ open, onClose }: Props) {
                 key={rec.id}
                 record={rec}
                 onOpen={(to) => go(() => openRecord(rec, to))}
-                onRetry={() => go(() => retryFrom(rec.result))}
+                onRetry={() => go(() => retryFrom(rec.result, rec.questions))}
                 onDelete={() => remove(rec.id)}
               />
             ))}
@@ -193,7 +193,7 @@ function HistoryItem({ record, onOpen, onRetry, onDelete }: ItemProps) {
         <button className="btn btn-outline btn-xs" onClick={() => onOpen("/script")}>
           스크립트
         </button>
-        {r.mode === "presentation" && (
+        {canRetry(r, record.questions) && (
           <button className="btn btn-primary btn-xs" onClick={onRetry}>
             다시, 말해
           </button>

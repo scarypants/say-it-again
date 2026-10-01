@@ -12,7 +12,7 @@ export const MAX_RECORDS = 20;
 export type HistoryRecord = {
   id: string;
   savedAt: number; // ms
-  questions?: string[]; // 스피킹만
+  questions?: string[]; // 스피킹·면접
   result: AnalyzeResponse;
   audioTypes: string[] | null; // 녹음 파일별 MIME. null이면 녹음 없이 저장됨
 };
