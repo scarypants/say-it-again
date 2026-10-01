@@ -5,7 +5,7 @@ export const categories = {
   filler: { label: "군더더기", style: "bg-hl-filler-soft decoration-hl-filler decoration-2" },
   repeat: { label: "반복", style: "decoration-hl-repeat decoration-wavy decoration-2" },
   expression: { label: "표현 개선", style: "decoration-hl-expr decoration-dotted decoration-2" },
-  grammar: { label: "문법", style: "decoration-hl-grammar decoration-double decoration-2" },
+  grammar: { label: "문법", style: "decoration-[#efb1c7] decoration-double decoration-2" },
 };
 
 export type Feedback = {

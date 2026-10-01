@@ -1,14 +1,15 @@
-import { lazy, Suspense, useEffect } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { Link } from "react-router";
 import sample from "../../mocks/analyze.sample.json";
 import { useAnalysis } from "../../store/analysis";
 import type { AnalyzeResponse } from "../../types/api";
-const ResultCharts = lazy(() => import("./components/ResultCharts"));
+import { createChartData } from "./chartData";
+import { wordFeedback } from "../script/feedback";
+const FeedbackChart = lazy(() => import("./components/FeedbackChart"));
 
 const sampleResult = sample as unknown as AnalyzeResponse;
 const canLoadSample = import.meta.env.DEV || import.meta.env.VITE_USE_MOCK === "true";
 const modeNames = { lecture: "발표", language: "어학 스피킹", interview: "면접" };
-
 function timestamp(seconds: number) {
   const safe = Number.isFinite(seconds) ? Math.max(0, seconds) : 0;
   return `${Math.floor(safe / 60)}:${Math.floor(safe % 60)
@@ -16,45 +17,47 @@ function timestamp(seconds: number) {
     .padStart(2, "0")}`;
 }
 
-// 김왁수 담당. 스크립트와 동일한 공용 분석 결과를 사용한다.
 export default function SummaryPage() {
   const { result, setResult, settings } = useAnalysis();
+  const [selection, setSelection] = useState<{
+    result: AnalyzeResponse;
+    category: "filler" | "repeat";
+  } | null>(null);
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "instant" });
   }, []);
-  const pauses =
-    result?.lines.flatMap((line, index) => (line.pause ? [{ ...line, index }] : [])) ?? [];
-  const highlights = Object.values(result?.highlight ?? {}).flat();
-  const expressionCount = highlights.filter((item) => item[4] !== "grammar").length;
-  const grammarCount = highlights.length - expressionCount;
-  const repeatCount = Object.values(result?.repeats ?? {}).reduce(
-    (count, words) => count + new Set(words).size,
-    0,
-  );
+  const selected = selection?.result === result ? selection.category : null;
+  const chart = result ? createChartData(result) : [];
+  const improvements =
+    result && selected
+      ? result.lines.flatMap((line, lineIndex) => {
+          const words =
+            selected === "filler" ? result.fillers[lineIndex] : result.repeats[lineIndex];
+          const word = words?.find(
+            (index) => Number.isInteger(index) && index >= 0 && index < line.words.length,
+          );
+          if (word === undefined || line.pause) return [];
+          const feedback = wordFeedback(result, lineIndex, word).find(
+            (item) => item.category === selected,
+          );
+          return feedback
+            ? [
+                {
+                  ...feedback,
+                  original: line.words.join(" "),
+                  lineIndex,
+                  start: line.start,
+                  end: line.end,
+                  word,
+                },
+              ]
+            : [];
+        })
+      : [];
   const score =
     result && Number.isFinite(result.stats.score)
       ? Math.min(100, Math.max(0, result.stats.score))
       : null;
-  const metrics = result
-    ? [
-        { label: "말하기 속도", value: `${result.stats.wpm}`, unit: "단어/분" },
-        { label: "군더더기", value: `${result.stats.fillerCount}`, unit: "회" },
-        {
-          label: "정지 구간",
-          value: `${result.stats.panicCount}`,
-          unit: "회",
-          detail: `총 ${result.stats.panicTotalSec.toFixed(1)}초`,
-        },
-        { label: "표현 개선", value: `${expressionCount}`, unit: "곳" },
-      ]
-    : [];
-  const categories = [
-    { name: "막힌 지점", value: result?.stats.panicCount ?? 0, fill: "var(--color-hl-panic)" },
-    { name: "군더더기", value: result?.stats.fillerCount ?? 0, fill: "var(--color-hl-filler)" },
-    { name: "반복", value: repeatCount, fill: "var(--color-hl-repeat)" },
-    { name: "표현 개선", value: expressionCount, fill: "var(--color-hl-expr)" },
-    { name: "문법", value: grammarCount, fill: "var(--color-hl-grammar)" },
-  ];
 
   return (
     <div className="flex flex-1 flex-col gap-6 pt-6">
@@ -64,10 +67,9 @@ export default function SummaryPage() {
           이번 말하기를 돌아봐요
         </h1>
         <p className="mt-3 text-sm leading-relaxed text-base-content/70">
-          잘한 점을 확인하고, 다음 연습에서 바꿀 한 가지를 찾아보세요.
+          전체 흐름을 확인하고, 다음 연습에서 바꿀 한 가지를 찾아보세요.
         </p>
       </header>
-
       {canLoadSample && (
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-box bg-base-200 p-3">
           <span className="text-xs text-base-content/70">
@@ -78,13 +80,15 @@ export default function SummaryPage() {
           <button
             type="button"
             className="btn btn-outline btn-sm"
-            onClick={() => setResult(sampleResult)}
+            onClick={() => {
+              setSelection(null);
+              setResult(sampleResult);
+            }}
           >
             샘플 불러오기
           </button>
         </div>
       )}
-
       {!result?.lines.length ? (
         <section className="card card-border bg-base-100" aria-labelledby="summary-empty">
           <div className="card-body items-start gap-4">
@@ -121,27 +125,6 @@ export default function SummaryPage() {
               </p>
             </div>
           </section>
-
-          <dl className="grid grid-cols-2 gap-3" aria-label="말하기 핵심 지표">
-            {metrics.map((metric) => (
-              <div
-                key={metric.label}
-                className="stat min-w-0 rounded-box border border-base-300 p-4"
-              >
-                <dt className="stat-title whitespace-normal text-xs text-base-content/70">
-                  {metric.label}
-                </dt>
-                <dd className="stat-value mt-2 text-2xl tabular-nums">
-                  {metric.value}
-                  <span className="ml-1 text-xs font-normal">{metric.unit}</span>
-                </dd>
-                {metric.detail && (
-                  <dd className="stat-desc mt-1 text-base-content/70">{metric.detail}</dd>
-                )}
-              </div>
-            ))}
-          </dl>
-
           <Suspense
             fallback={
               <p role="status" className="text-sm text-base-content/70">
@@ -149,9 +132,60 @@ export default function SummaryPage() {
               </p>
             }
           >
-            <ResultCharts fillers={result.fillerTop} categories={categories} />
+            <FeedbackChart
+              categories={chart}
+              selected={selected}
+              onSelect={(category) =>
+                setSelection(selected === category ? null : { result, category })
+              }
+            />
           </Suspense>
-
+          <section
+            aria-labelledby="improvements-title"
+            className="rounded-box border border-base-300 bg-base-200 p-4"
+          >
+            <h2 id="improvements-title" className="text-lg font-bold">
+              {selected
+                ? `${selected === "filler" ? "군더더기" : "반복"} 표현 개선안`
+                : "색상을 눌러 개선안을 확인하세요"}
+            </h2>
+            {selected ? (
+              <div className="mt-4 flex flex-col gap-4" aria-live="polite">
+                {improvements.length ? (
+                  improvements.map((item, index) => (
+                    <article
+                      key={item.lineIndex}
+                      className={index ? "border-t border-base-300 pt-4" : ""}
+                    >
+                      <p className="text-xs tabular-nums text-base-content/65">
+                        {timestamp(item.start)} – {timestamp(item.end)}
+                      </p>
+                      <p className="mt-2 text-xs font-semibold text-base-content/65">말한 문장</p>
+                      <p className="mt-1 font-script text-base leading-relaxed wrap-anywhere">
+                        {item.original}
+                      </p>
+                      <p className="mt-3 text-xs font-semibold text-base-content/65">개선한 문장</p>
+                      <p className="mt-1 font-script text-lg leading-relaxed wrap-anywhere">
+                        {item.improved || "이 표현은 생략하고 다음 문장으로 이어 말해보세요."}
+                      </p>
+                      <Link
+                        to={`/script?line=${item.lineIndex}&word=${item.word}`}
+                        className="link mt-3 inline-block text-xs"
+                      >
+                        대본에서 보기 →
+                      </Link>
+                    </article>
+                  ))
+                ) : (
+                  <p className="text-sm text-base-content/70">이 항목의 개선안이 없어요.</p>
+                )}
+              </div>
+            ) : (
+              <p className="mt-2 text-sm leading-relaxed text-base-content/70">
+                원형 차트의 보라색 반복 또는 노란색 군더더기를 선택해 주세요.
+              </p>
+            )}
+          </section>
           <section aria-labelledby="priorities-title">
             <h2 id="priorities-title" className="text-lg font-bold">
               먼저 고칠 3가지
@@ -174,34 +208,6 @@ export default function SummaryPage() {
               </p>
             )}
           </section>
-
-          <section aria-labelledby="timeline-title">
-            <h2 id="timeline-title" className="text-lg font-bold">
-              말이 멈춘 순간
-            </h2>
-            <p className="mt-2 text-sm text-base-content/70">
-              말이 멈춘 위치와 시간을 확인해보세요.
-            </p>
-            {pauses.length ? (
-              <ol className="mt-3 flex flex-col gap-2">
-                {pauses.map((line) => (
-                  <li key={line.index}>
-                    <div className="flex min-h-11 items-center justify-between gap-2 rounded-box border border-hl-panic/40 bg-hl-panic-soft px-3 py-3">
-                      <span className="text-sm tabular-nums">
-                        {timestamp(line.start)} – {timestamp(line.end)}
-                      </span>
-                      <span className="text-xs">
-                        {Math.max(0, line.end - line.start).toFixed(1)}초 정지
-                      </span>
-                    </div>
-                  </li>
-                ))}
-              </ol>
-            ) : (
-              <p className="mt-3 text-sm text-base-content/70">2초 이상 멈춘 구간이 없어요.</p>
-            )}
-          </section>
-
           <div className="flex flex-col gap-3">
             <Link to="/record" className="btn btn-primary btn-lg btn-block">
               다시 말해보기
