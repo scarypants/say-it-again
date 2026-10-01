@@ -1,5 +1,6 @@
 import { LLM_MODEL, LLM_REASONING_EFFORT, LLM_TIMEOUT_MS, MAX_EXPRESSIONS, MOCK_LLM } from '../config';
 import { mockDelay, readFixture } from '../mock';
+import { toScreenTerms } from '../text';
 import { getOpenAI } from '../openai';
 import type { Analysis, Charts, Compare, Highlight, Line, Part, Retry } from '../types/api';
 import type { AnalyzeInput, LlmPartResult, RetryInput } from '../types/internal';
@@ -89,13 +90,13 @@ export async function analyzePart(input: AnalyzeInput, script: Line[], partIndex
       from: line.offset + issue.from,
       to: line.offset + issue.to,
       category: issue.category,
-      reason: issue.reason,
+      reason: toScreenTerms(issue.reason),
       fixed: issue.fixed,
     });
   }
 
   const panicNotes = new Map(
-    out.panics.filter((p) => script[p.line]?.pause).map((p) => [p.line, { reason: p.reason, fixed: p.fixed }]),
+    out.panics.filter((p) => script[p.line]?.pause).map((p) => [p.line, { reason: toScreenTerms(p.reason), fixed: p.fixed }]),
   );
 
   return {
@@ -104,14 +105,18 @@ export async function analyzePart(input: AnalyzeInput, script: Line[], partIndex
     final: out.final
       .map((sentence) => ({ words: sentence.trim().split(/\s+/).filter(Boolean) }))
       .filter((s) => s.words.length > 0),
-    comment: out.comment || undefined,
+    comment: toScreenTerms(out.comment) || undefined,
   };
 }
 
 /** 파트별 결과의 요약본으로 전체 총평(summary)을 받는다. */
 export async function summarize(input: AnalyzeInput, parts: Part[]): Promise<Analysis['summary']> {
   const out = await requestSummaryOutput(input, parts);
-  return { headline: out.headline, topPriorities: out.topPriorities.slice(0, 3), comment: out.comment };
+  return {
+    headline: toScreenTerms(out.headline),
+    topPriorities: out.topPriorities.slice(0, 3).map(toScreenTerms),
+    comment: toScreenTerms(out.comment),
+  };
 }
 
 /** 재도전 총평: 전후 비교 수치로 개선된 점·남은 점·한 줄 총평을 받는다. mock 모드에서는 저장된 응답을 쓴다. */
@@ -125,7 +130,11 @@ export async function summarizeRetry(
   const out = MOCK_LLM
     ? await mockDelay(500).then(() => readFixture<Retry>(`llm-retry-${input.language}.json`))
     : await callJson<Retry>('retry_summary', RETRY_SCHEMA, retryMessages(input, parts, charts, compare, mismatch));
-  return { improved: out.improved.slice(0, 3), remaining: out.remaining.slice(0, 3), comment: out.comment };
+  return {
+    improved: out.improved.slice(0, 3).map(toScreenTerms),
+    remaining: out.remaining.slice(0, 3).map(toScreenTerms),
+    comment: toScreenTerms(out.comment),
+  };
 }
 
 /**
