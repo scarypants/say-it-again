@@ -452,7 +452,12 @@ export default function ToeicSpeakingExam({ onRestart }: { onRestart: () => void
         {kind === "speak" ? (
           <>
             <LevelBars levels={rec.levels} />
-            <MicButton size="md" recording={rec.status === "recording"} onClick={stopEarly} />
+            <MicButton
+              key={qi}
+              size="md"
+              recording={rec.status === "recording"}
+              onClick={stopEarly}
+            />
             <p className="text-xs text-secondary">
               {timeUp
                 ? `녹음은 계속돼요. 다 말했으면 버튼을 눌러 다음 문제로 (${ANSWER_HARD_MAX_SEC - Math.floor(rec.elapsed)}초 뒤 자동으로 넘어가요)`
