@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router";
 import { audioFileName, interviewQuestions } from "../../api/client";
 import { useTranscribe } from "../../api/useTranscribe";
@@ -9,13 +9,14 @@ import PageHeader from "../../components/common/PageHeader";
 import { mmss } from "../../components/common/scriptFormat";
 import { useLeaveGuard } from "../../components/common/useLeaveGuard";
 import { useRecorder } from "../../components/common/useRecorder";
-import { useAnalysis } from "../../store/analysis";
+import { isInterview, useAnalysis } from "../../store/analysis";
 import type { InterviewQuestion } from "../../types/api";
 import {
   ANSWER_GOAL_SEC,
   ANSWER_MAX_SEC,
   interviewQuestionText,
   interviewTypeName,
+  parseInterviewQuestion,
 } from "./interviewItems";
 
 type Stage = "setup" | "running" | "done";
@@ -23,18 +24,29 @@ type Stage = "setup" | "running" | "done";
 // 면접 모의 연습 (#76): 화면을 열면 백엔드가 지원 직무에 맞춘 질문 5개를 만든다.
 // 질문을 화면에 보여 주자마자 신호음과 함께 자동 녹음 (생각할 시간 없음). 어려운 질문은 건너뛸 수 있다.
 // 다 말하면 버튼으로 다음 질문. 다섯 질문이 끝나면 한 번에 대본으로 만든다.
+// "다시, 말해" 재도전이면 질문을 새로 만들지 않고 지난번 질문 그대로, 질문마다 지난 모범 답안을 펼쳐 볼 수 있다.
 // onRestart: 음성이 감지되지 않았을 때 처음부터 다시 (부모가 새로 그린다)
 export default function InterviewExam({ onRestart }: { onRestart: () => void }) {
-  const { settings } = useAnalysis();
+  const { settings, previous } = useAnalysis();
   const language = settings.language;
-  const job = settings.job ?? "";
+  // 재도전: 지난번 질문 문자열에서 질문과 직무를 되살린다
+  const retry = useMemo(
+    () =>
+      previous && isInterview(previous) && settings.retryQuestions?.length
+        ? settings.retryQuestions.map(parseInterviewQuestion)
+        : null,
+    [previous, settings.retryQuestions],
+  );
+  const job = settings.job ?? retry?.[0]?.job ?? "";
   const rec = useRecorder(ANSWER_MAX_SEC); // 2분이 되면 자동으로 멈추고 다음 질문
 
   const [stage, setStage] = useState<Stage>("setup");
-  const [items, setItems] = useState<InterviewQuestion[]>([]);
+  const [items, setItems] = useState<InterviewQuestion[]>(
+    () => retry?.map((r) => r.question) ?? [],
+  );
   // 질문 생성: 화면을 열자마자 미리 받아 둔다. loadRound를 올리면 다시 받는다
   const [loadRound, setLoadRound] = useState(0);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!retry);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [qi, setQi] = useState(0);
   const [answers, setAnswers] = useState<(Blob | null)[]>([]);
@@ -144,7 +156,7 @@ export default function InterviewExam({ onRestart }: { onRestart: () => void }) 
   }
 
   useEffect(() => {
-    if (!job) return;
+    if (!job || retry) return;
     let cancelled = false;
     interviewQuestions({ language, job })
       .then((res) => {
@@ -162,7 +174,7 @@ export default function InterviewExam({ onRestart }: { onRestart: () => void }) 
     return () => {
       cancelled = true;
     };
-  }, [language, job, loadRound]);
+  }, [language, job, loadRound, retry]);
 
   // 화면을 떠나면 진행 중인 단계·녹음 URL 정리
   useEffect(
@@ -200,7 +212,7 @@ export default function InterviewExam({ onRestart }: { onRestart: () => void }) 
     return (
       <div className="flex flex-1 flex-col">
         <PageHeader
-          title="면접 연습"
+          title={retry ? "다시, 말해" : "면접 연습"}
           description={`${job} · ${language === "en" ? "영어" : "한국어"}로 답해요`}
           action={
             <Link to="/" className="btn btn-ghost btn-sm">
@@ -209,8 +221,10 @@ export default function InterviewExam({ onRestart }: { onRestart: () => void }) 
           }
         />
         <p className="text-[0.9375rem] leading-relaxed">
-          AI가 {job} 직무에 맞춰 만든 다섯 질문에 답해요. 자기소개로 시작해 마무리로 끝나요. 질문이
-          나오면 신호음과 함께 바로 녹음돼요.
+          {retry
+            ? `지난번과 같은 질문 ${items.length}개에 다시 답해요. 질문마다 지난번 모범 답안을 펼쳐 볼 수 있고, 끝나면 지난번과 비교해 드려요.`
+            : `AI가 ${job} 직무에 맞춰 만든 다섯 질문에 답해요. 자기소개로 시작해 마무리로 끝나요.`}{" "}
+          질문이 나오면 신호음과 함께 바로 녹음돼요.
         </p>
         <ul className="mt-5 list-disc space-y-1 pl-5 text-sm text-secondary">
           <li>
@@ -332,6 +346,10 @@ export default function InterviewExam({ onRestart }: { onRestart: () => void }) 
 
   const item = items[qi];
   const overGoal = rec.elapsed >= ANSWER_GOAL_SEC;
+  // 재도전: 이 질문의 지난 모범 답안 (previous.parts는 지난번 질문과 같은 순서)
+  const modelAnswer = retry
+    ? previous?.parts[qi]?.final.map((l) => l.words.join(" ")).join(" ")
+    : undefined;
   const skipButton = (
     <button type="button" className="btn btn-ghost btn-sm" onClick={() => skipQuestion(qi)}>
       {qi + 1 < items.length ? "이 질문 건너뛰기" : "건너뛰고 끝내기"}
@@ -364,6 +382,14 @@ export default function InterviewExam({ onRestart }: { onRestart: () => void }) 
         <h1 lang={language} className="mt-2 text-2xl leading-snug font-bold">
           {item.text}
         </h1>
+        {modelAnswer && (
+          <details className="mt-4 rounded-box bg-base-200 px-4 py-3 text-sm">
+            <summary className="cursor-pointer font-medium">지난번 모범 답안 보기</summary>
+            <p lang={language} className="mt-2 leading-relaxed">
+              {modelAnswer}
+            </p>
+          </details>
+        )}
       </section>
 
       <section className="flex flex-col items-center gap-3 pt-2 pb-2" aria-live="polite">

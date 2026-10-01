@@ -19,6 +19,7 @@ export type Settings = {
   level?: PresentationLevel;
   exam?: Exam;
   job?: string; // 면접만. 지원 직무
+  retryQuestions?: string[]; // 면접 재도전: 지난번에 답한 질문 문자열 그대로 (같은 질문으로 다시 답한다)
 };
 
 // 한 번의 연습: 녹음 파일(문장 재생용)과 질문, 1단계 전사 결과. 검토 화면과 결과 화면이 같이 쓴다
@@ -49,26 +50,42 @@ export function useAnalysis() {
   return ctx;
 }
 
-// "다시, 말해": 지금 결과를 previous로 보관하고 같은 설정으로 녹음 화면에 간다 (발표 모드)
-export function useStartRetry() {
-  const { result } = useAnalysis();
-  const retryFrom = useRetryFrom();
-  return useCallback(() => {
-    if (result) retryFrom(result);
-  }, [result, retryFrom]);
+// 면접 결과인지. 응답 타입(Mode)에 아직 "interview"가 없어 문자열로 본다 (김왁수 summary modeNames 반영 후 합친다)
+export function isInterview(r: { mode: string }) {
+  return r.mode === "interview";
 }
 
-// 지정한 결과(예: 기록)를 기준으로 "다시, 말해"를 시작한다
+// "다시, 말해"를 할 수 있는 결과인지. 발표는 대본, 면접은 지난 질문이 있어야 한다
+export function canRetry(r: AnalyzeResponse, questions?: string[]) {
+  return r.mode === "presentation" || (isInterview(r) && !!questions?.length);
+}
+
+// "다시, 말해": 지금 결과를 previous로 보관하고 같은 설정으로 다시 연습한다 (발표: 녹음 화면, 면접: 같은 질문)
+export function useStartRetry() {
+  const { result, session } = useAnalysis();
+  const retryFrom = useRetryFrom();
+  return useCallback(() => {
+    if (result) retryFrom(result, session?.questions);
+  }, [result, session, retryFrom]);
+}
+
+// 지정한 결과(예: 기록)를 기준으로 "다시, 말해"를 시작한다.
+// 면접은 지난번 질문(questions)으로 질문 화면에 간다. 직무는 질문 문자열 안에 있다
 export function useRetryFrom() {
   const { setPrevious, setResult, setSession, setSettings } = useAnalysis();
   const navigate = useNavigate();
   return useCallback(
-    (from: AnalyzeResponse) => {
-      setSettings({ mode: from.mode, language: from.language, level: from.level });
+    (from: AnalyzeResponse, questions?: string[]) => {
+      const interview = isInterview(from) && !!questions?.length;
+      setSettings(
+        interview
+          ? { mode: "interview", language: from.language, retryQuestions: questions }
+          : { mode: from.mode, language: from.language, level: from.level },
+      );
       setPrevious(from);
       setResult(null);
       setSession(null);
-      navigate("/record");
+      navigate(interview ? "/question" : "/record");
     },
     [setPrevious, setResult, setSession, setSettings, navigate],
   );

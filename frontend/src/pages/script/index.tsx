@@ -103,7 +103,7 @@ export default function ScriptPage() {
         <div className="flex flex-col gap-6">
           {result.parts.map((part, pi) => (
             <section key={pi} aria-label={partTitle(result.mode, pi, part.duration)}>
-              {(result.parts.length > 1 || result.mode === "speaking") && (
+              {(result.parts.length > 1 || result.mode !== "presentation") && (
                 <header className="mb-2 border-b border-base-300 pb-2">
                   <h2 className="text-sm font-semibold tabular-nums">
                     {partTitle(result.mode, pi, part.duration)}
