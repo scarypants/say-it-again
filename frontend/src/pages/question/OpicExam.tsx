@@ -4,6 +4,7 @@ import { Link } from "react-router";
 import { audioFileName } from "../../api/client";
 import { useTranscribe } from "../../api/useTranscribe";
 import AnalyzingView from "../../components/common/AnalyzingView";
+import CountdownBar from "../../components/common/CountdownBar";
 import LevelBars from "../../components/common/LevelBars";
 import MicButton from "../../components/common/MicButton";
 import { useLeaveGuard } from "../../components/common/useLeaveGuard";
@@ -465,9 +466,20 @@ export default function OpicExam({ onRestart }: { onRestart: () => void }) {
       <section className="flex flex-col items-center gap-3 pt-2 pb-2">
         {phase === "replay" && (
           <>
-            <p className="text-4xl font-semibold tabular-nums tracking-tight">
+            <p
+              key={Math.ceil(replayLeft)}
+              className="animate-tick text-4xl font-semibold tabular-nums tracking-tight"
+            >
               {Math.max(0, Math.ceil(replayLeft))}
             </p>
+            {replayEndsAt && (
+              <CountdownBar
+                key={replayEndsAt}
+                leftMs={replayEndsAt - now}
+                totalSec={REPLAY_WINDOW_SEC}
+                className="max-w-60 text-secondary"
+              />
+            )}
             <div className="flex w-full gap-2">
               <button
                 type="button"
@@ -495,7 +507,12 @@ export default function OpicExam({ onRestart }: { onRestart: () => void }) {
               <span className="text-lg font-medium text-secondary"> / {mmss(ANSWER_GOAL_SEC)}</span>
             </p>
             <LevelBars levels={rec.levels} />
-            <MicButton size="md" recording={rec.status === "recording"} onClick={stopEarly} />
+            <MicButton
+              key={qi}
+              size="md"
+              recording={rec.status === "recording"}
+              onClick={stopEarly}
+            />
             <p className="text-xs text-secondary">
               {overGoal
                 ? `권장 시간이 지났어요. ${mmss(ANSWER_MAX_SEC - rec.elapsed)} 뒤 다음 문제로 넘어가요`

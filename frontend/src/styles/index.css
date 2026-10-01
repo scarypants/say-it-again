@@ -72,6 +72,7 @@
      animate-reveal 눌러서 펼친 내용 (살짝 내려오며 나타남)
      animate-fade   같은 자리에서 내용만 바뀔 때
      animate-bar    사용자가 선택한 단어 빈도 막대가 늘어날 때
+     animate-tick   남은 시간 숫자가 1초마다 바뀔 때 (살짝 내려오며)
      값이 바뀌는 곳(막대, 테두리 색)은 transition + ease-soft 를 쓴다.
      backwards라 끝난 뒤엔 transform이 남지 않는다 (sticky·dialog 영향 없음) */
   --ease-soft: cubic-bezier(0.22, 1, 0.36, 1);
@@ -81,6 +82,7 @@
   --animate-reveal: reveal 220ms var(--ease-soft) backwards;
   --animate-fade: fade 180ms var(--ease-soft) backwards;
   --animate-bar: bar 320ms var(--ease-soft) backwards;
+  --animate-tick: tick 220ms var(--ease-soft) backwards;
 
   @keyframes enter {
     from {
@@ -103,6 +105,27 @@
     from {
       transform: scaleX(0);
     }
+  }
+  @keyframes tick {
+    from {
+      opacity: 0.35;
+      transform: translateY(-3px);
+    }
+  }
+}
+
+/* CountdownBar.tsx: 남은 시간 막대가 처음 비율에서 0까지 일정하게 준다.
+   시간 정보라 동작 줄이기를 켜도 그대로 줄어든다 (아래 reduced-motion 규칙보다 우선) */
+.countdown-fill {
+  animation: countdown var(--countdown-ms) linear forwards;
+  animation-duration: var(--countdown-ms) !important;
+}
+@keyframes countdown {
+  from {
+    transform: scaleX(var(--countdown-from));
+  }
+  to {
+    transform: scaleX(0);
   }
 }
 

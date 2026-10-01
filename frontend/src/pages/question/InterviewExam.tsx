@@ -404,7 +404,12 @@ export default function InterviewExam({ onRestart }: { onRestart: () => void }) 
           <span className="text-lg font-medium text-secondary"> / {mmss(ANSWER_GOAL_SEC)}</span>
         </p>
         <LevelBars levels={rec.levels} />
-        <MicButton size="md" recording={rec.status === "recording"} onClick={() => rec.stop()} />
+        <MicButton
+          key={qi}
+          size="md"
+          recording={rec.status === "recording"}
+          onClick={() => rec.stop()}
+        />
         <p className="text-xs text-secondary">
           {overGoal
             ? `권장 시간이 지났어요. ${mmss(ANSWER_MAX_SEC - rec.elapsed)} 뒤 다음 질문으로 넘어가요`
