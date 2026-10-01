@@ -72,7 +72,7 @@
 - TypeScript strict. `any`는 최소화. (frontend, backend 공통)
 - 포맷은 Prettier(`.prettierrc`), 줄바꿈 LF, 들여쓰기 2칸. 자기 소유 파일에만 포맷을 적용한다.
 - 파일명: 컴포넌트 `PascalCase.tsx`, 그 외 `camelCase.ts`.
-- 서버 튜닝 상수는 `backend/src/config.ts` 한곳에 모은다: `LINE_GAP=0.8`, `PANIC_GAP=2.0`, `MAX_WORDS=12`.
+- 서버 튜닝 상수는 `backend/src/config.ts` 한곳에 모은다: `PANIC_GAP=2.0`, `MAX_WORDS=40`, `PANIC_TAIL_WORDS=3`, `AMBIGUOUS_FILLER_GAP=0.3` 등.
 - UI: DaisyUI 컴포넌트 우선. 하이라이트 5색 규칙은 `docs/plan.md` 6-1절을 따른다. 이모지 남발·의미 없는 카드 중첩 금지.
 
 ## 7. 비밀값 · 환경 변수

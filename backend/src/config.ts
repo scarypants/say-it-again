@@ -1,10 +1,9 @@
 // 서버 튜닝 상수는 이 파일에 모은다.
 import type { Category } from './types/api';
 
-// 줄 분할 (단어 사이 간격, 초)
-export const LINE_GAP = 0.8;
+// 문장 분할: whisper segment(문장) 끝에서 끊고, PANIC_GAP초 이상 멈추면 pause 줄을 넣는다
 export const PANIC_GAP = 2.0;
-export const MAX_WORDS = 12;
+export const MAX_WORDS = 40; // 한 문장 최대 단어 수 (whisper가 아주 긴 segment를 줄 때 대비)
 
 // 업로드 제한
 export const MAX_FILES = 5;
