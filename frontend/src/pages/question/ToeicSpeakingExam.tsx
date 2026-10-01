@@ -40,7 +40,8 @@ type Stage = "intro" | "running" | "done";
 
 // 토익 스피킹 모의시험: 질문 듣기/보기 → 준비 → 자동 녹음. 답변 시간이 끝나면 신호음으로 알리고 녹음은 계속한다.
 // 마이크 버튼을 누르면 녹음을 끝내고 다음 문제. 이전 문제로는 돌아갈 수 없다.
-export default function ToeicSpeakingExam() {
+// onRestart: 음성이 감지되지 않았을 때 시험을 처음부터 다시 (부모가 새로 그린다)
+export default function ToeicSpeakingExam({ onRestart }: { onRestart: () => void }) {
   // 답변 시간이 끝나도 녹음은 계속하되, 서버 상한(답변당 60초, docs/api.md)에서 멈추고 다음 문제
   const rec = useRecorder(ANSWER_HARD_MAX_SEC);
 
@@ -330,10 +331,14 @@ export default function ToeicSpeakingExam() {
           <button
             type="button"
             className="btn btn-primary btn-lg flex-[2]"
-            onClick={runAnalyze}
+            onClick={tx.noSpeech ? onRestart : runAnalyze}
             disabled={!answers.some(Boolean)}
           >
-            {analyzeError ? "다시 시도하기" : "대본 만들기"}
+            {tx.noSpeech
+              ? "처음부터 다시 응시하기"
+              : analyzeError
+                ? "다시 시도하기"
+                : "대본 만들기"}
           </button>
         </div>
       </div>

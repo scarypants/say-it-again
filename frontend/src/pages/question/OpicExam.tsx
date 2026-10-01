@@ -33,7 +33,8 @@ type Phase = "listen" | "replay" | "speak";
 
 // 오픽 모의시험: 서베이·자가 평가 → 질문은 소리로만 → 5초 안에 한 번 다시 듣기 → 자동 녹음.
 // 다 말하면 버튼으로 다음 문제. 이전 문제로는 돌아갈 수 없다.
-export default function OpicExam() {
+// onRestart: 음성이 감지되지 않았을 때 시험을 처음부터 다시 (부모가 새로 그린다)
+export default function OpicExam({ onRestart }: { onRestart: () => void }) {
   const rec = useRecorder(ANSWER_MAX_SEC); // 2분이 되면 자동으로 멈추고 다음 문제
 
   const [stage, setStage] = useState<Stage>("setup");
@@ -386,10 +387,14 @@ export default function OpicExam() {
           <button
             type="button"
             className="btn btn-primary btn-lg flex-[2]"
-            onClick={runAnalyze}
+            onClick={tx.noSpeech ? onRestart : runAnalyze}
             disabled={!answers.some(Boolean)}
           >
-            {analyzeError ? "다시 시도하기" : "대본 만들기"}
+            {tx.noSpeech
+              ? "처음부터 다시 응시하기"
+              : analyzeError
+                ? "다시 시도하기"
+                : "대본 만들기"}
           </button>
         </div>
       </div>
