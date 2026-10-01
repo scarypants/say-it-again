@@ -7,6 +7,7 @@ import { AnalysisContext, type Session } from "../../store/analysis";
 import type { AnalyzeResponse } from "../../types/api";
 import SummaryPage from "./index";
 import { partTitle, totalDuration } from "../../components/common/scriptFormat";
+import { isFollowUpSummary } from "./followUp";
 
 const result: AnalyzeResponse = {
   mode: "presentation", language: "ko", level: "exam",
@@ -22,14 +23,14 @@ const result: AnalyzeResponse = {
   },
 };
 
-function render(source: AnalyzeResponse, questions?: string[]) {
+function render(source: AnalyzeResponse, questions?: string[], previous: AnalyzeResponse | null = null) {
   const session: Session = { audio: [], questions, transcript: { ...source, parts: source.parts } };
   const noop = () => {};
   return renderToStaticMarkup(
     <MemoryRouter>
       <AnalysisContext.Provider value={{
         settings: { mode: source.mode, language: source.language }, setSettings: noop,
-        result: source, setResult: noop, previous: null, setPrevious: noop,
+        result: source, setResult: noop, previous, setPrevious: noop,
         session, setSession: noop,
       }}>
         <SummaryPage />
@@ -65,4 +66,42 @@ test("짧은 업로드 파일도 실제 누적 길이로 제목을 표시하며 
   assert.equal(partTitle("presentation", 2, parts[2].duration, undefined, totalDuration(parts.slice(0, 2))), "00:36 – 00:45");
   assert.equal(partTitle("presentation", 1, 300, undefined, 300), "05:00 – 10:00");
   assert.equal(partTitle("interview", 1, 18, "Q4 자기소개", 18), "질문 4");
+});
+
+test("꼬리질문 답변 총평은 질문·개별 코멘트·모범 답안을 표시한다", () => {
+  const source = { ...result, mode: "interview" as const, parts: [{
+    ...result.parts[0], comment: "개인 역할과 결과를 구체적으로 밝혔어요.",
+    final: [{ words: ["저는", "API", "구현을", "담당했습니다."] }],
+  }] };
+  const html = render(source, ["Interview Follow-up 1 (about Q4)\nJob: 개발자\nQuestion: 본인의 역할은 무엇이었나요?"]);
+  assert.match(html, /꼬리질문 답변의 한 줄 요약/);
+  assert.match(html, /꼬리질문 답변 점수/);
+  assert.match(html, /본인의 역할은 무엇이었나요/);
+  assert.match(html, /개인 역할과 결과를 구체적으로 밝혔어요/);
+  assert.match(html, /모범 답안 보기/);
+  assert.match(html, /저는 API 구현을 담당했습니다/);
+  assert.match(html, /href="\/script\?part=0"/);
+});
+
+test("토익은 질문 개수만으로 꼬리질문이라 판단하지 않고 실제 연습 질문과 대조한다", () => {
+  const prompts = ["TOEIC Speaking Part 3\nQuestion: What changed?"];
+  assert.equal(isFollowUpSummary(prompts), false);
+  assert.equal(isFollowUpSummary(prompts, { practice: [{ prompt: prompts[0] }] }), true);
+  assert.equal(isFollowUpSummary(prompts, { practice: [{ prompt: "Other question" }] }), false);
+  assert.equal(isFollowUpSummary(prompts, { practice: [null] }), false);
+  assert.equal(isFollowUpSummary([], { practice: [] }), false);
+});
+
+test("꼬리질문 개별 코멘트가 없으면 서버 피드백을 임의로 만들지 않는다", () => {
+  const html = render({ ...result, mode: "speaking" }, ["OPIc Follow-up 1 (topic: cafe)\nQuestion: How has it changed?"]);
+  assert.match(html, /개별 코멘트가 제공되지 않았어요/);
+  assert.ok(!html.includes("모범 답안 보기"));
+});
+
+test("다른 질문의 결과를 이전 면접과 재도전 점수로 비교하지 않는다", () => {
+  const interview = { ...result, mode: "interview" as const };
+  const html = render(interview, ["Interview Follow-up 1\nQuestion: 무엇을 바꾸겠어요?"], interview);
+  assert.ok(!html.includes("재도전 점수"));
+  assert.ok(!html.includes("다시 말한 결과"));
+  assert.match(html, /꼬리질문 답변 점수/);
 });
