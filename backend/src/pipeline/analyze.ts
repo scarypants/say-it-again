@@ -23,13 +23,19 @@ export async function analyze(input: AnalyzeInput): Promise<AnalyzeResponse> {
     input.parts.map(async ({ duration, script: edited }, i) => {
       const script = withOffsets(edited); // 단어를 고쳤으면 단어 수가 바뀌므로 offset을 다시 계산
       const words = toWords(script);
+      const panics = findPanics(script);
       const codeHighlight = [
-        ...findPanics(script),
+        ...panics.map((p) => p.highlight),
         ...findFillers(words, input.language),
         ...findRepeats(script),
       ];
       try {
         const llm = await analyzePart(input, script, i);
+        // 코드가 만든 panic 하이라이트에 LLM의 원인·대안을 채운다 (pause 줄 번호로 매칭)
+        for (const panic of panics) {
+          const note = llm.panicNotes.get(panic.line);
+          if (note) Object.assign(panic.highlight, note);
+        }
         return {
           comment: input.mode === 'speaking' ? llm.comment : undefined,
           duration,
