@@ -44,7 +44,16 @@ export function buildCharts(parts: Part[]): Charts {
   };
 }
 
-/** score = 정상 단어 비율. wpm은 pause 줄과 줄 사이 간격을 뺀 발화 시간 기준(필러 포함). */
+/**
+ * 점수: 100 − (panic + filler + repeat 비율). 코드가 찾는 말하기 습관만 반영한다.
+ * expression·grammar는 LLM이 정해서 실행마다 달라질 수 있어 감점하지 않는다 (하이라이트·비율에는 그대로 나온다).
+ * 우선순위상 panic·filler·repeat가 앞이라, 이 세 비율은 expression·grammar 유무와 상관없이 같다.
+ */
+export function habitScore(ratio: Charts['categoryRatio']): number {
+  return Math.min(100, Math.max(0, 100 - ratio.panic - ratio.filler - ratio.repeat));
+}
+
+/** score = habitScore. wpm은 pause 줄과 줄 사이 간격을 뺀 발화 시간 기준(군말 포함). */
 export function buildStats(parts: Part[], charts: Charts): Pick<Analysis, 'score' | 'stats'> {
   const highlights = parts.flatMap((p) => p.highlight);
   const count = (category: Category) => highlights.filter((h) => h.category === category).length;
@@ -59,7 +68,7 @@ export function buildStats(parts: Part[], charts: Charts): Pick<Analysis, 'score
     .reduce((sum, h) => sum + (h.pauseSec ?? 0), 0);
 
   return {
-    score: charts.categoryRatio.normal,
+    score: habitScore(charts.categoryRatio),
     stats: {
       wpm: speakingSec > 0 ? Math.round(totalWords / (speakingSec / 60)) : 0,
       fillerCount: count('filler'),

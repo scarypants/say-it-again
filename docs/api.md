@@ -158,7 +158,7 @@ type Charts = {
 };
 
 type Analysis = {
-  score: number;          // 0~100. charts.categoryRatio.normal과 같은 값
+  score: number;          // 0~100. 100 − (panic + filler + repeat 비율). 표현 개선·문법은 감점하지 않는다
   stats: {
     wpm: number;
     fillerCount: number;
@@ -181,6 +181,8 @@ type Analysis = {
 - 중복 단어(`repeat`)도 코드가 찾는다. ① 같은 말(1~3단어)을 바로 반복("하지만 하지만", "every day every day", "정말 정말 정말")하면 반복된 범위를 묶고 `fixed`에 한 번만 쓴 표현을 넣는다. ② 5문장 안에서 같은 어간(조사를 뗀 형태)이 3번 이상이면 각 단어를 표시한다. 필러와 흔한 말("저는", "있습니다", "the" 등)은 제외한다. `repeatTop`은 어간 기준으로 센다.
 - `categoryRatio`는 단어 기준 비율이다. 한 단어가 여러 카테고리에 걸리면 우선순위가 높은 하나만 세고, 6개 합은 100이다. `grammar`는 스피킹과 영어 면접(`interview` + `en`)에서만 나오고, 발표와 한국어 면접에서는 항상 0이다.
 - `repeatTop`·`fillerTop`은 전체 파트의 합산이다(최대 10개).
+- **점수(`score`)** = 100 − (`categoryRatio`의 panic + filler + repeat). 코드가 찾는 말하기 습관(패닉존·군말·반복)만 반영한다. 표현 개선·문법은 LLM이 정해서 실행마다 달라질 수 있으므로 감점하지 않고 하이라이트·비율로만 보여 준다. 그래서 같은 대본이면 점수는 항상 같다.
+  - `categoryRatio.normal`(정상 비율)은 다섯 항목을 모두 뺀 값이라 점수와 다를 수 있다 (점수 ≥ 정상 비율). 화면에서 점수 옆에 "패닉존·군말·반복 기준"이라고 밝혀 둔다.
 - `stats`는 모든 파트의 합산이다. `wpm` = 전체 단어 수 ÷ 발화 시간(분, pause 줄과 문장 사이 간격 제외, 필러 포함). `fillerCount`·`panicCount`·`repeatCount`·`expressionCount`·`grammarCount` = 해당 category의 하이라이트 수. `panicTotalSec` = `pauseSec`의 합.
 - `summary.comment`는 총평 LLM이 쓰는 전체 코멘트이고, `parts[].comment`는 파트별 코멘트(스피킹·면접만)다.
 - 용어: 서버가 쓰는 설명 글(`reason`, `comment`, `summary`, `retry`)은 화면과 같은 이름만 쓴다 — 패닉존(`panic`), 군말(`filler`), 반복(`repeat`), 표현 개선(`expression`), 문법(`grammar`), 정상(`normal`). LLM 프롬프트에도 같은 지시가 들어 있다.
@@ -222,7 +224,7 @@ type Analysis = {
     "fillerTop": [{ "word": "음", "count": 1 }, { "word": "어", "count": 1 }, { "word": "그러니까", "count": 1 }]
   },
   "analysis": {
-    "score": 17,
+    "score": 50,
     "stats": {
       "wpm": 122,
       "fillerCount": 3,
@@ -334,9 +336,8 @@ type Retry = {
 - `analysis.summary`는 기존 스크립트·총평 컴포넌트가 깨지지 않도록 채워 두는 것이다. 재도전 화면은 `compare`와 `retry`를 보여 준다.
 
 ### 규칙
-- **점수 비교**: 이전 `analysis.score`는 표현 개선(`expression`)·문법(`grammar`)까지 감점한 값이라 그대로 비교하면 재도전 점수가 부풀려진다. 그래서 양쪽 모두 패닉·필러·중복만 반영한 점수로 비교한다. 우선순위가 panic > filler > repeat > expression > grammar라서 앞의 세 비율은 expression 유무와 상관없이 같다.
-  - `before.score` = `previous.categoryRatio`의 `normal + expression + grammar`
-  - `after.score` = 새 녹음의 `100 − (panic + filler + repeat)` (= 새 `charts.categoryRatio.normal`)
+- **점수 비교**: 양쪽 모두 analyze와 같은 점수 기준(100 − panic − filler − repeat)이다. 그래서 `before.score`는 이전 총평 화면의 `analysis.score`와 같고, `after.score`는 이 응답의 `analysis.score`와 같다.
+  - `before.score`는 `previous.categoryRatio`로 다시 계산한다. 예전 기준(표현 개선·문법까지 감점)으로 저장된 기록을 보내도 같은 기준으로 비교된다. 우선순위가 panic > filler > repeat > expression > grammar라서 앞의 세 비율은 expression 유무와 상관없이 같다.
 - **길이 보정**: 다시 녹음하면 길이가 달라지므로 필러·패닉·중복은 `*PerMin`(녹음 1분당 횟수 = 횟수 ÷ `durationSec` × 60)으로 비교하는 것을 권한다. 횟수는 보조로 쓴다. `before`의 횟수·`wpm`·`panicTotalSec`은 `previous.stats` 값 그대로다.
 - **대본 일치율(`scriptMatch`)**: 새 녹음이 이전 최종 대본을 얼마나 따라갔는지를 코드로 잰다 (LLM 없음).
   - 양쪽 모두 모든 파트·문장을 이어 붙이고 공백·문장부호를 지운 뒤(영어는 소문자로), 두 글자 단위(bigram)로 나눈다.
@@ -556,6 +557,6 @@ interview/questions: 검증 → 질문 생성 LLM 1회 (실패 시 기본 질문
 ## 확인이 필요한 항목
 
 - 토익 스피킹의 파트별 시간 검증을 서버가 할지 (질문 문자열의 `Part N` 표기를 읽는 방식). 지금은 서버 상한 60초 + 프론트 타이머.
-- 점수가 정상 단어 비율만으로 충분한지 (패닉 길이, 속도 반영 여부는 샘플을 본 뒤 판단).
+- 점수에 패닉 길이·말 속도를 반영할지 (지금은 패닉존·군말·반복 단어 비율만. 샘플을 본 뒤 판단).
 - retry의 `RETRY_MATCH_LOW`(기본 40)가 적절한지 (대본을 보고 읽은 샘플과 즉흥 샘플을 녹음해 본 뒤 조정).
 - 면접 꼬리질문(`parts[].followUp`)은 나중에 추가 검토.
