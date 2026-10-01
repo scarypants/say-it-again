@@ -1,8 +1,8 @@
 import type { Request } from 'express';
 import { MAX_FILES } from '../config';
 import { HttpError } from '../errors';
-import type { Exam, Level, Line, TranscriptPart } from '../types/api';
-import type { AnalyzeInput, ModeInfo, TranscribeInput } from '../types/internal';
+import type { Analysis, Charts, Exam, Level, Line, RetryPrevious, TranscriptPart } from '../types/api';
+import type { AnalyzeInput, ModeInfo, RetryInput, TranscribeInput } from '../types/internal';
 
 const LEVELS: Level[] = ['assignment', 'exam', 'keynote'];
 const EXAMS: Exam[] = ['TOEIC-Speaking', 'opic'];
@@ -31,7 +31,47 @@ export function parseAnalyzeRequest(req: Request): AnalyzeInput {
   return { ...parseModeInfo(body, parts.length), parts };
 }
 
-/** 두 API 공통: mode·language·level·exam·questions 조합 검증. count = 녹음(파트) 수 */
+/** POST /api/retry (JSON): analyze 요청 + 이전 결과 요약(previous)을 검증한다. 실패하면 400. */
+export function parseRetryRequest(req: Request): RetryInput {
+  const body = (req.body ?? {}) as Record<string, unknown>;
+  return { ...parseAnalyzeRequest(req), previous: parsePrevious(body.previous) };
+}
+
+const STAT_KEYS = ['wpm', 'fillerCount', 'panicCount', 'panicTotalSec', 'repeatCount', 'expressionCount', 'grammarCount'] as const;
+const RATIO_KEYS = ['panic', 'filler', 'repeat', 'expression', 'grammar', 'normal'] as const;
+
+/** 이전 AnalyzeResponse에서 복사한 값이라 숫자·배열 형식만 확인한다. */
+function parsePrevious(raw: unknown): RetryPrevious {
+  const p = raw as Partial<RetryPrevious> | null;
+  if (!p || typeof p !== 'object') throw new HttpError(400, 'previous가 필요합니다.');
+  if (typeof p.durationSec !== 'number' || p.durationSec < 0) {
+    throw new HttpError(400, 'previous.durationSec가 올바르지 않습니다.');
+  }
+  const stats = pickNumbers(p.stats, STAT_KEYS, 'previous.stats') as Analysis['stats'];
+  const categoryRatio = pickNumbers(p.categoryRatio, RATIO_KEYS, 'previous.categoryRatio') as Charts['categoryRatio'];
+  if (!Array.isArray(p.topPriorities) || !p.topPriorities.every((t) => typeof t === 'string')) {
+    throw new HttpError(400, 'previous.topPriorities는 문자열 배열이어야 합니다.');
+  }
+  if (!Array.isArray(p.final)) throw new HttpError(400, 'previous.final은 배열이어야 합니다.');
+  const final = p.final.map((sentence: unknown) => {
+    const words = (sentence as { words?: unknown } | null)?.words;
+    if (!Array.isArray(words) || !words.every((w) => typeof w === 'string')) {
+      throw new HttpError(400, 'previous.final의 words는 문자열 배열이어야 합니다.');
+    }
+    return { words };
+  });
+  return { durationSec: p.durationSec, stats, categoryRatio, topPriorities: p.topPriorities, final };
+}
+
+function pickNumbers<K extends string>(raw: unknown, keys: readonly K[], name: string): Record<K, number> {
+  const obj = raw as Record<string, unknown> | null;
+  if (!obj || typeof obj !== 'object' || keys.some((k) => typeof obj[k] !== 'number')) {
+    throw new HttpError(400, `${name}에 ${keys.join('·')} 숫자가 필요합니다.`);
+  }
+  return Object.fromEntries(keys.map((k) => [k, obj[k]])) as Record<K, number>;
+}
+
+/** 세 API 공통: mode·language·level·exam·questions 조합 검증. count = 녹음(파트) 수 */
 function parseModeInfo(body: Record<string, unknown>, count: number): ModeInfo {
   const { mode, language, level, exam } = body;
 

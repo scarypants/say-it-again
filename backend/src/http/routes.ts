@@ -2,8 +2,9 @@ import { Router } from 'express';
 import multer from 'multer';
 import { MAX_FILE_BYTES, MAX_FILES } from '../config';
 import { analyze } from '../pipeline/analyze';
+import { retry } from '../pipeline/retry';
 import { transcribeAll } from '../pipeline/transcribe';
-import { parseAnalyzeRequest, parseTranscribeRequest } from './validate';
+import { parseAnalyzeRequest, parseRetryRequest, parseTranscribeRequest } from './validate';
 
 /** 파일은 디스크에 저장하지 않고 메모리로만 받는다. */
 const upload = multer({
@@ -21,4 +22,9 @@ router.post('/transcribe', upload.fields([{ name: 'audio', maxCount: MAX_FILES }
 // 2단계: 사용자가 고친 대본(JSON) → 분석 결과
 router.post('/analyze', async (req, res) => {
   res.json(await analyze(parseAnalyzeRequest(req)));
+});
+
+// 재도전: 다시 녹음한 대본(JSON) + 이전 결과 요약 → 코드 분석 + 전후 비교 + 재도전 총평
+router.post('/retry', async (req, res) => {
+  res.json(await retry(parseRetryRequest(req)));
 });

@@ -1,6 +1,6 @@
 import { MAX_EXPRESSIONS } from '../config';
-import type { Level, Line, Part } from '../types/api';
-import type { AnalyzeInput } from '../types/internal';
+import type { Charts, Compare, Level, Line, Part } from '../types/api';
+import type { AnalyzeInput, RetryInput } from '../types/internal';
 
 // LLM 프롬프트를 만드는 곳. 모드·level·시험별 지시문은 여기서만 바꾼다.
 
@@ -97,4 +97,71 @@ export function summaryMessages(input: AnalyzeInput, parts: Part[]) {
       ? `상황: ${input.level ? LEVEL_LABEL[input.level] : '발표'} (${input.language === 'ko' ? '한국어' : '영어'})`
       : `상황: ${input.exam ? EXAM_LABEL[input.exam] : '영어 말하기 시험'} 답변 ${parts.length}개`;
   return { system, user: `${head}\n\n${digest.join('\n\n')}` };
+}
+
+/** 재도전 총평: 전후 수치와 새 녹음의 패닉존 문맥만 받아 개선된 점·남은 점을 쓴다 (코드가 찾은 것만 근거로) */
+export function retryMessages(input: RetryInput, parts: Part[], charts: Charts, compare: Compare, mismatch: boolean) {
+  const system = [
+    '너는 대학생의 말하기 연습을 돕는 코치다. 같은 발표를 다시 녹음한 재도전 결과를 이전 결과와 비교해 짧게 총평한다.',
+    '비교 항목은 코드가 찾은 패닉존(2초 이상 멈춤), 필러(군말), 중복 단어, 말 속도뿐이다. 표현·문법은 이번에 분석하지 않았으므로 언급하지 않는다.',
+    '녹음 길이가 다를 수 있으므로 횟수보다 분당 횟수와 점수를 기준으로 판단한다.',
+    '',
+    'improved: 실제로 좋아진 점 1~3개. 숫자를 넣어 구체적으로 쓴다 (예: "패닉존이 3번에서 1번으로 줄었어요"). 좋아진 점이 없으면 빈 배열.',
+    'remaining: 아직 고칠 점 1~3개. 새 녹음의 패닉존 문맥이 있으면 어느 부분에서 멈췄는지 짚는다. 이전 우선 과제 중 패닉존·필러·중복에 관한 것이 아직 남았으면 포함한다 (표현·문법 과제는 판단할 수 없으므로 넣지 않는다).',
+    'comment: 재도전 전체를 한 문장으로 평가.',
+    mismatch
+      ? '이번 녹음은 이전 최종 대본과 내용이 많이 다르다. "대본을 따라서" 같은 표현을 쓰지 말고, 내용이 달라 비교는 참고용이라는 점을 comment에 짧게 밝힌다.'
+      : '',
+    '모두 한국어로, 해요체로 쓴다.',
+  ]
+    .filter(Boolean)
+    .join('\n');
+
+  const { before, after, scriptMatch } = compare;
+  const row = (label: string, b: number, a: number, unit = '') => `- ${label}: ${b}${unit} → ${a}${unit}`;
+  const numbers = [
+    row('점수(패닉·필러·중복 기준)', before.score, after.score, '점'),
+    row('녹음 길이', before.durationSec, after.durationSec, '초'),
+    row('말 속도', before.wpm, after.wpm, '단어/분'),
+    row('패닉존', before.panicCount, after.panicCount, '회') + ` (총 ${before.panicTotalSec}초 → ${after.panicTotalSec}초, 분당 ${before.panicPerMin} → ${after.panicPerMin})`,
+    row('필러', before.fillerCount, after.fillerCount, '회') + ` (분당 ${before.fillerPerMin} → ${after.fillerPerMin})`,
+    row('중복 단어', before.repeatCount, after.repeatCount, '회') + ` (분당 ${before.repeatPerMin} → ${after.repeatPerMin})`,
+    scriptMatch === null ? '' : `- 이전 최종 대본과의 일치율: ${scriptMatch}%`,
+  ].filter(Boolean);
+
+  // 새 녹음의 패닉존: pause 직전 문장 + 정지 시간 (최대 6개)
+  const panics = parts
+    .flatMap((part) =>
+      part.script.flatMap((line, i) => {
+        if (!line.pause) return [];
+        const prev = part.script
+          .slice(0, i)
+          .reverse()
+          .find((l) => l.words.length > 0);
+        return prev ? [`- "${prev.words.join(' ')}" 다음에 ${(line.end - line.start).toFixed(1)}초 멈춤`] : [];
+      }),
+    )
+    .slice(0, 6);
+  const top = (list: { word: string; count: number }[]) =>
+    list.slice(0, 5).map((t) => `${t.word}(${t.count})`).join(', ') || '없음';
+
+  const head =
+    input.mode === 'presentation'
+      ? `상황: ${input.level ? LEVEL_LABEL[input.level] : '발표'} 재도전 (${input.language === 'ko' ? '한국어' : '영어'})`
+      : `상황: ${input.exam ? EXAM_LABEL[input.exam] : '영어 말하기 시험'} 답변 재도전`;
+  const user = [
+    head,
+    '',
+    '이전 → 이번:',
+    ...numbers,
+    '',
+    `이전 우선 과제: ${input.previous.topPriorities.join(' / ') || '없음'}`,
+    '',
+    '이번 녹음의 패닉존:',
+    ...(panics.length > 0 ? panics : ['- 없음']),
+    '',
+    `이번 필러: ${top(charts.fillerTop)}`,
+    `이번 중복 단어: ${top(charts.repeatTop)}`,
+  ].join('\n');
+  return { system, user };
 }
