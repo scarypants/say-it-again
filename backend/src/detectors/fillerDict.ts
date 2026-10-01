@@ -12,7 +12,7 @@ export const FILLERS: Record<Language, FillerDict> = {
   ko: {
     certain: ['어', '음', '아', '에', '으', '엄', '으음'],
     patterns: [/^(어+|음+|으+|아+|에+)$/],
-    ambiguous: ['그', '저', '이제', '막', '뭐', '좀', '그러니까', '그니까', '저기'],
+    ambiguous: ['그', '저', '이제', '막', '뭐', '좀', '그러니까', '그니까', '저기', '뭐랄까', '뭐지', '있잖아'],
     phrases: [],
   },
   en: {
