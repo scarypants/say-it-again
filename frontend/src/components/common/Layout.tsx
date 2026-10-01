@@ -13,9 +13,8 @@ export default function Layout() {
     <div className="flex min-h-svh flex-col bg-base-100">
       <header className="sm:border-b sm:border-base-300">
         <div className="mx-auto flex h-14 w-full max-w-md items-center justify-between px-4 lg:max-w-6xl lg:px-8">
-          <Link to="/" className="flex items-center gap-2 font-bold tracking-tight">
+          <Link to="/" className="flex items-center" aria-label="다시, 말해 처음으로">
             <Logo />
-            <span>다시, 말해</span>
           </Link>
           {/* 기록: DB가 없어 스트레치 목표. 자리만 잡아 둔다 */}
           <button type="button" className="btn btn-ghost btn-sm" disabled title="준비 중">
