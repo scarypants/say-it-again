@@ -1,5 +1,6 @@
 import { requestInterviewQuestions, type InterviewQuestionsOutput } from '../llm/requests';
-import type { InterviewQuestionsRequest, InterviewQuestionsResponse, InterviewQuestionType, Language } from '../types/api';
+import type { InterviewQuestionType, Language } from '../types/api';
+import type { InterviewQuestionsInput, InterviewQuestionsResult } from '../types/internal';
 
 /** 질문 5개 = 유형 5개, 이 순서로 하나씩 (docs/api.md 6절) */
 const ORDER: InterviewQuestionType[] = ['intro', 'motivation', 'job', 'experience', 'closing'];
@@ -27,7 +28,7 @@ function defaultQuestion(type: InterviewQuestionType, language: Language, job: s
  * 면접 질문 생성: 지원 직무에 맞춘 질문 5개 (LLM 1회).
  * LLM이 실패해도 200으로 기본 질문을 돌려주고 warnings에 llm_failed를 붙인다 (질문 화면에서 막히지 않도록).
  */
-export async function generateInterviewQuestions(input: InterviewQuestionsRequest): Promise<InterviewQuestionsResponse> {
+export async function generateInterviewQuestions(input: InterviewQuestionsInput): Promise<InterviewQuestionsResult> {
   const { language, job } = input;
   let out: Partial<InterviewQuestionsOutput> = {};
   let failed = false;

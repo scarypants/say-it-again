@@ -251,7 +251,7 @@ export function toeicQuestionMessages(theme: string) {
     '- part3.situation: 전화 설문 상황 한 문장 (예: "Imagine that a marketing firm is doing research in your area. You have agreed to participate in a telephone interview about ...").',
     '- part3.question: 그 설문의 질문 한 문장 (경험이나 선호를 묻고 이유를 함께 말하게).',
     '- part4.title·rows: 일정표 제목과 4~6줄 (time, session, speaker. speaker가 없는 줄은 빈 문자열). part4.question: 일정표를 보고 답할 질문 한 문장 (특정 시간·세션에 대한 문의).',
-    '- part5.statement: 찬반 의견을 말할 진술 한 문장 (대학생이 의견을 낼 수 있는 일상·학교·직장 주제).',
+    '- part5.statement: 찬반 의견을 말할 진술 평서문 한 문장 (대학생이 의견을 낼 수 있는 일상·학교·직장 주제). 진술만 쓰고 "Do you agree or disagree ..." 같은 질문 문장은 붙이지 않는다 (서버가 붙인다). 예: "College students should be required to take a part-time job."',
   ].join('\n');
   return { system, user: `이번 문항들의 주제 힌트: ${theme} (Part 1·3·4는 이 주제와 이어지게, Part 2·5는 자유롭게)` };
 }
@@ -282,7 +282,7 @@ const FOLLOW_UP_GUIDE: Record<string, string[]> = {
   ],
   'TOEIC-Speaking': [
     '토익 스피킹 추가 연습 문항을 만든다. 그림·표가 필요 없는 Part 3(질문에 답하기) 또는 Part 5(의견 제시하기) 형식만 쓴다. 답변에서 다룬 주제와 이어지되 새로운 질문으로 쓴다.',
-    'Part 3이면 type "respond", situation에 전화 설문 상황 한 문장, text에 질문 한 문장. Part 5이면 type "opinion", situation은 빈 문자열, text에 찬반 의견을 말할 진술 한 문장.',
+    'Part 3이면 type "respond", situation에 전화 설문 상황 한 문장, text에 질문 한 문장. Part 5이면 type "opinion", situation은 빈 문자열, text에 찬반 의견을 말할 진술 평서문 한 문장 ("Do you agree or disagree ..." 같은 질문 문장은 붙이지 않는다. 예: "Students should study in groups rather than alone.").',
     '모두 영어. hint는 빈 문자열. about은 이어지는 답변 번호(모르면 -1).',
   ],
   opic: [

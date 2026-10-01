@@ -3,13 +3,11 @@ import multer from 'multer';
 import { MAX_FILE_BYTES, MAX_FILES } from '../config';
 import { generateQuestionImage } from '../llm/image';
 import { analyze } from '../pipeline/analyze';
-import { generateInterviewQuestions } from '../pipeline/interview';
 import { generateQuestions } from '../pipeline/questions';
 import { retry } from '../pipeline/retry';
 import { transcribeAll } from '../pipeline/transcribe';
 import {
   parseAnalyzeRequest,
-  parseInterviewQuestionsRequest,
   parseQuestionImageRequest,
   parseQuestionsRequest,
   parseRetryRequest,
@@ -48,9 +46,4 @@ router.post('/questions', async (req, res) => {
 router.post('/questions/image', async (req, res) => {
   const { scene } = parseQuestionImageRequest(req);
   res.json({ image: await generateQuestionImage(scene) });
-});
-
-// (예전) 면접: 지원 직무 → 질문 5개. 프론트가 /questions로 옮기면 삭제한다
-router.post('/interview/questions', async (req, res) => {
-  res.json(await generateInterviewQuestions(parseInterviewQuestionsRequest(req)));
 });
