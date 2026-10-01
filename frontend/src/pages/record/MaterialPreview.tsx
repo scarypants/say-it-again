@@ -1,4 +1,7 @@
-import PdfViewer from "./PdfViewer";
+import { lazy, Suspense } from "react";
+
+// pdf.js가 커서 자료를 올렸을 때만 불러온다
+const PdfViewer = lazy(() => import("./PdfViewer"));
 
 type Props = { file: File; locked: boolean; onRemove: () => void };
 
@@ -13,7 +16,18 @@ export default function MaterialPreview({ file, locked, onRemove }: Props) {
   return (
     <figure className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-box border border-base-300 bg-base-200">
       <div className="flex min-h-72 flex-1">
-        <PdfViewer file={file} />
+        <Suspense
+          fallback={
+            <div className="flex flex-1 items-center justify-center">
+              <span
+                className="loading loading-spinner text-secondary"
+                aria-label="자료 불러오는 중"
+              />
+            </div>
+          }
+        >
+          <PdfViewer file={file} />
+        </Suspense>
       </div>
       <figcaption className="flex items-center justify-between gap-3 border-t border-base-300 bg-base-100 px-3 py-2 text-sm">
         <span className="truncate">
