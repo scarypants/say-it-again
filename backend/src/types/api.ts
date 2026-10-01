@@ -133,7 +133,8 @@ export type RetryResponse = AnalyzeResponse & {
 
 // ---- POST /api/interview/questions (면접 질문 생성) ----
 
-export type InterviewQuestionType = 'intro' | 'motivation' | 'job' | 'experience' | 'personality' | 'closing';
+/** 질문 5개 = 유형 5개, 이 순서로 하나씩 */
+export type InterviewQuestionType = 'intro' | 'motivation' | 'job' | 'experience' | 'closing';
 
 export type InterviewQuestionsRequest = {
   language: Language; // 질문 언어 = 답변 언어
@@ -143,6 +144,6 @@ export type InterviewQuestionsRequest = {
 export type InterviewQuestionsResponse = {
   language: Language;
   job: string;
-  questions: { type: InterviewQuestionType; text: string }[]; // 항상 5개: intro → 가운데 3개 → closing
+  questions: { type: InterviewQuestionType; text: string }[]; // 항상 5개: intro → motivation → job → experience → closing
   warnings?: string[]; // LLM 실패 시 ["llm_failed"] + 기본 질문
 };
