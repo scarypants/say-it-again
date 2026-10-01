@@ -1,11 +1,15 @@
 // 서버 튜닝 상수는 이 파일에 모은다.
 import type { Category } from './types/api';
 
-// 허용할 요청 출처(Origin). CORS_ORIGIN에 쉼표로 여러 개를 적고, "*"면 모두 허용한다.
-// 개발 중에는 vite 프록시를 거치므로 기본값(5173)이면 충분하다. 폰이나 ngrok으로 접속하면 그 주소를 추가한다.
-export const ALLOWED_ORIGINS: string[] = (
-  process.env.CORS_ORIGIN || 'http://localhost:5173,http://127.0.0.1:5173'
-)
+// 기본으로 허용하는 요청 출처(Origin): 내 PC, 같은 와이파이(사설 IP), ngrok 주소 (포트 무관)
+export const DEFAULT_ORIGINS: RegExp[] = [
+  /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/,
+  /^https?:\/\/(10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+)(:\d+)?$/,
+  /^https:\/\/[a-z0-9-]+\.ngrok(-free)?\.(app|dev|io)$/,
+];
+
+// 추가로 허용할 출처. 쉼표로 여러 개, "https://*.example.com" 형식 가능, "*"면 모두 허용
+export const EXTRA_ORIGINS: string[] = (process.env.CORS_ORIGIN ?? '')
   .split(',')
   .map((origin) => origin.trim().replace(/\/$/, ''))
   .filter(Boolean);
