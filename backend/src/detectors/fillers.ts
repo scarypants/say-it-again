@@ -8,7 +8,8 @@ const REASON = '군말(필러)입니다. 빼고 말해 보세요.';
 
 // 사전(fillerDict.ts)으로 필러를 찾는다. 단어 번호는 words 순서 = 파트 전체 단어 번호.
 // - certain / patterns: 항상 필러
-// - ambiguous / phrases: 바로 뒤 간격이 AMBIGUOUS_FILLER_GAP 이상이거나 마지막 단어일 때만 필러 ("그… 저는")
+// - ambiguous / phrases: 바로 뒤 간격이 AMBIGUOUS_FILLER_GAP 이상이거나 마지막 단어일 때,
+//   또는 바로 앞 단어가 필러일 때만 필러 ("그… 저는", "그러니까 그")
 export function findFillers(words: Word[], language: Language): Highlight[] {
   const dict = FILLERS[language];
   const tokens = words.map((w) => normalize(w.word));
@@ -16,6 +17,7 @@ export function findFillers(words: Word[], language: Language): Highlight[] {
 
   const pausesAfter = (to: number) =>
     to === words.length - 1 || words[to + 1].start - words[to].end >= AMBIGUOUS_FILLER_GAP;
+  const afterFiller = (i: number) => highlights.at(-1)?.to === i - 1;
   const add = (from: number, to: number) =>
     highlights.push({ from, to, category: 'filler', reason: REASON, fixed: '' });
 
@@ -32,7 +34,7 @@ export function findFillers(words: Word[], language: Language): Highlight[] {
 
     if (dict.certain.includes(token) || dict.patterns.some((re) => re.test(token))) {
       add(i, i);
-    } else if (dict.ambiguous.includes(token) && pausesAfter(i)) {
+    } else if (dict.ambiguous.includes(token) && (pausesAfter(i) || afterFiller(i))) {
       add(i, i);
     }
   }

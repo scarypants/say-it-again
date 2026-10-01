@@ -1,6 +1,6 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { toFile } from 'openai';
+import OpenAI, { toFile } from 'openai';
 import type { TranscriptionVerbose } from 'openai/resources/audio/transcriptions';
 import { MIN_WORDS, STT_DUMP_DIR, STT_MODEL } from '../config';
 import { HttpError } from '../errors';
@@ -24,6 +24,9 @@ export async function transcribe(
   const label = `${index + 1}번째 녹음`;
   const result = await withRetry(() => requestWhisper(file, language)).catch((err: unknown) => {
     console.error(`[stt] ${label} 실패`, err);
+    if (err instanceof OpenAI.BadRequestError) {
+      throw new HttpError(400, `${label}의 오디오 형식을 읽을 수 없습니다. webm 또는 mp4로 녹음해 주세요.`);
+    }
     throw new HttpError(502, `${label}을 전사하지 못했습니다. 잠시 후 다시 시도해 주세요.`);
   });
 
@@ -54,10 +57,14 @@ async function requestWhisper(file: Express.Multer.File, language: Language): Pr
   });
 }
 
+// 일시적인 오류(429, 5xx, 네트워크)만 1회 재시도한다. 형식 오류 같은 4xx는 바로 실패.
 async function withRetry<T>(fn: () => Promise<T>): Promise<T> {
   try {
     return await fn();
-  } catch {
+  } catch (err) {
+    if (err instanceof OpenAI.APIError && err.status !== undefined && err.status < 500 && err.status !== 429) {
+      throw err;
+    }
     return fn();
   }
 }
