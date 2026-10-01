@@ -210,7 +210,7 @@ export default function ScriptPage() {
                               player.playing === key ? "bg-base-200" : ""
                             }`}
                           >
-                            <p className="min-w-0 flex-1 py-1 text-[1.0625rem] leading-9 break-keep lg:text-lg lg:leading-10">
+                            <p className="min-w-0 flex-1 py-1 text-[1.0625rem] leading-10 break-keep lg:text-lg lg:leading-[2.75rem]">
                               {lineRuns(line, part.highlight).map((run) => {
                                 const items = runSelection(run, part);
                                 const hint =
@@ -239,7 +239,7 @@ export default function ScriptPage() {
                                         type="button"
                                         data-word={`${pi}:${run.first}`}
                                         aria-expanded={isSelected}
-                                        className={`box-decoration-clone rounded-[4px] px-1 py-0.5 text-left outline-2 outline-offset-1 transition-[outline-color] duration-200 ease-soft focus-visible:outline-accent ${
+                                        className={`box-decoration-clone rounded-[4px] px-1 py-0.5 leading-snug text-left outline-2 outline-offset-0 transition-[outline-color] duration-200 ease-soft focus-visible:outline-accent ${
                                           CATEGORY[run.top.category].mark
                                         } ${isSelected ? "outline-base-content" : "outline-transparent"}`}
                                         aria-label={`${run.text} — ${[
