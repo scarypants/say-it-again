@@ -2,6 +2,8 @@ import type {
   AnalyzeRequest,
   AnalyzeResponse,
   ApiError,
+  RetryRequest,
+  RetryResponse,
   TranscribeRequest,
   TranscribeResponse,
 } from "../types/api";
@@ -59,6 +61,46 @@ export async function analyze(req: AnalyzeRequest): Promise<AnalyzeResponse> {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(req),
   });
+}
+
+// [3] "다시, 말해" 재도전: 새 대본 + 이전 결과 요약 → 분석 + 전후 비교
+export async function retry(req: RetryRequest): Promise<RetryResponse> {
+  if (USE_MOCK) return mockRetry(req);
+
+  return post<RetryResponse>("/api/retry", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(req),
+  });
+}
+
+// mock 재도전: 예시 분석 결과에 이전 수치와의 비교를 붙인다 (화면 확인용)
+async function mockRetry(req: RetryRequest): Promise<RetryResponse> {
+  const res = await mock<AnalyzeResponse>(() => import("../mocks/analyze.sample.json"));
+  const pick = (s: RetryRequest["previous"]["stats"], score: number) => ({
+    score,
+    wpm: s.wpm,
+    fillerCount: s.fillerCount,
+    panicCount: s.panicCount,
+    panicTotalSec: s.panicTotalSec,
+    repeatCount: s.repeatCount,
+  });
+  const before = pick(req.previous.stats, req.previous.categoryRatio.normal);
+  const after = {
+    ...pick(res.analysis.stats, res.analysis.score),
+    fillerCount: 2,
+    panicCount: 1,
+    panicTotalSec: 2.1,
+  };
+  return {
+    ...res,
+    compare: { before, after },
+    retry: {
+      improved: [`패닉존이 ${before.panicCount}번에서 ${after.panicCount}번으로 줄었어요`],
+      remaining: ["해결책으로 넘어가는 부분에서 아직 2초 정도 멈춰요"],
+      comment: "대안 대본을 따라 문장을 짧게 끊으면서 막힘이 줄었어요.",
+    },
+  };
 }
 
 async function mock<T>(load: () => Promise<{ default: unknown }>): Promise<T> {

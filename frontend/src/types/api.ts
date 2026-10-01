@@ -47,21 +47,6 @@ export type AnalyzeRequest = {
   language: Lang;
   questions?: string[]; // 스피킹. 배열 그대로
   parts: ScriptPart[];
-  previous?: PreviousResult; // "다시, 말해" 재도전일 때만. 이전 결과 요약
-};
-
-// 재도전 비교용 이전 결과 요약 (이전 AnalyzeResponse.analysis에서 꺼낸다)
-export type PreviousResult = {
-  score: number;
-  stats: Analysis["stats"];
-  topPriorities: string[];
-};
-
-// previous를 보냈을 때만 온다. LLM 실패 시 생략 (숫자 비교만 표시)
-export type RetryFeedback = {
-  improved: string[]; // 개선된 점
-  remaining: string[]; // 그래도 개선할 점
-  comment: string; // 재도전 한 줄 총평
 };
 
 export type HighlightCategory = "panic" | "filler" | "repeat" | "expression" | "grammar";
@@ -111,8 +96,37 @@ export type AnalyzeResponse = {
   parts: Part[]; // 요청 parts와 같은 순서
   charts: Charts;
   analysis: Analysis;
-  retry?: RetryFeedback; // 재도전일 때만
+  compare?: { before: CompareStats; after: CompareStats }; // 재도전(/api/retry)일 때만
+  retry?: RetryFeedback; // 재도전일 때만. LLM 실패 시 없음 (숫자 비교만 표시)
   warnings?: string[]; // 예: ["llm_failed"]
 };
+
+// [3] "다시, 말해" 재도전 (JSON). 새 녹음의 검토한 대본 + 이전 결과 요약
+export type RetryRequest = AnalyzeRequest & {
+  previous: {
+    stats: Analysis["stats"];
+    categoryRatio: Charts["categoryRatio"];
+    topPriorities: string[];
+  };
+};
+
+// 서버가 같은 기준(필러·패닉·중복만)으로 계산한 전후 수치. 전후 비교는 이 숫자만 쓴다
+export type CompareStats = {
+  score: number;
+  wpm: number;
+  fillerCount: number;
+  panicCount: number;
+  panicTotalSec: number;
+  repeatCount: number;
+};
+
+export type RetryFeedback = {
+  improved: string[]; // 개선된 점 1~3개
+  remaining: string[]; // 아직 개선할 점 1~3개
+  comment: string; // 재도전 한 줄 총평
+};
+
+// AnalyzeResponse와 같은 모양 + compare(항상). expression·grammar는 0
+export type RetryResponse = AnalyzeResponse & Required<Pick<AnalyzeResponse, "compare">>;
 
 export type ApiError = { error: string };

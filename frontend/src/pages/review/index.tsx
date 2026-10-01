@@ -1,7 +1,7 @@
 import PageHeader from "../../components/common/PageHeader";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router";
-import { analyze } from "../../api/client";
+import { analyze, retry } from "../../api/client";
 import AnalyzingView from "../../components/common/AnalyzingView";
 import PlayLineButton from "../../components/common/PlayLineButton";
 import { mmss, partTitle, questionLine, totalDuration } from "../../components/common/scriptFormat";
@@ -90,22 +90,25 @@ function Review({ transcript, audio, questions, setResult, previous }: ReviewPro
     setAnalyzing(true);
     setError(null);
     try {
-      const result = await analyze({
+      const req = {
         mode: transcript.mode,
         level: transcript.level,
         exam: transcript.exam,
         language: transcript.language,
         questions,
         parts,
-        // 재도전이면 이전 결과 요약을 같이 보내 개선된 점·남은 점을 받는다
-        ...(previous && {
-          previous: {
-            score: previous.analysis.score,
-            stats: previous.analysis.stats,
-            topPriorities: previous.analysis.summary.topPriorities,
-          },
-        }),
-      });
+      };
+      // 재도전이면 이전 결과 요약을 같이 보내 전후 비교·개선된 점을 받는다
+      const result = previous
+        ? await retry({
+            ...req,
+            previous: {
+              stats: previous.analysis.stats,
+              categoryRatio: previous.charts.categoryRatio,
+              topPriorities: previous.analysis.summary.topPriorities,
+            },
+          })
+        : await analyze(req);
       setResult(result);
       navigate("/script");
     } catch (err) {
