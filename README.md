@@ -15,12 +15,13 @@
 ## 실행
 
 ```bash
-# server
-cd server && cp .env.example .env   # 키 입력
-npm install && npm run dev
+# 루트에서 한 번만 (워크스페이스 전체 설치)
+npm install
+cp backend/.env.example backend/.env   # 키 입력
 
-# client
-cd client && npm install && npm run dev
+# 각각 실행 (터미널 2개)
+npm run dev:back
+npm run dev:front
 ```
 
 ## 문서
