@@ -1,6 +1,5 @@
 import { lazy, Suspense, useEffect, useState } from "react";
 import { Link } from "react-router";
-import sample from "../../mocks/analyze.sample.json";
 import { useAnalysis, useStartRetry } from "../../store/analysis";
 import type { AnalyzeResponse } from "../../types/api";
 import { createChartData } from "./chartData";
@@ -11,8 +10,6 @@ import { comparablePrevious, retryReference } from "./retryComparison";
 import { totalDuration } from "../../components/common/scriptFormat";
 const FeedbackChart = lazy(() => import("./components/FeedbackChart"));
 
-const sampleResult = sample as unknown as AnalyzeResponse;
-const canLoadSample = import.meta.env.DEV || import.meta.env.VITE_USE_MOCK === "true";
 const modeNames = { presentation: "발표", speaking: "어학 스피킹" };
 function timestamp(seconds: number) {
   const safe = Number.isFinite(seconds) ? Math.max(0, seconds) : 0;
@@ -22,7 +19,7 @@ function timestamp(seconds: number) {
 }
 
 export default function SummaryPage() {
-  const { result, setResult, previous, setPrevious, setSession } = useAnalysis();
+  const { result, previous, setPrevious } = useAnalysis();
   const startRetry = useStartRetry();
   const [selection, setSelection] = useState<{
     result: AnalyzeResponse;
@@ -42,73 +39,38 @@ export default function SummaryPage() {
       : null;
 
   return (
-    <div className="flex flex-1 flex-col gap-8 pt-6 font-sans">
+    <div className="flex flex-1 flex-col gap-6 pt-8 font-sans sm:gap-8">
       <header>
-        <p className="text-sm font-medium text-base-content/70">
+        <p className="text-sm font-semibold tracking-wide text-primary">
           {result ? "이 녹음의 한 줄 요약" : "말하기 분석"}
         </p>
         <h1 className="mt-3 max-w-[28ch] text-[1.75rem] leading-snug font-bold tracking-tight text-balance break-keep sm:text-4xl lg:max-w-[36ch]">
           {result?.analysis.summary.headline || "이번 말하기를 돌아봐요"}
         </h1>
-        <p className="mt-3 text-sm leading-relaxed text-base-content/70">
-          전체 흐름을 확인하고, 다음 연습에서 바꿀 한 가지를 찾아보세요.
-        </p>
       </header>
-      {canLoadSample && (
-        <div className="flex flex-wrap items-center justify-between gap-2 rounded-box bg-base-200 p-3">
-          <span className="text-xs text-base-content/70">
-            {result === sampleResult
-              ? "샘플 분석 결과를 보고 있어요"
-              : "녹음 없이 총평 화면을 확인해 보세요"}
-          </span>
-          <button
-            type="button"
-            className="btn btn-outline btn-sm"
-            onClick={() => {
-              setSelection(null);
-              setPrevious(null);
-              setSession(null);
-              setResult(sampleResult);
-            }}
-          >
-            샘플 불러오기
-          </button>
-          <button
-            type="button"
-            className="btn btn-outline btn-sm"
-            onClick={async () => {
-              const retrySample = (await import("../../mocks/analyze.retry.sample.json")).default;
-              setSelection(null);
-              setSession(null);
-              setPrevious(sampleResult);
-              setResult(retrySample as AnalyzeResponse);
-            }}
-          >
-            재도전 샘플
-          </button>
-        </div>
-      )}
       {!result?.parts.length ? (
-        <section className="card card-border max-w-xl bg-base-100" aria-labelledby="summary-empty">
-          <div className="card-body items-start gap-4">
-            <h2 id="summary-empty" className="card-title text-lg">
-              아직 돌아볼 말하기가 없어요
-            </h2>
-            <p className="text-sm text-base-content/70">
-              녹음한 말을 분석하면 점수와 개선점을 확인할 수 있어요.
-            </p>
-            <Link to="/record" className="btn btn-primary">
-              녹음하러 가기
-            </Link>
+        <section className="card card-border min-h-72 max-w-none bg-base-200/60" aria-labelledby="summary-empty">
+          <div className="card-body justify-center p-7 sm:p-10">
+            <div className="flex max-w-2xl flex-col items-start gap-4">
+              <h2 id="summary-empty" className="card-title text-xl">
+                아직 돌아볼 말하기가 없어요
+              </h2>
+              <p className="max-w-prose text-base leading-relaxed text-base-content/70">
+                녹음한 말을 분석하면 점수와 개선점을 확인할 수 있어요.
+              </p>
+              <Link to="/record" className="btn btn-primary">
+                녹음하러 가기
+              </Link>
+            </div>
           </div>
         </section>
       ) : (
-        <div className="grid min-w-0 gap-8 lg:grid-cols-[22rem_minmax(0,1fr)] lg:items-start lg:gap-10">
-          <div className="flex min-w-0 flex-col gap-8 lg:sticky lg:top-6 lg:max-h-[calc(100svh-3rem)] lg:overflow-y-auto lg:overscroll-contain">
+        <div className="grid min-w-0 gap-7 lg:grid-cols-[24rem_minmax(0,1fr)] lg:items-start lg:gap-10">
+          <div className="flex min-w-0 flex-col gap-7 lg:sticky lg:top-6 lg:max-h-[calc(100svh-3rem)] lg:overflow-y-auto lg:overscroll-contain">
             <section className="rounded-box bg-base-200" aria-labelledby="score-title">
-              <div className="flex items-center justify-between gap-4 p-5">
+              <div className="flex items-center justify-between gap-4 p-6 sm:p-7">
                 <div className="flex flex-col items-start gap-2">
-                  <h2 id="score-title" className="card-title text-lg">
+                  <h2 id="score-title" className="card-title text-xl">
                     {isRetry ? "재도전 점수" : "말하기 점수"}
                   </h2>
                   <span className="badge badge-outline">
@@ -116,8 +78,8 @@ export default function SummaryPage() {
                   </span>
                 </div>
                 <p className="shrink-0 tabular-nums">
-                  <span className="text-4xl font-bold sm:text-5xl">{score ?? "—"}</span>
-                  <span className="ml-1 text-xs text-base-content/70">/ 100점</span>
+                  <span className="text-5xl font-bold sm:text-6xl">{score ?? "—"}</span>
+                  <span className="ml-1 text-sm text-base-content/70">/ 100점</span>
                 </p>
               </div>
             </section>
@@ -137,14 +99,14 @@ export default function SummaryPage() {
               />
             </Suspense>
           </div>
-          <div className="flex min-w-0 flex-col gap-8">
+          <div className="flex min-w-0 flex-col gap-5">
             {isRetry && <RetryComparison previous={comparison} result={result} />}
             {selected && (
               <section
                 aria-labelledby="improvements-title"
                 className="rounded-box border border-base-300 bg-base-100 p-5 sm:p-6"
               >
-                <h2 id="improvements-title" className="text-lg font-bold">
+                <h2 id="improvements-title" className="text-xl font-bold">
                   {selected
                     ? `${selected === "filler" ? "군말" : "반복"} 표현 개선안`
                     : "색상을 눌러 개선안을 확인하세요"}
@@ -163,11 +125,11 @@ export default function SummaryPage() {
                           key={item.key}
                           className={index ? "border-t border-base-300 pt-4" : ""}
                         >
-                          <p className="text-xs tabular-nums text-base-content/75">
+                          <p className="text-sm tabular-nums text-base-content/75">
                             녹음 {item.partIndex + 1} · {timestamp(item.start)} –{" "}
                             {timestamp(item.end)}
                           </p>
-                          <p className="mt-2 text-xs font-semibold text-base-content/65">
+                          <p className="mt-3 text-sm font-semibold text-base-content/65">
                             말한 문장
                           </p>
                           <p className="mt-2 max-w-prose text-lg leading-[1.9] wrap-anywhere">
@@ -185,7 +147,7 @@ export default function SummaryPage() {
                               </span>
                             ))}
                           </p>
-                          <p className="mt-3 text-xs font-semibold text-base-content/65">
+                          <p className="mt-4 text-sm font-semibold text-base-content/65">
                             개선한 문장
                           </p>
                           <p className="mt-2 max-w-prose text-lg leading-[1.9] wrap-anywhere">
@@ -213,7 +175,7 @@ export default function SummaryPage() {
               </section>
             )}
             {!isRetry && <section aria-labelledby="priorities-title">
-              <h2 id="priorities-title" className="text-lg font-bold">
+              <h2 id="priorities-title" className="text-xl font-bold">
                 먼저 고칠 3가지
               </h2>
               {result.analysis.summary.topPriorities.length ? (
@@ -221,7 +183,7 @@ export default function SummaryPage() {
                   {result.analysis.summary.topPriorities.slice(0, 3).map((priority, index) => (
                     <li key={index} className="flex gap-3 py-4">
                       <span className="badge badge-primary mt-0.5 shrink-0">{index + 1}</span>
-                      <p className="min-w-0 text-sm leading-relaxed wrap-anywhere">{priority}</p>
+                      <p className="min-w-0 text-base leading-relaxed wrap-anywhere">{priority}</p>
                     </li>
                   ))}
                 </ol>
@@ -229,12 +191,12 @@ export default function SummaryPage() {
                 <p className="mt-3 text-sm text-base-content/70">추천 개선점을 준비하고 있어요.</p>
               )}
               {result.analysis.summary.comment && (
-                <p className="mt-4 rounded-box bg-base-200 p-4 text-sm leading-relaxed wrap-anywhere">
+                <p className="mt-3 rounded-box bg-base-200 p-4 text-base leading-relaxed wrap-anywhere">
                   {result.analysis.summary.comment}
                 </p>
               )}
             </section>}
-            <div className="flex flex-col gap-3 xl:flex-row">
+            <div className="flex flex-col gap-2 xl:flex-row">
               {result.mode === "presentation" ? (
                 <button type="button" onClick={() => {
                   const reference = retryReference(result, previous);

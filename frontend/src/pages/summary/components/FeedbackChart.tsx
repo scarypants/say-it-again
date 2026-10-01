@@ -32,17 +32,17 @@ export default function FeedbackChart({
 
   return (
     <section aria-labelledby="category-chart-title">
-      <h2 id="category-chart-title" className="text-lg font-bold">
+      <h2 id="category-chart-title" className="text-xl font-bold">
         말하기 항목별 비율
       </h2>
-      <p className="mt-2 text-sm text-base-content/70">
+      <p className="mt-2 text-base leading-relaxed text-base-content/70">
         보라색 반복, 노란색 군말을 누르면 개선안을 볼 수 있어요.
       </p>
       {total > 0 ? (
         <>
           <svg
             viewBox="0 0 260 260"
-            className="mx-auto mt-3 w-full max-w-64"
+            className="mx-auto mt-4 w-full max-w-72"
             role="group"
             aria-label="정상 구간을 포함한 말하기 비율 원형 차트"
           >
@@ -84,7 +84,7 @@ export default function FeedbackChart({
                       y={item.labelY}
                       textAnchor="middle"
                       dominantBaseline="middle"
-                      className="pointer-events-none fill-base-100 text-[13px] font-bold"
+                      className="pointer-events-none fill-base-100 text-sm font-bold"
                       aria-hidden="true"
                       style={{
                         fill:
@@ -100,13 +100,13 @@ export default function FeedbackChart({
               );
             })}
           </svg>
-          <ul className="grid grid-cols-2 gap-2 text-sm" aria-label="항목별 백분율">
+          <ul className="grid grid-cols-2 gap-2.5 text-base" aria-label="항목별 백분율">
             {categories.map((item) => (
               <li key={item.key}>
                 {item.key === "filler" || item.key === "repeat" ? (
                   <button
                     type="button"
-                    className={`flex min-h-10 w-full items-center gap-2 rounded-box border px-2 text-left ${selected === item.key ? "border-primary bg-base-200" : "border-base-300"}`}
+                    className={`flex min-h-12 w-full items-center gap-2 rounded-box border px-3 text-left ${selected === item.key ? "border-primary bg-base-200" : "border-base-300"}`}
                     disabled={item.value === 0}
                     aria-pressed={selected === item.key}
                     aria-label={`${item.name} ${item.percent}% 개선안 보기`}
@@ -120,7 +120,7 @@ export default function FeedbackChart({
                     {item.name} {item.percent}%
                   </button>
                 ) : (
-                  <div className="flex min-h-10 items-center gap-2 px-2">
+                  <div className="flex min-h-12 items-center gap-2 px-3">
                     <span
                       className="size-2.5 shrink-0 rounded-full"
                       style={{ backgroundColor: item.fill }}
@@ -132,7 +132,7 @@ export default function FeedbackChart({
               </li>
             ))}
           </ul>
-          <p className="mt-3 text-xs leading-relaxed text-base-content/60">
+          <p className="mt-4 text-sm leading-relaxed text-base-content/65">
             전체 단어 가운데 각 항목에 걸린 단어의 비율이에요. 겹친 단어는 한 번만 세고, 정상은 걸린
             데가 없는 단어예요.
           </p>

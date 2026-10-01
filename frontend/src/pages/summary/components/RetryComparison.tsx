@@ -30,12 +30,12 @@ export default function RetryComparison({
     Number.isFinite(value) ? `${Math.round(value * 10) / 10}${unit}` : "—";
 
   return (
-    <section aria-labelledby="retry-title" className="rounded-box border border-base-300 p-5 sm:p-6">
+    <section aria-labelledby="retry-title" className="rounded-box border border-base-300 bg-base-100 p-5 sm:p-7">
       <h2 id="retry-title" className="text-xl font-bold">다시 말한 결과</h2>
-      <p className="mt-2 text-sm leading-relaxed text-base-content/70">
+      <p className="mt-2 text-base leading-relaxed text-base-content/70">
         같은 기준의 점수와 1분당 횟수로 비교해요. 점수는 높을수록, 군말·반복·멈춤은 적을수록 좋아요.
       </p>
-      <table className="table table-sm mt-3 w-full [&_td]:px-1 [&_td]:py-3 [&_th]:px-1 [&_th]:py-3">
+      <table className="table mt-3 w-full text-sm sm:text-base [&_td]:px-1 [&_td]:py-3 [&_th]:px-1 [&_th]:py-3">
         <caption className="sr-only">이전 녹음과 이번 녹음의 변화</caption>
         <thead>
           <tr>
@@ -68,7 +68,7 @@ export default function RetryComparison({
       {typeof result.compare?.scriptMatch === "number" && Number.isFinite(result.compare.scriptMatch) && (
         <p className="mt-3 text-sm font-medium">이전 대본과 일치한 비율 {result.compare.scriptMatch}%</p>
       )}
-      <p className="mt-3 text-xs leading-relaxed text-base-content/70">
+      <p className="mt-3 text-sm leading-relaxed text-base-content/70">
         군말 {before.fillerCount} → {after.fillerCount}개 · 반복 {before.repeatCount} → {after.repeatCount}개 · 패닉존 {before.panicCount} → {after.panicCount}회
       </p>
       {result.warnings?.includes("script_mismatch") && (
@@ -88,7 +88,7 @@ export default function RetryComparison({
               <div key={group.title}>
                 <h4 className="text-sm font-semibold text-primary">{group.title}</h4>
                 {group.items.length ? (
-                  <ul className="mt-2 space-y-2 text-sm leading-relaxed">
+                  <ul className="mt-2 space-y-2 text-base leading-relaxed">
                     {group.items.map((text, index) => <li key={index} className="wrap-anywhere">{text}</li>)}
                   </ul>
                 ) : <p className="mt-2 text-sm text-base-content/70">별도 피드백이 없어요.</p>}
