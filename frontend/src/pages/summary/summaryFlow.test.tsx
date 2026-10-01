@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { register } from "tsx/esm/api";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import type { Session } from "../../store/analysis";
+import type { Session, Settings } from "../../store/analysis";
 import type { AnalyzeResponse } from "../../types/api";
 import { partTitle, totalDuration } from "../../components/common/scriptFormat";
 import { isFollowUpSummary } from "./followUp";
@@ -35,13 +35,13 @@ const result: AnalyzeResponse = {
   },
 };
 
-function render(source: AnalyzeResponse, questions?: string[], previous: AnalyzeResponse | null = null) {
+function render(source: AnalyzeResponse, questions?: string[], previous: AnalyzeResponse | null = null, practice?: Settings["practice"]) {
   const session: Session = { audio: [], questions, transcript: { ...source, parts: source.parts } };
   const noop = () => {};
   return renderToStaticMarkup(
     createElement(MemoryRouter, null,
       createElement(AnalysisContext.Provider, { value: {
-        settings: { mode: source.mode, language: source.language }, setSettings: noop,
+        settings: { mode: source.mode, language: source.language, practice }, setSettings: noop,
         result: source, setResult: noop, previous, setPrevious: noop,
         session, setSession: noop,
       } }, createElement(SummaryPage)),
@@ -114,4 +114,23 @@ test("다른 질문의 결과를 이전 면접과 재도전 점수로 비교하�
   assert.ok(!html.includes("재도전 점수"));
   assert.ok(!html.includes("다시 말한 결과"));
   assert.match(html, /꼬리질문 답변 점수/);
+});
+
+test("꼬리질문 답변 총평에서는 추가 질문 요청 영역을 숨기고 첫 총평에는 유지한다", () => {
+  const pending = "추가 질문 기능을 불러오고 있어요.";
+  assert.ok(render(result).includes(pending));
+  for (const [mode, prompt] of [
+    ["interview", "Interview Follow-up 1\nQuestion: What was your role?"],
+    ["speaking", "OPIc Follow-up 1\nQuestion: What changed?"],
+  ] as const) {
+    const html = render({ ...result, mode }, [prompt]);
+    assert.match(html, /꼬리질문 답변 점수/);
+    assert.ok(!html.includes(pending));
+  }
+  const prompt = "TOEIC Speaking Part 3\nQuestion: What changed?";
+  const speaking = { ...result, mode: "speaking" as const };
+  assert.ok(render(speaking, [prompt]).includes(pending));
+  const html = render(speaking, [prompt], null, [{ type: "respond", text: "What changed?", prompt }]);
+  assert.match(html, /꼬리질문 답변 점수/);
+  assert.ok(!html.includes(pending));
 });
