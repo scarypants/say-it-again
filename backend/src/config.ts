@@ -34,6 +34,14 @@ export const MAX_AUDIO_SEC = {
 /** 면접 질문 생성: 지원 직무 글자 수 상한 (앞뒤 공백 제거 후) */
 export const MAX_JOB_LENGTH = 50;
 
+// 질문 생성 (POST /api/questions)
+export const MAX_FOLLOW_UPS = 3; // 꼬리질문 최대 개수 (기본값도 이 값)
+export const MAX_ANSWER_CHARS = 20_000; // 꼬리질문 재료(answers[].text) 합계 글자 수 상한
+export const MAX_QUESTION_CHARS = 2_000; // answers[].question 하나의 글자 수 상한
+export const MAX_ASKED = 30; // asked(이미 받은 꼬리질문) 개수 상한
+export const MAX_OPIC_TOPICS = 20; // 오픽 서베이 주제 개수 상한
+export const OPIC_HARD_LEVEL = 5; // 오픽 자가 평가 이 단계 이상이면 롤플레이가 문제 해결형 (프론트와 같은 값)
+
 /** 단어가 이보다 적으면 음성이 없는 것으로 본다 (422) */
 export const MIN_WORDS = 3;
 
@@ -62,6 +70,13 @@ export const LLM_MODEL = process.env.OPENAI_LLM_MODEL ?? '';
 export const LLM_TIMEOUT_MS = 90_000;
 /** 추론 강도. 높을수록 느리고 꼼꼼하다 ('minimal' | 'low' | 'medium' | 'high') */
 export const LLM_REASONING_EFFORT = 'low' as const;
+
+/** 토익 Part 2 사진 생성 모델 (docs/api.md 6절). 비어 있으면 사진 생성은 502 → 프론트가 기본 사진을 쓴다 */
+export const IMAGE_MODEL = process.env.OPENAI_IMAGE_MODEL ?? '';
+export const IMAGE_TIMEOUT_MS = 60_000;
+export const IMAGE_SIZE = '1536x1024'; // 가로형
+export const IMAGE_QUALITY = 'low' as const; // 속도 우선
+export const MAX_SCENE_LENGTH = 1_000; // 장면 설명 글자 수 상한
 
 /** LLM 표현 개선 하이라이트는 파트당 최대 개수 (영향도 순) */
 export const MAX_EXPRESSIONS = 8;

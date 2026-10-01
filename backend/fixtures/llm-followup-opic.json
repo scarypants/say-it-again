@@ -1,0 +1,7 @@
+{
+  "questions": [
+    { "type": "followUp", "text": "You mentioned your favorite cafe. How has it changed since you first started going there?", "hint": "", "about": 1, "situation": "" },
+    { "type": "followUp", "text": "Compare cafes in your country today with cafes ten years ago. What are the biggest differences?", "hint": "", "about": 1, "situation": "" },
+    { "type": "followUp", "text": "Tell me about a problem you had at a cafe and how you solved it.", "hint": "", "about": 3, "situation": "" }
+  ]
+}

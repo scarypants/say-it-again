@@ -1,0 +1,7 @@
+{
+  "questions": [
+    { "type": "respond", "text": "What kind of study space do you prefer, and why?", "hint": "", "about": 2, "situation": "Imagine that a university is doing research about student life. You have agreed to participate in a telephone interview about study habits." },
+    { "type": "opinion", "text": "Students should study in groups rather than alone.", "hint": "", "about": -1, "situation": "" },
+    { "type": "respond", "text": "When was the last time you borrowed a book, and what was it about?", "hint": "", "about": 2, "situation": "Imagine that a local library is doing research in your area. You have agreed to participate in a telephone interview about reading habits." }
+  ]
+}

@@ -502,7 +502,7 @@ type Question = {
 
   // 토익 스피킹
   part?: 1 | 2 | 3 | 4 | 5;
-  context?: string;          // Part 1 읽을 지문, Part 3 상황 설명
+  context?: string;          // Part 1 읽을 지문(이때 text는 "Read the text on the screen aloud."), Part 3 상황 설명
   picture?: {                // Part 2 사진 문제에만 있다. 사진은 POST /api/questions/image로 따로 받는다
     scene: string;           // 생성할 사진의 장면 설명 (영어). /api/questions/image에 그대로 보낸다
     prompt: string;          // 생성한 사진으로 출제했을 때 보내는 questions[i] (= 이 문항의 prompt)
@@ -513,7 +513,7 @@ type Question = {
   };
   schedule?: { title: string; rows: { time: string; session: string; speaker: string }[] };  // Part 4 자료 (LLM이 만든다)
   // 오픽
-  topic?: { id: string; label: string };
+  topic?: { id: string; label: string };  // 처음 질문의 묘사·루틴·경험·롤플레이
   // 꼬리질문
   hint?: string;             // 발표: 답변 방향 한 줄 / 면접: 이 질문의 의도 한 줄 (한국어)
   about?: number;            // 면접·스피킹 꼬리질문: 이어지는 답변 번호(answers 기준, 0부터)
@@ -532,7 +532,7 @@ type Question = {
 | initial · 오픽 | `intro` → `description` → `routine` → `experience` → `rolePlayAsk` 또는 `rolePlaySolve`(level 5 이상) | 5개, 순서 고정. 묘사·루틴·경험은 같은 주제 |
 | followUp · 발표 | `expected` (+ `hint`) | 1~3개 |
 | followUp · 토익 | `respond` 또는 `opinion` | 1~3개 |
-| followUp · 오픽 | `followUp` (+ `topic`, `about`) | 1~3개 |
+| followUp · 오픽 | `followUp` (+ `about`. 이어지는 답변의 주제 id는 `prompt` 머리말에) | 1~3개 |
 | followUp · 면접 | `followUp` (+ `about`, `hint`) | 1~3개 |
 
 - **토익 Part 2 사진은 이미지 생성 모델로 만들고, 질문과 따로 받는다.** 사진 문제는 처음 질문(`initial` · 토익)의 Part 2 **한 문항뿐**이고, 꼬리질문에는 사진 문제를 넣지 않는다.
@@ -574,7 +574,7 @@ type QuestionImageRequest = {
 
 ```ts
 type QuestionImageResponse = {
-  image: string;   // "data:image/png;base64,..." (data URL, 1~2MB 정도)
+  image: string;   // "data:image/jpeg;base64,..." (data URL, 수백 KB~1MB 정도)
 };
 ```
 
