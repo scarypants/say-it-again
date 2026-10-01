@@ -39,6 +39,7 @@ npm run dev:front                    # http://localhost:5173
 |---|---|
 | OpenAI Whisper API (whisper-1) | 음성 → 텍스트, 단어 타임스탬프 |
 | OpenAI API (LLM) | 막힌 구간 원인 진단, 대안 대본, 총평 |
+| OpenAI Image API (gpt-image-2.5-flare) | 토익 스피킹 Part 2 사진 생성 |
 | React, Vite, TypeScript | 프론트엔드 |
 | TailwindCSS, DaisyUI | 스타일 |
 | recharts | 총평 차트 |
