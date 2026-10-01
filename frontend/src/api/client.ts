@@ -19,8 +19,9 @@ export function audioFileName(blob: Blob) {
 export async function analyze(req: AnalyzeRequest): Promise<AnalyzeResponse> {
   if (USE_MOCK) return mockResponse();
 
+  // 긴 발표는 5분짜리 파일 여러 개: audio 필드를 녹음 순서대로 여러 번 붙인다
   const form = new FormData();
-  form.append("audio", req.audio, audioFileName(req.audio));
+  req.audio.forEach((a, i) => form.append("audio", a, `part${i + 1}-${audioFileName(a)}`));
   form.append("mode", req.mode);
   form.append("language", req.language);
   if (req.keywords) form.append("keywords", req.keywords);
@@ -39,7 +40,9 @@ export async function analyzeSpeaking(req: SpeakingAnalyzeRequest): Promise<Anal
   form.append("language", "en");
   form.append("exam", req.exam);
   form.append("questions", JSON.stringify(req.answers.map((a) => a.question)));
-  req.answers.forEach((a, i) => form.append("audio", a.audio, `q${i + 1}-${audioFileName(a.audio)}`));
+  req.answers.forEach((a, i) =>
+    form.append("audio", a.audio, `q${i + 1}-${audioFileName(a.audio)}`),
+  );
   return postAnalyze(form);
 }
 

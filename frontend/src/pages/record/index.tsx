@@ -9,8 +9,9 @@ import { useAnalysis } from "../../store/analysis";
 import { isMaterialFile, MATERIAL_ACCEPT } from "./material";
 import MaterialPreview from "./MaterialPreview";
 
-const MAX_SEC = 300; // 5분마다 잠깐 멈추고 이어서 녹음할지 고른다
-const MAX_TOTAL_SEC = 1800; // 이어서 녹음해도 최대 30분
+const MAX_SEC = 300; // 파일 하나 5분. 다 되면 잠깐 멈추고 새 파일로 이어서 녹음할지 고른다
+const MAX_FILES = 5;
+const MAX_TOTAL_SEC = MAX_SEC * MAX_FILES; // 최대 25분
 
 function mmss(sec: number) {
   const s = Math.floor(sec);
@@ -44,7 +45,7 @@ export default function RecordPage() {
     .map((k) => k.trim())
     .filter(Boolean);
 
-  async function runAnalyze(audio: Blob) {
+  async function runAnalyze(audio: Blob[]) {
     setAnalyzing(true);
     setAnalyzeError(null);
     try {
@@ -116,20 +117,46 @@ export default function RecordPage() {
 
         {rec.status !== "recorded" && !paused && !material && <LevelBars levels={rec.levels} />}
 
-        {rec.status === "recorded" && rec.url ? (
+        {rec.status === "recorded" && rec.urls.length > 0 ? (
           <div className="flex w-full flex-col items-center gap-3">
-            <audio src={rec.url} controls className="w-full" />
+            {rec.urls.length === 1 ? (
+              <audio src={rec.urls[0]} controls className="w-full" />
+            ) : (
+              // 5분짜리 파일 여러 개: 녹음 순서대로, 각 파일이 전체에서 몇 분 몇 초 구간인지
+              <ol className="flex w-full flex-col gap-2" aria-label="녹음 파일">
+                {rec.urls.map((u, i) => (
+                  <li key={u} className="flex flex-col gap-1">
+                    <div className="flex items-center justify-between text-xs text-secondary tabular-nums">
+                      <span>
+                        {mmss(i * MAX_SEC)} –{" "}
+                        {mmss(i === rec.urls.length - 1 ? rec.elapsed : (i + 1) * MAX_SEC)}
+                      </span>
+                      <a
+                        href={u}
+                        download={`part${i + 1}-${audioFileName(rec.blobs[i])}`}
+                        className="link link-hover"
+                      >
+                        파일 저장
+                      </a>
+                    </div>
+                    <audio src={u} controls className="w-full" />
+                  </li>
+                ))}
+              </ol>
+            )}
             <div className="flex gap-2">
               <button type="button" className="btn btn-ghost btn-sm" onClick={rec.reset}>
                 다시 녹음
               </button>
-              <a
-                href={rec.url}
-                download={rec.blob ? audioFileName(rec.blob) : "recording.webm"}
-                className="btn btn-ghost btn-sm"
-              >
-                파일 저장
-              </a>
+              {rec.urls.length === 1 && rec.blob && (
+                <a
+                  href={rec.urls[0]}
+                  download={audioFileName(rec.blob)}
+                  className="btn btn-ghost btn-sm"
+                >
+                  파일 저장
+                </a>
+              )}
             </div>
           </div>
         ) : paused ? null : (
@@ -153,7 +180,8 @@ export default function RecordPage() {
               : remaining <= 30
                 ? `최대 ${MAX_TOTAL_SEC / 60}분이에요. ${Math.ceil(remaining)}초 뒤 녹음이 끝나요`
                 : "다 말했으면 버튼을 눌러 멈춰요")}
-          {paused && `${rec.limit / 60}분이 지나 잠깐 멈췄어요. 이어서 녹음하거나 여기까지 분석해요`}
+          {paused &&
+            `${rec.limit / 60}분이 지나 잠깐 멈췄어요. 이어서 녹음하면 새 파일로 저장돼요 (${rec.blobs.length}/${MAX_FILES})`}
           {rec.status === "recorded" && "들어 보고 괜찮으면 분석을 시작해요"}
         </p>
 
@@ -187,7 +215,7 @@ export default function RecordPage() {
             </button>
           </>
         )}
-        {/* 5분이 다 되면: 같은 파일에 이어서 녹음하거나, 여기까지 바로 분석 */}
+        {/* 5분이 다 되면: 새 파일로 이어서 녹음하거나, 여기까지 바로 분석 */}
         {paused && (
           <div className="flex gap-2">
             <button
@@ -200,17 +228,17 @@ export default function RecordPage() {
             <button
               type="button"
               className="btn btn-primary btn-lg flex-1"
-              onClick={() => rec.finish((b) => void runAnalyze(b))}
+              onClick={() => rec.finish((_, all) => void runAnalyze(all))}
             >
               분석하기
             </button>
           </div>
         )}
-        {rec.status === "recorded" && rec.blob && (
+        {rec.status === "recorded" && rec.blobs.length > 0 && (
           <button
             type="button"
             className="btn btn-primary btn-lg btn-block"
-            onClick={() => rec.blob && void runAnalyze(rec.blob)}
+            onClick={() => void runAnalyze(rec.blobs)}
           >
             {analyzeError ? "다시 분석하기" : "분석하기"}
           </button>

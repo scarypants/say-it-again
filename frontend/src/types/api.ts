@@ -4,7 +4,7 @@ export type Mode = "lecture" | "language" | "interview";
 export type Lang = "ko" | "en";
 
 export type AnalyzeRequest = {
-  audio: Blob;
+  audio: Blob[]; // 녹음 순서대로. 파일 하나당 최대 5분, 최대 5개
   mode: Mode;
   language: Lang;
   keywords?: string;
