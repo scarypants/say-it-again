@@ -78,7 +78,7 @@
 ## 7. 비밀값 · 환경 변수
 
 - `.env`는 커밋 금지(.gitignore 등록됨). 대신 `backend/.env.example`에 키 이름만 적는다.
-  - `OPENAI_API_KEY=`, `OPENAI_LLM_MODEL=`, `PORT=8080` (frontend는 `frontend/.env.example`에 `VITE_USE_MOCK`)
+  - `OPENAI_API_KEY=`, `OPENAI_LLM_MODEL=`, `PORT=8080`, `CORS_ORIGIN=`(허용 출처, 비우면 localhost:5173) (frontend는 `frontend/.env.example`에 `VITE_USE_MOCK`)
 - 키는 각자 로컬 `.env`에 넣는다. 채팅·이슈·PR에 키를 붙여넣지 않는다.
 
 ## 8. 대회 규칙 준수

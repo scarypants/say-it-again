@@ -1,6 +1,15 @@
 // 서버 튜닝 상수는 이 파일에 모은다.
 import type { Category } from './types/api';
 
+// 허용할 요청 출처(Origin). CORS_ORIGIN에 쉼표로 여러 개를 적고, "*"면 모두 허용한다.
+// 개발 중에는 vite 프록시를 거치므로 기본값(5173)이면 충분하다. 폰이나 ngrok으로 접속하면 그 주소를 추가한다.
+export const ALLOWED_ORIGINS: string[] = (
+  process.env.CORS_ORIGIN || 'http://localhost:5173,http://127.0.0.1:5173'
+)
+  .split(',')
+  .map((origin) => origin.trim().replace(/\/$/, ''))
+  .filter(Boolean);
+
 // 문장 분할: whisper segment(문장) 끝에서 끊고, PANIC_GAP초 이상 멈추면 pause 줄을 넣는다
 export const PANIC_GAP = 2.0;
 export const MAX_WORDS = 40; // 한 문장 최대 단어 수 (whisper가 아주 긴 segment를 줄 때 대비)
