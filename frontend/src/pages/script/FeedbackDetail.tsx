@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import type { Highlight, Part } from "../../types/api";
+import { revealSoon } from "../../components/common/reveal";
 import { CATEGORY, displayCategory, highlightText } from "./highlights";
 
 // 같은 종류가 바로 붙어 있으면("어 그러니까") 대본에서 한 덩어리로 칠했으니 설명도 하나로 합친다
@@ -36,15 +37,8 @@ export default function FeedbackDetail({ part, items: raw, onClose, inline }: Pr
   const ref = useRef<HTMLDivElement>(null);
   const items = mergeAdjacent(raw);
 
-  // 줄 아래에 펼쳐질 때 화면 밖으로 밀려나면 보이게 당긴다 (Collapse가 다 펼친 뒤)
-  useEffect(() => {
-    if (!inline) return;
-    const t = window.setTimeout(
-      () => ref.current?.scrollIntoView({ block: "nearest", behavior: "smooth" }),
-      280,
-    );
-    return () => clearTimeout(t);
-  }, [inline, raw]);
+  // 줄 아래에 펼쳐질 때 화면 밖이나 아래 고정 버튼에 가리면 보이게 당긴다 (Collapse가 다 펼친 뒤)
+  useEffect(() => (inline ? revealSoon(ref.current) : undefined), [inline, raw]);
 
   if (!items.length) return null;
 

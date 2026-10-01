@@ -103,6 +103,18 @@ body,
   min-height: 100%;
 }
 
+/* 스크롤로 무언가를 보여 줄 때(포커스, scrollIntoView) 폰 아래 고정 버튼(총평 보기·분석하기 등)에
+   가리지 않게 아래 여백을 둔다. PC는 버튼이 옆에 붙어 있어 조금만. components/common/reveal.ts도 이 값을 쓴다 */
+html {
+  scroll-padding-top: 0.75rem;
+  scroll-padding-bottom: 7rem;
+}
+@media (min-width: 1024px) {
+  html {
+    scroll-padding-bottom: 1.5rem;
+  }
+}
+
 body {
   @apply bg-base-200 font-sans text-base-content antialiased;
   /* 한국어는 글자 사이에서 줄바꿈하지 않고 띄어쓰기에서만 (말씀드리겠습/니다 방지).
