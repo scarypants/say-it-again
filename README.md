@@ -15,12 +15,14 @@
 ## 실행
 
 ```bash
-# server
-cd server && cp .env.example .env   # 키 입력
-npm install && npm run dev
+# 루트에서 한 번에 설치 (npm workspaces)
+npm install
 
-# client
-cd client && npm install && npm run dev
+# backend — backend/.env 에 키 입력
+npm run dev:back
+
+# frontend — 서버 없이 보려면 frontend/.env 에 VITE_USE_MOCK=true
+npm run dev:front                    # http://localhost:5173
 ```
 
 ## 문서
