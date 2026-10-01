@@ -111,93 +111,104 @@ function Review({ transcript, audio, questions, setResult }: ReviewProps) {
       </>
     );
 
+  const fillerNote = (
+    <div role="note" className="alert alert-warning alert-soft text-sm">
+      <span>
+        <b className="font-semibold">음, 어, 그, um, uh 같은 말버릇은 고치거나 지우지 마세요.</b>
+        <br />
+        말한 그대로 남아 있어야 군말·막힌 구간을 찾을 수 있어요. 단어를 누르면 고칠 수 있고, 칸을
+        비우면 그 단어가 지워져요.
+      </span>
+    </div>
+  );
+
+  // PC: 대본은 왼쪽, 안내와 분석 버튼은 오른쪽에 붙어 따라온다. 폰: 버튼이 아래에 붙는다
   return (
-    <div className="flex flex-1 flex-col">
-      {leaveGuard}
-      <section className="pt-2 pb-4">
-        <h1 className="text-xl font-bold">대본 확인</h1>
-        <p className="mt-1 text-sm text-secondary">
-          총 {mmss(totalDuration(parts))} · 문장을 눌러 들어 보고, 잘못 들린 단어만 고쳐 주세요.
-        </p>
-      </section>
+    <div className="flex flex-1 flex-col lg:grid lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start lg:gap-10">
+      <div className="flex flex-col">
+        {leaveGuard}
+        <section className="pt-2 pb-4">
+          <h1 className="text-xl font-bold">대본 확인</h1>
+          <p className="mt-1 text-sm text-secondary">
+            총 {mmss(totalDuration(parts))} · 문장을 눌러 들어 보고, 잘못 들린 단어만 고쳐 주세요.
+          </p>
+        </section>
 
-      <div role="note" className="alert alert-warning alert-soft mb-4 text-sm">
-        <span>
-          <b className="font-semibold">음, 어, 그, um, uh 같은 말버릇은 고치거나 지우지 마세요.</b>
-          <br />
-          말한 그대로 남아 있어야 군말·막힌 구간을 찾을 수 있어요. 단어를 누르면 고칠 수 있고, 칸을
-          비우면 그 단어가 지워져요.
-        </span>
-      </div>
+        <div className="mb-4 lg:hidden">{fillerNote}</div>
 
-      <div className="flex flex-col gap-6">
-        {parts.map((part, pi) => (
-          <section key={pi} aria-labelledby={`part-${pi}`}>
-            {parts.length > 1 || transcript.mode === "speaking" ? (
-              <header className="mb-2 border-b border-base-300 pb-2">
-                <h2 id={`part-${pi}`} className="text-sm font-semibold tabular-nums">
-                  {partTitle(transcript.mode, pi, part.duration)}
+        <div className="flex flex-col gap-6">
+          {parts.map((part, pi) => (
+            <section key={pi} aria-labelledby={`part-${pi}`}>
+              {parts.length > 1 || transcript.mode === "speaking" ? (
+                <header className="mb-2 border-b border-base-300 pb-2">
+                  <h2 id={`part-${pi}`} className="text-sm font-semibold tabular-nums">
+                    {partTitle(transcript.mode, pi, part.duration)}
+                  </h2>
+                  {questionLine(questions?.[pi]) && (
+                    <p className="mt-0.5 text-sm text-secondary">{questionLine(questions?.[pi])}</p>
+                  )}
+                </header>
+              ) : (
+                <h2 id={`part-${pi}`} className="sr-only">
+                  대본
                 </h2>
-                {questionLine(questions?.[pi]) && (
-                  <p className="mt-0.5 text-sm text-secondary">{questionLine(questions?.[pi])}</p>
-                )}
-              </header>
-            ) : (
-              <h2 id={`part-${pi}`} className="sr-only">
-                대본
-              </h2>
-            )}
-            <ol className="flex flex-col">
-              {part.script.map((line, li) => {
-                const key = `${pi}:${li}`;
-                if (line.pause)
+              )}
+              <ol className="flex flex-col">
+                {part.script.map((line, li) => {
+                  const key = `${pi}:${li}`;
+                  if (line.pause)
+                    return (
+                      <li key={key} className="py-1 pl-10 text-xs text-hl-panic tabular-nums">
+                        {(line.end - line.start).toFixed(1)}초 멈춤
+                      </li>
+                    );
+                  const changed = line.words.join(" ") !== original[pi].script[li].words.join(" ");
                   return (
-                    <li key={key} className="py-1 pl-10 text-xs text-hl-panic tabular-nums">
-                      {(line.end - line.start).toFixed(1)}초 멈춤
+                    <li
+                      key={key}
+                      className={`flex items-start gap-1 rounded-field py-1 pr-1 ${
+                        player.playing === key ? "bg-base-200" : ""
+                      }`}
+                    >
+                      <PlayLineButton
+                        playing={player.playing === key}
+                        disabled={!audio[pi]}
+                        label={`${li + 1}번째 문장`}
+                        onClick={() => void player.play(key, audio[pi], line.start, line.end)}
+                      />
+                      <p className="min-w-0 flex-1 py-1 text-[1.0625rem] leading-8">
+                        {line.words.map((w, wi) => (
+                          <EditableWord
+                            key={wi}
+                            word={w}
+                            edited={w !== original[pi].script[li].words[wi]}
+                            onCommit={(v) => editWord(pi, li, wi, v)}
+                          />
+                        ))}
+                      </p>
+                      {changed && (
+                        <button
+                          type="button"
+                          className="btn btn-ghost btn-xs mt-1.5 shrink-0"
+                          onClick={() => resetLine(pi, li)}
+                        >
+                          되돌리기
+                        </button>
+                      )}
                     </li>
                   );
-                const changed = line.words.join(" ") !== original[pi].script[li].words.join(" ");
-                return (
-                  <li
-                    key={key}
-                    className={`flex items-start gap-1 rounded-field py-1 pr-1 ${
-                      player.playing === key ? "bg-base-200" : ""
-                    }`}
-                  >
-                    <PlayLineButton
-                      playing={player.playing === key}
-                      disabled={!audio[pi]}
-                      label={`${li + 1}번째 문장`}
-                      onClick={() => void player.play(key, audio[pi], line.start, line.end)}
-                    />
-                    <p className="min-w-0 flex-1 py-1 text-[1.0625rem] leading-8">
-                      {line.words.map((w, wi) => (
-                        <EditableWord
-                          key={wi}
-                          word={w}
-                          edited={w !== original[pi].script[li].words[wi]}
-                          onCommit={(v) => editWord(pi, li, wi, v)}
-                        />
-                      ))}
-                    </p>
-                    {changed && (
-                      <button
-                        type="button"
-                        className="btn btn-ghost btn-xs mt-1.5 shrink-0"
-                        onClick={() => resetLine(pi, li)}
-                      >
-                        되돌리기
-                      </button>
-                    )}
-                  </li>
-                );
-              })}
-            </ol>
-          </section>
-        ))}
+                })}
+              </ol>
+            </section>
+          ))}
+        </div>
       </div>
 
-      <div className="sticky bottom-0 mt-auto flex flex-col gap-2 bg-base-100 pt-4 pb-2">
+      <aside className="sticky bottom-0 mt-auto flex flex-col gap-2 bg-base-100 pt-4 pb-2 lg:top-4 lg:bottom-auto lg:mt-0 lg:gap-3 lg:pt-2">
+        <div className="hidden lg:block">{fillerNote}</div>
+        <p className="hidden text-sm text-secondary tabular-nums lg:block">
+          총 {mmss(totalDuration(parts))} · 고친 문장 {editedCount}개
+        </p>
         {fillerWarning && (
           <p role="status" className="text-center text-xs text-warning-content">
             '{fillerWarning}'처럼 말버릇을 고치면 군말 분석에서 빠져요. 잘못 들린 게 아니라면 되돌려
@@ -212,7 +223,7 @@ function Review({ transcript, audio, questions, setResult }: ReviewProps) {
         <button type="button" className="btn btn-primary btn-lg btn-block" onClick={runAnalyze}>
           {editedCount > 0 ? `고친 ${editedCount}문장으로 분석하기` : "이대로 분석하기"}
         </button>
-      </div>
+      </aside>
     </div>
   );
 }
