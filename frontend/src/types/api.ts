@@ -144,4 +144,30 @@ export type Retry = {
 // AnalyzeResponse와 같은 모양 + compare(항상). expression·grammar는 0, parts[].final은 []
 export type RetryResponse = AnalyzeResponse & Required<Pick<AnalyzeResponse, "compare">>;
 
+// 면접 질문 생성 (JSON). 지원 직무에 맞춘 질문 5개를 받는다
+// ⚠ #76에 올린 "제안" 계약이다. 윤화영이 docs/api.md에 확정하면 이름·모양을 그대로 맞춘다
+export type InterviewQuestionType =
+  | "intro"
+  | "motivation"
+  | "job"
+  | "experience"
+  | "personality"
+  | "closing";
+
+export type InterviewQuestionsRequest = {
+  language: Lang;
+  job: string; // 지원 직무 (예: "백엔드 개발자"). 1~50자
+};
+
+export type InterviewQuestion = {
+  type: InterviewQuestionType;
+  text: string; // 화면에 보여 줄 질문 (language로)
+};
+
+export type InterviewQuestionsResponse = {
+  language: Lang;
+  job: string;
+  questions: InterviewQuestion[]; // 5개. 자기소개 → 지원 동기·직무·경험·인성 → 마무리
+};
+
 export type ApiError = { error: string };

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
-import { audioFileName } from "../../api/client";
+import { audioFileName, interviewQuestions } from "../../api/client";
 import { useTranscribe } from "../../api/useTranscribe";
 import AnalyzingView from "../../components/common/AnalyzingView";
 import LevelBars from "../../components/common/LevelBars";
@@ -10,29 +10,35 @@ import { mmss } from "../../components/common/scriptFormat";
 import { useLeaveGuard } from "../../components/common/useLeaveGuard";
 import { useRecorder } from "../../components/common/useRecorder";
 import { useAnalysis } from "../../store/analysis";
+import type { InterviewQuestion } from "../../types/api";
 import {
   ANSWER_GOAL_SEC,
   ANSWER_MAX_SEC,
-  buildInterview,
   interviewQuestionText,
+  interviewTypeName,
   PREP_SEC,
-  type InterviewItem,
 } from "./interviewItems";
 
 type Stage = "setup" | "running" | "done";
 // prep: 질문을 보고 생각하는 시간 / speak: 답변 녹음
 type Phase = "prep" | "speak";
 
-// 면접 모의 연습 (#76): 질문을 화면에 보여 주고 → 준비 시간 → 신호음과 함께 자동 녹음.
+// 면접 모의 연습 (#76): 화면을 열면 백엔드가 지원 직무에 맞춘 질문 5개를 만든다.
+// 질문을 화면에 보여 주고 → 준비 시간 → 신호음과 함께 자동 녹음.
 // 다 말하면 버튼으로 다음 질문. 다섯 질문이 끝나면 한 번에 대본으로 만든다.
 // onRestart: 음성이 감지되지 않았을 때 처음부터 다시 (부모가 새로 그린다)
 export default function InterviewExam({ onRestart }: { onRestart: () => void }) {
   const { settings } = useAnalysis();
   const language = settings.language;
+  const job = settings.job ?? "";
   const rec = useRecorder(ANSWER_MAX_SEC); // 2분이 되면 자동으로 멈추고 다음 질문
 
   const [stage, setStage] = useState<Stage>("setup");
-  const [items, setItems] = useState<InterviewItem[]>([]);
+  const [items, setItems] = useState<InterviewQuestion[]>([]);
+  // 질문 생성: 화면을 열자마자 미리 받아 둔다. loadRound를 올리면 다시 받는다
+  const [loadRound, setLoadRound] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [qi, setQi] = useState(0);
   const [phase, setPhase] = useState<Phase>("prep");
   const [prepEndsAt, setPrepEndsAt] = useState<number | null>(null);
@@ -45,7 +51,7 @@ export default function InterviewExam({ onRestart }: { onRestart: () => void }) 
 
   const timerRef = useRef<number | null>(null);
   const tokenRef = useRef(0); // 질문·단계가 바뀌면 이전 콜백(타이머·녹음 종료)을 무시
-  const itemsRef = useRef<InterviewItem[]>([]);
+  const itemsRef = useRef<InterviewQuestion[]>([]);
   const answersRef = useRef<(Blob | null)[]>([]);
   const urlsRef = useRef<string[]>([]);
   const beepCtxRef = useRef<AudioContext | null>(null);
@@ -110,6 +116,7 @@ export default function InterviewExam({ onRestart }: { onRestart: () => void }) 
   }
 
   async function start() {
+    if (items.length === 0) return;
     setStartError(null);
     // 첫 질문에서 자동 녹음이 막히지 않도록 시작할 때 마이크 권한을 먼저 받는다
     if (!navigator.mediaDevices?.getUserMedia) {
@@ -126,10 +133,8 @@ export default function InterviewExam({ onRestart }: { onRestart: () => void }) 
       return;
     }
     beepCtxRef.current = new AudioContext();
-    const list = buildInterview(language);
-    itemsRef.current = list;
-    answersRef.current = list.map(() => null);
-    setItems(list);
+    itemsRef.current = items;
+    answersRef.current = items.map(() => null);
     setAnswers(answersRef.current);
     setStage("running");
     askQuestion(0);
@@ -137,7 +142,7 @@ export default function InterviewExam({ onRestart }: { onRestart: () => void }) 
 
   async function runTranscribe() {
     const pairs = items.flatMap((it, i) =>
-      answers[i] ? [{ question: interviewQuestionText(it, i), audio: answers[i]! }] : [],
+      answers[i] ? [{ question: interviewQuestionText(it, i, job), audio: answers[i]! }] : [],
     );
     if (pairs.length === 0) return;
     await tx.run({
@@ -147,6 +152,27 @@ export default function InterviewExam({ onRestart }: { onRestart: () => void }) 
       audio: pairs.map((p) => p.audio),
     });
   }
+
+  useEffect(() => {
+    if (!job) return;
+    let cancelled = false;
+    interviewQuestions({ language, job })
+      .then((res) => {
+        if (cancelled) return;
+        if (res.questions.length === 0) throw new Error("질문을 받지 못했어요.");
+        setItems(res.questions);
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        setLoadError(err instanceof Error ? err.message : "질문을 만들지 못했어요.");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [language, job, loadRound]);
 
   // 준비 시간 남은 초 표시용 시계
   useEffect(() => {
@@ -174,12 +200,26 @@ export default function InterviewExam({ onRestart }: { onRestart: () => void }) 
       </>
     );
 
+  // 새로고침 등으로 직무 설정이 사라졌으면 홈에서 다시 고른다
+  if (!job)
+    return (
+      <div className="flex flex-1 flex-col">
+        <PageHeader title="면접 연습" />
+        <p className="text-[0.9375rem] leading-relaxed">지원 직무를 먼저 적어 주세요.</p>
+        <div className="sticky bottom-0 mt-auto bg-base-100 pt-6 pb-2">
+          <Link to="/" className="btn btn-primary btn-lg btn-block">
+            처음으로
+          </Link>
+        </div>
+      </div>
+    );
+
   if (stage === "setup") {
     return (
       <div className="flex flex-1 flex-col">
         <PageHeader
           title="면접 연습"
-          description={`${language === "en" ? "영어" : "한국어"}로 답해요`}
+          description={`${job} · ${language === "en" ? "영어" : "한국어"}로 답해요`}
           action={
             <Link to="/" className="btn btn-ghost btn-sm">
               설정 바꾸기
@@ -187,8 +227,8 @@ export default function InterviewExam({ onRestart }: { onRestart: () => void }) 
           }
         />
         <p className="text-[0.9375rem] leading-relaxed">
-          자기소개, 지원 동기·경험 질문 세 개, 마무리 순서로 다섯 질문에 답해요. 질문을 보고 생각한
-          뒤 신호음이 울리면 자동으로 녹음돼요.
+          AI가 {job} 직무에 맞춰 만든 다섯 질문에 답해요. 자기소개로 시작해 마무리로 끝나요. 질문을
+          보고 생각한 뒤 신호음이 울리면 자동으로 녹음돼요.
         </p>
         <ul className="mt-5 list-disc space-y-1 pl-5 text-sm text-secondary">
           <li>질문마다 {PREP_SEC}초 동안 생각할 수 있어요. 준비되면 바로 답해도 돼요.</li>
@@ -199,15 +239,46 @@ export default function InterviewExam({ onRestart }: { onRestart: () => void }) 
           <li>결론을 먼저 말하고, 구체적인 경험으로 뒷받침해 보세요.</li>
           <li>이전 질문으로는 돌아갈 수 없어요.</li>
         </ul>
+        {loadError && (
+          <div role="alert" className="alert alert-error alert-soft mt-4 text-sm">
+            {loadError}
+          </div>
+        )}
         {startError && (
           <div role="alert" className="alert alert-error alert-soft mt-4 text-sm">
             {startError}
           </div>
         )}
         <div className="sticky bottom-0 mt-auto bg-base-100 pt-6 pb-2">
-          <button type="button" className="btn btn-primary btn-lg btn-block" onClick={start}>
-            면접 시작
-          </button>
+          {loadError ? (
+            <button
+              type="button"
+              className="btn btn-primary btn-lg btn-block"
+              onClick={() => {
+                setLoading(true);
+                setLoadError(null);
+                setLoadRound((r) => r + 1);
+              }}
+            >
+              질문 다시 만들기
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="btn btn-primary btn-lg btn-block"
+              onClick={start}
+              disabled={loading}
+            >
+              {loading ? (
+                <>
+                  <span className="loading loading-spinner loading-sm" />
+                  질문 만드는 중
+                </>
+              ) : (
+                "면접 시작"
+              )}
+            </button>
+          )}
         </div>
       </div>
     );
@@ -226,7 +297,7 @@ export default function InterviewExam({ onRestart }: { onRestart: () => void }) 
             <li key={i} className="rounded-box border border-base-300 p-4">
               <p>
                 <span className="font-semibold">Q{i + 1}</span>{" "}
-                <span className="text-secondary">{it.name}</span>
+                <span className="text-secondary">{interviewTypeName(it.type)}</span>
               </p>
               <p lang={language} className="mt-2 text-sm leading-relaxed">
                 {it.text}
@@ -298,7 +369,7 @@ export default function InterviewExam({ onRestart }: { onRestart: () => void }) 
       {/* 다음 질문으로 넘어가면 질문이 새로 올라온다 */}
       <section key={`q${qi}`} className="flex flex-1 animate-enter flex-col justify-center py-6">
         <p className="text-sm text-secondary">
-          Q{qi + 1} · {item.name}
+          Q{qi + 1} · {interviewTypeName(item.type)}
         </p>
         <h1 lang={language} className="mt-2 text-2xl leading-snug font-bold">
           {item.text}

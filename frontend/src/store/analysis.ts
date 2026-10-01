@@ -13,7 +13,13 @@ import { loadAudio, recordTranscript, type HistoryRecord } from "./history";
 
 export type { Exam, PresentationLevel } from "../types/api";
 
-export type Settings = { mode: InputMode; language: Lang; level?: PresentationLevel; exam?: Exam };
+export type Settings = {
+  mode: InputMode;
+  language: Lang;
+  level?: PresentationLevel;
+  exam?: Exam;
+  job?: string; // 면접만. 지원 직무
+};
 
 // 한 번의 연습: 녹음 파일(문장 재생용)과 질문, 1단계 전사 결과. 검토 화면과 결과 화면이 같이 쓴다
 export type Session = {
