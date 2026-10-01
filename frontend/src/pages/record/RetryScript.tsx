@@ -1,3 +1,4 @@
+import { retryFinal } from "../../store/analysis";
 import type { AnalyzeResponse } from "../../types/api";
 
 type Props = { previous: AnalyzeResponse };
@@ -7,7 +8,7 @@ export default function RetryScript({ previous }: Props) {
   const panics = previous.parts.flatMap((p) =>
     p.highlight.filter((h) => h.category === "panic" && h.fixed),
   );
-  const finalLines = previous.parts.flatMap((p) => p.final.map((f) => f.words.join(" ")));
+  const finalLines = retryFinal(previous).map((f) => f.words.join(" "));
   const { panicCount, panicTotalSec } = previous.analysis.stats;
 
   return (

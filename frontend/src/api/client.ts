@@ -2,6 +2,7 @@ import type {
   AnalyzeRequest,
   AnalyzeResponse,
   ApiError,
+  CompareStats,
   RetryRequest,
   RetryResponse,
   TranscribeRequest,
@@ -74,32 +75,78 @@ export async function retry(req: RetryRequest): Promise<RetryResponse> {
   });
 }
 
-// mock 재도전: 예시 분석 결과에 이전 수치와의 비교를 붙인다 (화면 확인용)
+// mock 재도전: 예시 분석 결과를 docs/api.md 5절의 retry 응답 모양으로 바꾸고 이전 수치와 비교한다 (화면 확인용)
 async function mockRetry(req: RetryRequest): Promise<RetryResponse> {
   const res = await mock<AnalyzeResponse>(() => import("../mocks/analyze.sample.json"));
-  const pick = (s: RetryRequest["previous"]["stats"], score: number) => ({
+  const perMin = (n: number, sec: number) => (sec > 0 ? Math.round((n / sec) * 600) / 10 : 0);
+  const stats = (
+    s: AnalyzeResponse["analysis"]["stats"],
+    score: number,
+    durationSec: number,
+  ): CompareStats => ({
     score,
+    durationSec,
     wpm: s.wpm,
     fillerCount: s.fillerCount,
     panicCount: s.panicCount,
     panicTotalSec: s.panicTotalSec,
     repeatCount: s.repeatCount,
+    fillerPerMin: perMin(s.fillerCount, durationSec),
+    panicPerMin: perMin(s.panicCount, durationSec),
+    repeatPerMin: perMin(s.repeatCount, durationSec),
   });
-  const before = pick(req.previous.stats, req.previous.categoryRatio.normal);
-  const after = {
-    ...pick(res.analysis.stats, res.analysis.score),
-    fillerCount: 2,
-    panicCount: 1,
-    panicTotalSec: 2.1,
+  const r = req.previous.categoryRatio;
+  const before = stats(
+    req.previous.stats,
+    r.normal + r.expression + r.grammar,
+    req.previous.durationSec,
+  );
+  const after = stats(
+    {
+      ...res.analysis.stats,
+      fillerCount: 2,
+      panicCount: 1,
+      panicTotalSec: 2.1,
+      expressionCount: 0,
+      grammarCount: 0,
+    },
+    Math.min(100, before.score + 12),
+    Math.round(res.parts.reduce((sum, p) => sum + p.duration, 0) * 10) / 10,
+  );
+  const retry = {
+    improved: [`패닉존이 ${before.panicCount}번에서 ${after.panicCount}번으로 줄었어요`],
+    remaining: ["해결책으로 넘어가는 부분에서 아직 2초 정도 멈춰요"],
+    comment: "대안 대본을 따라 문장을 짧게 끊으면서 막힘이 줄었어요.",
   };
   return {
     ...res,
-    compare: { before, after },
-    retry: {
-      improved: [`패닉존이 ${before.panicCount}번에서 ${after.panicCount}번으로 줄었어요`],
-      remaining: ["해결책으로 넘어가는 부분에서 아직 2초 정도 멈춰요"],
-      comment: "대안 대본을 따라 문장을 짧게 끊으면서 막힘이 줄었어요.",
+    // retry는 panic·filler·repeat만, 패닉 원인·대안 없음, final은 빈 배열
+    parts: res.parts.map((p) => ({
+      ...p,
+      comment: undefined,
+      final: [],
+      highlight: p.highlight
+        .filter((h) => h.category === "panic" || h.category === "filler" || h.category === "repeat")
+        .map((h) => (h.category === "panic" ? { ...h, reason: undefined, fixed: undefined } : h)),
+    })),
+    charts: {
+      ...res.charts,
+      categoryRatio: { ...res.charts.categoryRatio, expression: 0, grammar: 0 },
     },
+    analysis: {
+      score: after.score,
+      stats: {
+        ...res.analysis.stats,
+        fillerCount: after.fillerCount,
+        panicCount: after.panicCount,
+        panicTotalSec: after.panicTotalSec,
+        expressionCount: 0,
+        grammarCount: 0,
+      },
+      summary: { headline: retry.comment, topPriorities: retry.remaining, comment: "" },
+    },
+    compare: { scriptMatch: req.previous.final.length ? 87 : null, before, after },
+    retry,
   };
 }
 

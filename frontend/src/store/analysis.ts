@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext } from "react";
 import { useNavigate } from "react-router";
 import type {
   AnalyzeResponse,
+  RetryRequest,
   Exam,
   Lang,
   Mode,
@@ -52,4 +53,31 @@ export function useStartRetry() {
     setResult(null);
     navigate("/record");
   }, [result, setPrevious, setResult, setSettings, navigate]);
+}
+
+// 재도전 때 따라 말할 대본. 재도전 결과는 서버가 final을 비워 보내므로(docs/api.md 5절)
+// 그때는 실제로 말한 대본에서 필러만 뺀 것을 쓴다. 그래야 재도전을 또 이어 할 수 있다
+export function retryFinal(r: AnalyzeResponse): { words: string[] }[] {
+  const final = r.parts.flatMap((p) => p.final);
+  if (final.length) return final;
+  return r.parts.flatMap((p) => {
+    const fillers = new Set<number>();
+    for (const h of p.highlight)
+      if (h.category === "filler") for (let i = h.from; i <= h.to; i++) fillers.add(i);
+    return p.script
+      .filter((l) => !l.pause)
+      .map((l) => ({ words: l.words.filter((_, i) => !fillers.has(l.offset + i)) }))
+      .filter((l) => l.words.length > 0);
+  });
+}
+
+// POST /api/retry의 previous: 이전 결과에서 그대로 복사한다
+export function retryPrevious(r: AnalyzeResponse): RetryRequest["previous"] {
+  return {
+    durationSec: Math.round(r.parts.reduce((sum, p) => sum + p.duration, 0) * 10) / 10,
+    stats: r.analysis.stats,
+    categoryRatio: r.charts.categoryRatio,
+    topPriorities: r.analysis.summary.topPriorities,
+    final: retryFinal(r),
+  };
 }

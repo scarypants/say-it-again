@@ -7,7 +7,7 @@ import PlayLineButton from "../../components/common/PlayLineButton";
 import { mmss, partTitle, questionLine, totalDuration } from "../../components/common/scriptFormat";
 import { useClipPlayer } from "../../components/common/useClipPlayer";
 import { useLeaveGuard } from "../../components/common/useLeaveGuard";
-import { useAnalysis } from "../../store/analysis";
+import { retryPrevious, useAnalysis } from "../../store/analysis";
 import type { AnalyzeResponse, ScriptPart, TranscribeResponse } from "../../types/api";
 import EditableWord from "./EditableWord";
 import { isFillerWord } from "./fillers";
@@ -102,11 +102,7 @@ function Review({ transcript, audio, questions, setResult, previous }: ReviewPro
       const result = previous
         ? await retry({
             ...req,
-            previous: {
-              stats: previous.analysis.stats,
-              categoryRatio: previous.charts.categoryRatio,
-              topPriorities: previous.analysis.summary.topPriorities,
-            },
+            previous: retryPrevious(previous),
           })
         : await analyze(req);
       setResult(result);
