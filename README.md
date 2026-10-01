@@ -15,12 +15,14 @@
 ## 실행
 
 ```bash
-# server
-cd server && cp .env.example .env   # 키 입력
-npm install && npm run dev
+# 루트에서 한 번에 설치 (npm workspaces)
+npm install
 
-# client
-cd client && npm install && npm run dev
+# backend — backend/.env 에 키 입력
+npm run dev:back
+
+# frontend — 서버 없이 보려면 frontend/.env 에 VITE_USE_MOCK=true
+npm run dev:front                    # http://localhost:5173
 ```
 
 ## 문서
@@ -36,7 +38,7 @@ cd client && npm install && npm run dev
 | 이름 | 용도 |
 |---|---|
 | OpenAI Whisper API (whisper-1) | 음성 → 텍스트, 단어 타임스탬프 |
-| Anthropic Claude API | 막힌 구간 원인 진단, 대안 대본, 총평 |
+| OpenAI API (LLM) | 막힌 구간 원인 진단, 대안 대본, 총평 |
 | React, Vite, TypeScript | 프론트엔드 |
 | TailwindCSS, DaisyUI | 스타일 |
 | recharts | 총평 차트 |
