@@ -115,3 +115,51 @@ test("다른 질문의 결과를 이전 면접과 재도전 점수로 비교하�
   assert.ok(!html.includes("다시 말한 결과"));
   assert.match(html, /꼬리질문 답변 점수/);
 });
+
+test("스피킹 파트별 서버 코멘트는 질문 순서와 원래 파트 번호에 맞춰 표시한다", () => {
+  const source: AnalyzeResponse = {
+    ...result, mode: "speaking", exam: "TOEIC-Speaking",
+    parts: [
+      { ...result.parts[0], comment: "구체적인 선호 이유를 제시했어요." },
+      { ...result.parts[0], comment: "반대 의견과 근거를 연결해 보세요." },
+    ],
+  };
+  const html = render(source, [
+    "TOEIC Speaking Part 3\nQuestion: Why do you visit this cafe?",
+    "TOEIC Speaking Part 5\nQuestion: Do you agree with online classes?",
+  ]);
+  assert.match(html, /파트별 코멘트/);
+  assert.ok(html.indexOf("Part 3") < html.indexOf(source.parts[0].comment!));
+  assert.ok(html.indexOf(source.parts[0].comment!) < html.indexOf("Part 5"));
+  assert.ok(html.includes("Why do you visit this cafe?"));
+  assert.ok(html.includes(source.parts[1].comment!));
+  assert.match(html, /aria-label="Part 5 대본 보기"[^>]*href="\/script\?part=1"/);
+});
+
+test("면접 질문별 코멘트는 건너뛴 질문 번호를 유지하고 누락된 코멘트를 명시한다", () => {
+  const source: AnalyzeResponse = {
+    ...result, mode: "interview",
+    parts: [
+      { ...result.parts[0], comment: "팀에서 본인의 역할을 구체적으로 밝혔어요." },
+      { ...result.parts[0], comment: "   " },
+    ],
+  };
+  const html = render(source, [
+    "Interview Q2 (Motivation)\nJob: 개발자\nQuestion: 지원한 이유는 무엇인가요?",
+    "Interview Q4 (Experience)\nJob: 개발자\nQuestion: 갈등을 어떻게 해결했나요?",
+  ]);
+  assert.match(html, /질문별 코멘트/);
+  assert.match(html, /질문 4/);
+  assert.match(html, /갈등을 어떻게 해결했나요/);
+  assert.match(html, /이 답변의 코멘트가 제공되지 않았어요/);
+  const missingQuestions = render(source, ["연결되지 않은 질문"]);
+  assert.ok(!missingQuestions.includes("연결되지 않은 질문"));
+  assert.ok(missingQuestions.includes(source.parts[0].comment!));
+});
+
+test("발표와 꼬리질문 총평에는 일반 질문 코멘트 영역을 중복 표시하지 않는다", () => {
+  assert.ok(!render(result).includes('id="answer-comments-title"'));
+  const html = render({ ...result, mode: "interview" }, ["Interview Follow-up 1\nQuestion: 역할은 무엇인가요?"]);
+  assert.match(html, /꼬리질문별 피드백/);
+  assert.ok(!html.includes('id="answer-comments-title"'));
+});
