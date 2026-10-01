@@ -184,7 +184,7 @@ export default function SummaryPage() {
               말이 멈춘 순간
             </h2>
             <p className="mt-2 text-sm text-base-content/70">
-              구간을 누르면 대본의 원인과 대안으로 이동해요.
+              구간을 누르면 대본의 대안 문장을 팝업으로 볼 수 있어요.
             </p>
             {pauses.length ? (
               <ol className="mt-3 flex flex-col gap-2">
@@ -221,7 +221,7 @@ export default function SummaryPage() {
                     to={`/script?line=${line.index}`}
                     className="link text-xs text-base-content/70"
                   >
-                    {timestamp(line.start)} 구간의 원인 보기
+                    {timestamp(line.start)} 구간의 대안 보기
                   </Link>
                   <p className="mt-2 font-script text-lg leading-relaxed whitespace-pre-wrap wrap-anywhere">
                     {result.panic[line.index].altScript}
