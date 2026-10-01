@@ -16,31 +16,31 @@ export const CATEGORY: Record<
 > = {
   panic: {
     label: "패닉존",
-    mark: "bg-hl-panic-soft border-hl-panic",
+    mark: "bg-hl-panic-soft",
     dot: "bg-hl-panic",
     desc: "2초 넘게 말이 멈추기 직전의 말",
   },
   filler: {
     label: "군말",
-    mark: "bg-hl-filler-soft border-hl-filler",
+    mark: "bg-hl-filler-soft",
     dot: "bg-hl-filler",
     desc: "빼도 뜻이 그대로인 말버릇",
   },
   repeat: {
     label: "반복",
-    mark: "bg-hl-repeat-soft border-hl-repeat",
+    mark: "bg-hl-repeat-soft",
     dot: "bg-hl-repeat",
     desc: "가까이에서 되풀이한 말",
   },
   expression: {
     label: "표현 개선",
-    mark: "bg-hl-expr-soft border-hl-expr",
+    mark: "bg-hl-expr-soft",
     dot: "bg-hl-expr",
     desc: "더 분명하게 바꿀 수 있는 표현",
   },
   grammar: {
     label: "문법",
-    mark: "bg-hl-grammar-soft border-hl-grammar",
+    mark: "bg-hl-grammar-soft",
     dot: "bg-hl-grammar",
     desc: "문법이 틀린 부분",
   },
@@ -51,8 +51,9 @@ export const byPriority = (a: Highlight, b: Highlight) =>
 
 const covers = (h: Highlight, word: number) => word >= h.from && word <= h.to;
 
-// 한 줄을 칠할 조각으로 나눈다. 같은 하이라이트가 이어지는 단어는 한 조각이라
-// 단어 사이 띄어쓰기까지 색이 이어진다. 줄 끝에서 다음 줄로 이어지면 continues
+// 한 줄을 칠할 조각으로 나눈다. 같은 하이라이트, 또는 같은 종류가 바로 붙어 있는 단어
+// ("그러니까 그" 같은 연속 군말)는 한 조각이라 띄어쓰기까지 색이 이어지고 한 번에 열린다.
+// 줄 끝에서 다음 줄로 이어지면 continues
 export type Run = {
   first: number; // 조각 첫 단어의 파트 전체 번호
   text: string;
@@ -68,7 +69,8 @@ export function lineRuns(line: Line, highlights: Highlight[]): Run[] {
     const items = highlights.filter((h) => covers(h, g)).sort(byPriority);
     const top = items[0];
     const prev = runs.at(-1);
-    if (prev && prev.top === top) {
+    const sameKind = !!prev?.top && !!top && prev.top.category === top.category;
+    if (prev && (prev.top === top || sameKind)) {
       prev.text += " " + word;
       for (const h of items) if (!prev.items.includes(h)) prev.items.push(h);
       prev.continues = !!top && top.to > g;
