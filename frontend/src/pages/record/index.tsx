@@ -9,7 +9,8 @@ import { useAnalysis } from "../../store/analysis";
 import { isMaterialFile, MATERIAL_ACCEPT } from "./material";
 import MaterialPreview from "./MaterialPreview";
 
-const MAX_SEC = 300;
+const MAX_SEC = 300; // 5분마다 잠깐 멈추고 이어서 녹음할지 고른다
+const MAX_TOTAL_SEC = 1800; // 이어서 녹음해도 최대 30분
 
 function mmss(sec: number) {
   const s = Math.floor(sec);
@@ -20,7 +21,7 @@ function mmss(sec: number) {
 export default function RecordPage() {
   const navigate = useNavigate();
   const { settings, setResult } = useAnalysis();
-  const rec = useRecorder(MAX_SEC);
+  const rec = useRecorder(MAX_SEC, { maxTotalSec: MAX_TOTAL_SEC });
   const [material, setMaterial] = useState<File | null>(null);
   const [materialError, setMaterialError] = useState<string | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
@@ -43,13 +44,12 @@ export default function RecordPage() {
     .map((k) => k.trim())
     .filter(Boolean);
 
-  async function runAnalyze() {
-    if (!rec.blob) return;
+  async function runAnalyze(audio: Blob) {
     setAnalyzing(true);
     setAnalyzeError(null);
     try {
       const result = await analyze({
-        audio: rec.blob,
+        audio,
         mode: settings.mode,
         language: settings.language,
         keywords: settings.keywords || undefined,
@@ -66,6 +66,8 @@ export default function RecordPage() {
   if (analyzing) return <AnalyzingView />;
 
   const recording = rec.status === "recording";
+  const paused = rec.status === "paused";
+  const remaining = rec.limit - rec.elapsed;
 
   return (
     <div className="flex flex-1 flex-col">
@@ -82,7 +84,7 @@ export default function RecordPage() {
             </ul>
           )}
         </div>
-        {!recording && (
+        {!recording && !paused && (
           <Link to="/" className="btn btn-ghost btn-sm shrink-0">
             설정 바꾸기
           </Link>
@@ -112,7 +114,7 @@ export default function RecordPage() {
           {mmss(rec.elapsed)}
         </p>
 
-        {rec.status !== "recorded" && !material && <LevelBars levels={rec.levels} />}
+        {rec.status !== "recorded" && !paused && !material && <LevelBars levels={rec.levels} />}
 
         {rec.status === "recorded" && rec.url ? (
           <div className="flex w-full flex-col items-center gap-3">
@@ -130,7 +132,7 @@ export default function RecordPage() {
               </a>
             </div>
           </div>
-        ) : (
+        ) : paused ? null : (
           <MicButton
             size={material ? "md" : "lg"}
             recording={recording}
@@ -143,9 +145,15 @@ export default function RecordPage() {
           {rec.status === "idle" &&
             (material
               ? "자료를 보면서 말해 보세요. 버튼을 누르면 녹음이 시작돼요"
-              : `버튼을 누르면 녹음이 시작돼요. 최대 ${MAX_SEC / 60}분`)}
+              : `버튼을 누르면 녹음이 시작돼요. ${MAX_SEC / 60}분마다 이어서 녹음할 수 있어요`)}
           {rec.status === "requesting" && "마이크 권한을 허용해 주세요"}
-          {recording && "다 말했으면 버튼을 눌러 멈춰요"}
+          {recording &&
+            (remaining <= 30 && rec.limit < MAX_TOTAL_SEC
+              ? `${Math.ceil(remaining)}초 뒤 잠깐 멈춰요. 이어서 녹음할 수 있어요`
+              : remaining <= 30
+                ? `최대 ${MAX_TOTAL_SEC / 60}분이에요. ${Math.ceil(remaining)}초 뒤 녹음이 끝나요`
+                : "다 말했으면 버튼을 눌러 멈춰요")}
+          {paused && `${rec.limit / 60}분이 지나 잠깐 멈췄어요. 이어서 녹음하거나 여기까지 분석해요`}
           {rec.status === "recorded" && "들어 보고 괜찮으면 분석을 시작해요"}
         </p>
 
@@ -179,8 +187,31 @@ export default function RecordPage() {
             </button>
           </>
         )}
-        {rec.status === "recorded" && (
-          <button type="button" className="btn btn-primary btn-lg btn-block" onClick={runAnalyze}>
+        {/* 5분이 다 되면: 같은 파일에 이어서 녹음하거나, 여기까지 바로 분석 */}
+        {paused && (
+          <div className="flex gap-2">
+            <button
+              type="button"
+              className="btn btn-outline btn-lg flex-1 border-base-300"
+              onClick={rec.resume}
+            >
+              이어서 녹음하기
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary btn-lg flex-1"
+              onClick={() => rec.finish((b) => void runAnalyze(b))}
+            >
+              분석하기
+            </button>
+          </div>
+        )}
+        {rec.status === "recorded" && rec.blob && (
+          <button
+            type="button"
+            className="btn btn-primary btn-lg btn-block"
+            onClick={() => rec.blob && void runAnalyze(rec.blob)}
+          >
             {analyzeError ? "다시 분석하기" : "분석하기"}
           </button>
         )}
