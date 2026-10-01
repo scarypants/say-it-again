@@ -155,6 +155,15 @@ async function mock<T>(load: () => Promise<{ default: unknown }>): Promise<T> {
   return (await load()).default as T;
 }
 
+// 서버가 돌려준 오류. status로 종류를 구분한다 (예: 422 = 음성이 감지되지 않음)
+export class RequestError extends Error {
+  readonly status: number;
+  constructor(message: string, status: number) {
+    super(message);
+    this.status = status;
+  }
+}
+
 async function post<T>(url: string, init: RequestInit): Promise<T> {
   let res: Response;
   try {
@@ -164,7 +173,7 @@ async function post<T>(url: string, init: RequestInit): Promise<T> {
   }
   if (!res.ok) {
     const body = (await res.json().catch(() => null)) as ApiError | null;
-    throw new Error(body?.error ?? `요청에 실패했어요 (${res.status})`);
+    throw new RequestError(body?.error ?? `요청에 실패했어요 (${res.status})`, res.status);
   }
   return (await res.json()) as T;
 }
