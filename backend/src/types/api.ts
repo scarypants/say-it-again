@@ -1,6 +1,6 @@
 // docs/api.md의 응답 타입과 동일하게 유지한다. 바꾸면 docs/api.md도 함께 고친다.
 
-export type Mode = 'presentation' | 'speaking';
+export type Mode = 'presentation' | 'speaking' | 'interview';
 export type Level = 'assignment' | 'exam' | 'keynote';
 export type Exam = 'TOEIC-Speaking' | 'opic';
 export type Language = 'ko' | 'en';
@@ -129,4 +129,20 @@ export type Retry = {
 export type RetryResponse = AnalyzeResponse & {
   compare: Compare;
   retry?: Retry;
+};
+
+// ---- POST /api/interview/questions (면접 질문 생성) ----
+
+export type InterviewQuestionType = 'intro' | 'motivation' | 'job' | 'experience' | 'personality' | 'closing';
+
+export type InterviewQuestionsRequest = {
+  language: Language; // 질문 언어 = 답변 언어
+  job: string; // 지원 직무 (자유 입력, 앞뒤 공백 제거 후 1~50자)
+};
+
+export type InterviewQuestionsResponse = {
+  language: Language;
+  job: string;
+  questions: { type: InterviewQuestionType; text: string }[]; // 항상 5개: intro → 가운데 3개 → closing
+  warnings?: string[]; // LLM 실패 시 ["llm_failed"] + 기본 질문
 };
