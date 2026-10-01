@@ -6,7 +6,7 @@ import type {
   Exam,
   FollowUpQuestionsRequest,
   Lang,
-  InputMode,
+  Mode,
   PresentationLevel,
   Question,
   TranscribeResponse,
@@ -16,7 +16,7 @@ import { loadAudio, recordTranscript, type HistoryRecord } from "./history";
 export type { Exam, PresentationLevel } from "../types/api";
 
 export type Settings = {
-  mode: InputMode;
+  mode: Mode;
   language: Lang;
   level?: PresentationLevel;
   exam?: Exam;
@@ -53,8 +53,8 @@ export function useAnalysis() {
   return ctx;
 }
 
-// 면접 결과인지. 응답 타입(Mode)에 아직 "interview"가 없어 문자열로 본다 (김왁수 summary modeNames 반영 후 합친다)
-export function isInterview(r: { mode: string }) {
+// 면접 결과인지
+export function isInterview(r: { mode: Mode }) {
   return r.mode === "interview";
 }
 

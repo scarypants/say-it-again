@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import { LEVEL_LABEL } from "../../api/presentationLevels";
 import { canRetry, useOpenRecord, useRetryFrom } from "../../store/analysis";
 import { clearRecords, deleteRecord, listRecords, type HistoryRecord } from "../../store/history";
-import type { InputMode } from "../../types/api";
 import { mmss, totalDuration } from "./scriptFormat";
 
 type Props = { open: boolean; onClose: () => void };
@@ -18,8 +17,7 @@ const when = new Intl.DateTimeFormat("ko-KR", {
 });
 
 function kind(r: HistoryRecord["result"]) {
-  // 면접(#76)은 아직 응답 타입(Mode)에 없어서 InputMode로 넓혀 비교한다
-  if ((r.mode as InputMode) === "interview") return r.language === "en" ? "영어 면접" : "면접";
+  if (r.mode === "interview") return r.language === "en" ? "영어 면접" : "면접";
   if (r.mode === "speaking") return r.exam ? EXAM_LABEL[r.exam] : "어학 스피킹";
   return r.level ? LEVEL_LABEL[r.level] : "발표";
 }
