@@ -1,0 +1,270 @@
+{
+  "mode": "speaking",
+  "language": "en",
+  "exam": "opic",
+  "parts": [
+    {
+      "duration": 15,
+      "script": [
+        {
+          "start": 0.5,
+          "end": 5.5,
+          "offset": 0,
+          "words": [
+            "Um",
+            "I",
+            "is",
+            "a",
+            "student",
+            "and",
+            "I",
+            "study",
+            "computer",
+            "engineering"
+          ]
+        },
+        {
+          "start": 5.5,
+          "end": 8,
+          "offset": 10,
+          "words": [],
+          "pause": true
+        },
+        {
+          "start": 8,
+          "end": 14.5,
+          "offset": 10,
+          "words": [
+            "I",
+            "really",
+            "really",
+            "enjoy",
+            "cooking",
+            "because",
+            "cooking",
+            "help",
+            "me",
+            "relax"
+          ]
+        }
+      ],
+      "highlight": [
+        {
+          "from": 0,
+          "to": 0,
+          "category": "filler",
+          "reason": "군말입니다. 빼고 말해 보세요.",
+          "fixed": ""
+        },
+        {
+          "from": 2,
+          "to": 2,
+          "category": "grammar",
+          "reason": "I에 맞는 동사는 am입니다.",
+          "fixed": "am"
+        },
+        {
+          "from": 8,
+          "to": 10,
+          "category": "panic",
+          "reason": "전공 설명에서 취미로 넘어가는 연결 문장을 준비해 보세요.",
+          "fixed": "In my free time, I enjoy cooking.",
+          "pauseSec": 2.5
+        },
+        {
+          "from": 11,
+          "to": 12,
+          "category": "repeat",
+          "reason": "같은 강조 표현이 연속해서 반복됩니다.",
+          "fixed": "really"
+        },
+        {
+          "from": 17,
+          "to": 17,
+          "category": "grammar",
+          "reason": "단수 주어 cooking에는 helps를 씁니다.",
+          "fixed": "helps"
+        }
+      ],
+      "final": [
+        {
+          "words": [
+            "I",
+            "am",
+            "a",
+            "student,",
+            "and",
+            "I",
+            "study",
+            "computer",
+            "engineering."
+          ]
+        },
+        {
+          "words": [
+            "In",
+            "my",
+            "free",
+            "time,",
+            "I",
+            "really",
+            "enjoy",
+            "cooking",
+            "because",
+            "it",
+            "helps",
+            "me",
+            "relax."
+          ]
+        }
+      ],
+      "comment": "자기소개와 취미를 답했어요. 전공과 취미 사이에 연결 문장을 넣어 보세요."
+    },
+    {
+      "duration": 12.5,
+      "script": [
+        {
+          "start": 0.5,
+          "end": 6,
+          "offset": 0,
+          "words": [
+            "My",
+            "neighborhood",
+            "is",
+            "kind",
+            "of",
+            "nice",
+            "and",
+            "it",
+            "has",
+            "many",
+            "parks"
+          ]
+        },
+        {
+          "start": 6.5,
+          "end": 12,
+          "offset": 11,
+          "words": [
+            "Uh",
+            "I",
+            "I",
+            "usually",
+            "walk",
+            "there",
+            "with",
+            "my",
+            "friends",
+            "on",
+            "weekends"
+          ]
+        }
+      ],
+      "highlight": [
+        {
+          "from": 3,
+          "to": 5,
+          "category": "expression",
+          "reason": "동네의 특징을 구체적으로 말하면 더 분명해집니다.",
+          "fixed": "quiet and green"
+        },
+        {
+          "from": 11,
+          "to": 11,
+          "category": "filler",
+          "reason": "군말입니다. 빼고 말해 보세요.",
+          "fixed": ""
+        },
+        {
+          "from": 12,
+          "to": 13,
+          "category": "repeat",
+          "reason": "주어가 연속해서 반복됩니다.",
+          "fixed": "I"
+        }
+      ],
+      "final": [
+        {
+          "words": [
+            "My",
+            "neighborhood",
+            "is",
+            "quiet",
+            "and",
+            "green,",
+            "and",
+            "it",
+            "has",
+            "many",
+            "parks."
+          ]
+        },
+        {
+          "words": [
+            "I",
+            "usually",
+            "walk",
+            "there",
+            "with",
+            "my",
+            "friends",
+            "on",
+            "weekends."
+          ]
+        }
+      ],
+      "comment": "동네의 특징과 활동을 답했어요. 장소의 특징을 구체적으로 설명해 보세요."
+    }
+  ],
+  "charts": {
+    "categoryRatio": {
+      "panic": 7,
+      "filler": 5,
+      "repeat": 10,
+      "expression": 7,
+      "grammar": 5,
+      "normal": 66
+    },
+    "repeatTop": [
+      {
+        "word": "really",
+        "count": 1
+      },
+      {
+        "word": "i",
+        "count": 1
+      }
+    ],
+    "fillerTop": [
+      {
+        "word": "um",
+        "count": 1
+      },
+      {
+        "word": "uh",
+        "count": 1
+      }
+    ]
+  },
+  "analysis": {
+    "score": 78,
+    "stats": {
+      "wpm": 112,
+      "fillerCount": 2,
+      "panicCount": 1,
+      "panicTotalSec": 2.5,
+      "repeatCount": 2,
+      "expressionCount": 1,
+      "grammarCount": 2
+    },
+    "summary": {
+      "headline": "질문에는 잘 답했어요. 반복과 군말을 줄이면 영어 답변이 더 또렷해져요.",
+      "topPriorities": [
+        "주어 I를 한 번만 말하기",
+        "전공에서 취미로 넘어갈 연결 문장 준비하기",
+        "동네의 특징을 구체적으로 설명하기"
+      ],
+      "comment": "오픽 답변에서는 경험과 특징을 구체적으로 설명하고, 단수 주어에 맞는 동사를 사용해 보세요."
+    }
+  }
+}

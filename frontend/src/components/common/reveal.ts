@@ -13,7 +13,9 @@ export function revealSoon(el: HTMLElement | null, block: ScrollLogicalPosition 
     const r = el.getBoundingClientRect();
     if (r.top >= top && r.bottom <= window.innerHeight - bottom) return; // 다 보임
     done = true;
-    el.scrollIntoView({ block, behavior: "smooth" });
+    // 기기에서 동작 줄이기를 켰으면 부드럽게 미끄러지지 않고 바로 옮긴다
+    const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    el.scrollIntoView({ block, behavior: still ? "instant" : "smooth" });
   };
   // 펼침이 끝난 뒤 한 번, 느린 기기에서 늦게 펼쳐질 때를 대비해 한 번 더
   const timers = [300, 700].map((ms) => window.setTimeout(check, ms));

@@ -53,15 +53,22 @@ export default function FeedbackDetail({ part, items: raw, onClose, inline }: Pr
         <article key={i} className={i ? "mt-5 border-t border-base-300 pt-5" : ""}>
           <header className="flex items-center gap-2">
             <span className={`h-2.5 w-2.5 rounded-full ${CATEGORY[h.category].dot}`} aria-hidden />
-            <h2 className="text-sm font-semibold">{CATEGORY[h.category].label}</h2>
+            <h2 className="text-base font-semibold">{CATEGORY[h.category].label}</h2>
             {h.category === "panic" && h.pauseSec !== undefined && (
               <span className="text-sm text-secondary tabular-nums">
                 {h.pauseSec.toFixed(1)}초 멈춤
               </span>
             )}
             {i === 0 && (
-              <button type="button" className="btn btn-ghost btn-xs ml-auto" onClick={onClose}>
-                닫기
+              <button
+                type="button"
+                className="btn btn-circle btn-ghost btn-sm ml-auto"
+                aria-label="피드백 닫기"
+                onClick={onClose}
+              >
+                <span aria-hidden="true" className="text-xl leading-none">
+                  ×
+                </span>
               </button>
             )}
           </header>
@@ -74,16 +81,22 @@ export default function FeedbackDetail({ part, items: raw, onClose, inline }: Pr
           ) : (
             <dl className="mt-3 flex flex-col gap-3">
               <div>
-                <dt className="text-xs text-secondary">
-                  {h.category === "panic" ? "멈추기 직전에 한 말" : "말한 그대로"}
+                <dt className="text-sm text-secondary">
+                  {h.category === "panic" ? "멈추기 직전에 한 말" : "말한 문장"}
                 </dt>
-                <dd className="mt-1 text-[1.0625rem] leading-relaxed">{highlightText(part, h)}</dd>
+                <dd className="mt-2 text-[1.0625rem] leading-8 wrap-anywhere">
+                  <mark
+                    className={`box-decoration-clone rounded px-1 py-0.5 font-semibold text-base-content ${CATEGORY[h.category].mark}`}
+                  >
+                    {highlightText(part, h)}
+                  </mark>
+                </dd>
               </div>
               <div>
-                <dt className="text-xs text-secondary">
-                  {h.category === "panic" ? "이렇게 이어 가 보세요" : "바꾸면"}
+                <dt className="text-sm text-secondary">
+                  {h.category === "panic" ? "이렇게 이어 가 보세요" : "개선한 문장"}
                 </dt>
-                <dd className="mt-1 text-[1.0625rem] leading-relaxed font-semibold">
+                <dd className="mt-2 text-[1.0625rem] leading-8 wrap-anywhere font-semibold">
                   {h.fixed === undefined
                     ? "준비된 대안이 없어요"
                     : h.fixed === ""
@@ -93,7 +106,7 @@ export default function FeedbackDetail({ part, items: raw, onClose, inline }: Pr
               </div>
               {h.reason && (
                 <div>
-                  <dt className="text-xs text-secondary">
+                  <dt className="text-sm text-secondary">
                     {h.category === "panic" ? "막힌 이유" : "이유"}
                   </dt>
                   <dd className="mt-1 text-sm leading-relaxed">{h.reason}</dd>

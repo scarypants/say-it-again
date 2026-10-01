@@ -1,0 +1,94 @@
+{
+  "mode": "speaking",
+  "language": "en",
+  "exam": "opic",
+  "parts": [
+    {
+      "duration": 15,
+      "script": [
+        {
+          "start": 0.5,
+          "end": 5.5,
+          "offset": 0,
+          "words": [
+            "Um",
+            "I",
+            "is",
+            "a",
+            "student",
+            "and",
+            "I",
+            "study",
+            "computer",
+            "engineering"
+          ]
+        },
+        {
+          "start": 5.5,
+          "end": 8,
+          "offset": 10,
+          "words": [],
+          "pause": true
+        },
+        {
+          "start": 8,
+          "end": 14.5,
+          "offset": 10,
+          "words": [
+            "I",
+            "really",
+            "really",
+            "enjoy",
+            "cooking",
+            "because",
+            "cooking",
+            "help",
+            "me",
+            "relax"
+          ]
+        }
+      ]
+    },
+    {
+      "duration": 12.5,
+      "script": [
+        {
+          "start": 0.5,
+          "end": 6,
+          "offset": 0,
+          "words": [
+            "My",
+            "neighborhood",
+            "is",
+            "kind",
+            "of",
+            "nice",
+            "and",
+            "it",
+            "has",
+            "many",
+            "parks"
+          ]
+        },
+        {
+          "start": 6.5,
+          "end": 12,
+          "offset": 11,
+          "words": [
+            "Uh",
+            "I",
+            "I",
+            "usually",
+            "walk",
+            "there",
+            "with",
+            "my",
+            "friends",
+            "on",
+            "weekends"
+          ]
+        }
+      ]
+    }
+  ]
+}

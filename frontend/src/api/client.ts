@@ -90,7 +90,9 @@ async function mockInterviewQuestions({
 // [1] 녹음 → 문장 단위 대본. audio 필드를 녹음 순서대로 여러 번 붙인다 (서버는 붙인 순서를 파트 순서로 씀)
 export async function transcribe(req: TranscribeRequest): Promise<TranscribeResponse> {
   if (USE_MOCK) {
-    const sample = await mock<TranscribeResponse>(() => import("../mocks/transcribe.sample.json"));
+    const sample = await mock<TranscribeResponse>(() => req.mode === "speaking"
+      ? import("../mocks/transcribe.speaking.sample.json")
+      : import("../mocks/transcribe.sample.json"));
     return { ...sample, ...echo(req), parts: fit(sample.parts, req.audio.length) };
   }
 
@@ -112,8 +114,14 @@ export async function transcribe(req: TranscribeRequest): Promise<TranscribeResp
 // [2] 검토·수정한 대본 → 분석. 녹음 파일은 다시 보내지 않는다
 export async function analyze(req: AnalyzeRequest): Promise<AnalyzeResponse> {
   if (USE_MOCK) {
-    const sample = await mock<AnalyzeResponse>(() => import("../mocks/analyze.sample.json"));
-    return { ...sample, ...echo(req), parts: fit(sample.parts, req.parts.length) };
+    const sample = await mock<AnalyzeResponse>(() => req.mode === "speaking"
+      ? import("../mocks/analyze.speaking.sample.json")
+      : import("../mocks/analyze.sample.json"));
+    const parts = fit(sample.parts, req.parts.length).map((part, index) =>
+      req.mode === "speaking" && req.exam === "TOEIC-Speaking" && /^TOEIC Speaking Part 1\b/.test(req.questions?.[index] ?? "")
+        ? { ...part, final: [] }
+        : part);
+    return { ...sample, ...echo(req), parts };
   }
 
   return post<AnalyzeResponse>("/api/analyze", {

@@ -1,5 +1,6 @@
 import type { AnalyzeResponse, CompareStats } from "../../types/api";
 import { totalDuration } from "../../components/common/scriptFormat";
+import { isInterview } from "../../store/analysis";
 
 type ComparisonStats = CompareStats & {
   durationSec?: number;
@@ -32,16 +33,19 @@ export function comparisonValues(result: AnalyzeResponse, previous: AnalyzeRespo
 export function retryReference(result: AnalyzeResponse, previous: AnalyzeResponse | null) {
   const baseline = comparablePrevious(result, previous);
   if (result.parts.some((part) => part.final.length) || !baseline) return result;
+  if (isInterview(result)) {
+    return { ...result, parts: result.parts.map((part, index) => ({
+      ...part, final: baseline.parts[index]?.final ?? [],
+    })) };
+  }
   const final = baseline.parts.flatMap((part) => part.final);
   if (!final.length) return result;
   return { ...result, parts: result.parts.map((part, index) => ({ ...part, final: index === 0 ? final : [] })) };
 }
 
 export function comparablePrevious(result: AnalyzeResponse, previous: AnalyzeResponse | null) {
-  return previous?.mode === "presentation" &&
-    result.mode === "presentation" &&
-    previous.language === result.language &&
-    previous.level === result.level
+  if (!previous || previous.mode !== result.mode || previous.language !== result.language) return null;
+  return isInterview(result) || (result.mode === "presentation" && previous.level === result.level)
     ? previous
     : null;
 }

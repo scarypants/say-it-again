@@ -153,7 +153,7 @@ function Review({ transcript, audio, questions, setResult, previous }: ReviewPro
               {parts.length > 1 || transcript.mode !== "presentation" ? (
                 <header className="mb-2 border-b border-base-300 pb-2">
                   <h2 id={`part-${pi}`} className="text-sm font-semibold tabular-nums">
-                    {partTitle(transcript.mode, pi, part.duration, questions?.[pi])}
+                    {partTitle(transcript.mode, pi, part.duration, questions?.[pi], totalDuration(parts.slice(0, pi)))}
                   </h2>
                   {questionLine(questions?.[pi]) && (
                     <p className="mt-0.5 text-sm text-secondary">{questionLine(questions?.[pi])}</p>
