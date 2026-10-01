@@ -5,7 +5,7 @@ import type { Analysis, Compare, CompareStats, Part, RetryPrevious, RetryRespons
 import type { RetryInput } from '../types/internal';
 import { analyzeByCode } from './analyze';
 import { flattenWords } from './script';
-import { buildCharts, buildStats } from './stats';
+import { buildCharts, buildStats, habitScore } from './stats';
 import { checkDurations } from './transcribe';
 
 /**
@@ -65,14 +65,11 @@ export async function retry(input: RetryInput): Promise<RetryResponse> {
 }
 
 /**
- * 이전 결과를 같은 기준으로 다시 계산한다.
- * 이전 점수는 expression·grammar까지 감점된 값이다. 우선순위상 panic·filler·repeat 비율은 그대로이므로
- * expression·grammar 비율을 normal에 돌려 더하면 패닉·필러·중복만 반영한 점수가 된다.
+ * 이전 결과의 수치. 점수는 previous.stats가 아니라 categoryRatio로 다시 계산한다:
+ * 예전 기준(expression·grammar까지 감점)으로 저장된 기록이 와도 지금과 같은 기준으로 비교되도록.
  */
 function beforeStats(previous: RetryPrevious): CompareStats {
-  const { normal, expression, grammar } = previous.categoryRatio;
-  const score = Math.min(100, Math.max(0, normal + expression + grammar));
-  return compareStats(score, previous.durationSec, previous.stats);
+  return compareStats(habitScore(previous.categoryRatio), previous.durationSec, previous.stats);
 }
 
 function compareStats(score: number, durationSec: number, stats: Analysis['stats']): CompareStats {
