@@ -96,7 +96,49 @@ export type AnalyzeResponse = {
   parts: Part[]; // 요청 parts와 같은 순서
   charts: Charts;
   analysis: Analysis;
-  warnings?: string[]; // 예: ["llm_failed"]
+  compare?: Compare; // 재도전(/api/retry)일 때만
+  retry?: Retry; // 재도전일 때만. LLM 실패 시 없음 (숫자 비교만 표시)
+  warnings?: string[]; // 예: ["llm_failed"], 재도전은 "script_mismatch"도
 };
+
+// [3] "다시, 말해" 재도전 (JSON). 새 녹음의 검토한 대본 + 이전 결과 요약 (docs/api.md 5절)
+export type RetryRequest = AnalyzeRequest & {
+  previous: {
+    durationSec: number; // 이전 parts[].duration의 합
+    stats: Analysis["stats"];
+    categoryRatio: Charts["categoryRatio"];
+    topPriorities: string[];
+    final: { words: string[] }[]; // 이전 최종 대본 (파트 순서대로 이어 붙임). 없으면 []
+  };
+};
+
+export type Compare = {
+  scriptMatch: number | null; // 0~100. 이전 최종 대본 중 실제로 말한 비율. final이 비었으면 null
+  before: CompareStats;
+  after: CompareStats;
+};
+
+// 서버가 같은 기준(필러·패닉·중복만)으로 계산한 전후 수치. 전후 비교는 이 숫자만 쓴다
+export type CompareStats = {
+  score: number;
+  durationSec: number;
+  wpm: number;
+  fillerCount: number;
+  panicCount: number;
+  panicTotalSec: number;
+  repeatCount: number;
+  fillerPerMin: number; // 녹음 1분당 횟수. 길이가 달라지므로 비교는 이 값을 권장
+  panicPerMin: number;
+  repeatPerMin: number;
+};
+
+export type Retry = {
+  improved: string[]; // 개선된 점 1~3개
+  remaining: string[]; // 아직 개선할 점 1~3개
+  comment: string; // 재도전 한 줄 총평
+};
+
+// AnalyzeResponse와 같은 모양 + compare(항상). expression·grammar는 0, parts[].final은 []
+export type RetryResponse = AnalyzeResponse & Required<Pick<AnalyzeResponse, "compare">>;
 
 export type ApiError = { error: string };

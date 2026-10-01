@@ -10,10 +10,20 @@ export function AnalysisProvider({ children }: { children: ReactNode }) {
   });
   const [session, setSession] = useState<Session | null>(null);
   const [result, setResult] = useState<AnalyzeResponse | null>(null);
+  const [previous, setPrevious] = useState<AnalyzeResponse | null>(null);
 
   return (
     <AnalysisContext.Provider
-      value={{ settings, setSettings, session, setSession, result, setResult }}
+      value={{
+        settings,
+        setSettings,
+        session,
+        setSession,
+        result,
+        setResult,
+        previous,
+        setPrevious,
+      }}
     >
       {children}
     </AnalysisContext.Provider>
