@@ -1,10 +1,8 @@
 // docs/api.md 와 동일하게 유지한다. 계약이 바뀌면 이 파일도 같이 고친다.
 // 흐름: 녹음 → [1] POST /api/transcribe → 대본 검토·수정 → [2] POST /api/analyze → 결과
 
-export type Mode = "presentation" | "speaking"; // 발표 / 어학 스피킹
-// 면접 모드(#76)는 백엔드·결과 화면이 받기 전까지 입력 쪽(설정·transcribe 요청)에만 둔다.
-// 백엔드가 docs/api.md에 추가하면 Mode에 합친다
-export type InputMode = Mode | "interview";
+export type Mode = "presentation" | "speaking" | "interview"; // 발표 / 어학 스피킹 / 면접
+export type InputMode = Mode;
 export type Lang = "ko" | "en";
 
 // 발표 성격: 과제 발표 / 시험 발표 / 큰 강연

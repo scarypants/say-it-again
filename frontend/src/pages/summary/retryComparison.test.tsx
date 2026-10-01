@@ -101,3 +101,18 @@ test("첫 분석·스피킹·다른 설정의 이전 결과를 재도전 비교�
   assert.equal(comparablePrevious({ ...after, mode: "speaking", language: "en", exam: "opic" }, before), null);
   assert.equal(comparablePrevious({ ...after, level: "assignment" }, before), null);
 });
+
+test("같은 언어의 면접 재도전은 비교하고 질문별 모범 답안을 유지한다", () => {
+  const interview = (r: AnalyzeResponse): AnalyzeResponse => ({ ...r, mode: "interview" });
+  const baseline = interview({ ...before, parts: [
+    { ...before.parts[0], final: [{ words: ["첫 질문 답안"] }] },
+    { ...before.parts[0], final: [{ words: ["둘째 질문 답안"] }] },
+  ] });
+  const result = interview({ ...after, parts: [after.parts[0], after.parts[0]] });
+  assert.equal(comparablePrevious(result, baseline), baseline);
+  assert.equal(comparablePrevious({ ...result, language: "en" }, baseline), null);
+  assert.equal(comparablePrevious(result, before), null);
+  const reference = retryReference(result, baseline);
+  assert.deepEqual(reference.parts.map((part) => part.final), baseline.parts.map((part) => part.final));
+  assert.ok(result.parts.every((part) => part.final.length === 0));
+});

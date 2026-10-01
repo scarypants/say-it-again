@@ -15,8 +15,8 @@ export default function Layout() {
 
   return (
     <div className="flex min-h-svh flex-col bg-base-100">
-      <header className="sm:border-b sm:border-base-300">
-        <div className="mx-auto flex h-14 w-full max-w-md items-center justify-between px-4 lg:max-w-6xl lg:px-8">
+      <header className="border-b border-base-300">
+        <div className="mx-auto flex h-14 w-full max-w-md items-center justify-between px-5 lg:max-w-6xl lg:px-8">
           <Link to="/" className="flex items-center" aria-label="다시, 말해 처음으로">
             <Logo />
           </Link>
@@ -42,12 +42,12 @@ export default function Layout() {
         </div>
       </header>
       <main
-        className={`mx-auto flex w-full max-w-md flex-1 flex-col px-5 pb-6 sm:pt-4 ${
+        className={`mx-auto flex w-full min-w-0 max-w-md flex-1 flex-col px-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:pt-4 ${
           wide ? "lg:max-w-6xl lg:px-8" : ""
         }`}
       >
         {/* 화면이 바뀔 때마다 새로 그려지며 살짝 올라온다 */}
-        <div key={pathname} className="flex flex-1 animate-enter flex-col">
+        <div key={pathname} className="flex min-w-0 flex-1 animate-enter flex-col">
           <Outlet />
         </div>
       </main>

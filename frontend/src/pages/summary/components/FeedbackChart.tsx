@@ -59,9 +59,10 @@ export default function FeedbackChart({
                     tabIndex={interactive ? 0 : undefined}
                     aria-label={`${item.name} ${item.percent}%${interactive ? " 개선안 보기" : ""}`}
                     aria-pressed={interactive ? selected === item.key : undefined}
+                    aria-controls={interactive && selected === item.key ? "summary-improvements" : undefined}
                     className={
                       interactive
-                        ? "cursor-pointer transition-opacity hover:opacity-80 focus:outline-none focus:stroke-primary"
+                        ? "cursor-pointer transition-[opacity,stroke-width] duration-200 ease-soft hover:opacity-80 focus-visible:outline-none focus-visible:stroke-primary"
                         : undefined
                     }
                     onClick={() => {
@@ -105,10 +106,12 @@ export default function FeedbackChart({
               <li key={item.key}>
                 {item.key === "filler" || item.key === "repeat" ? (
                   <button
+                    id={`category-${item.key}`}
                     type="button"
-                    className={`flex min-h-12 w-full items-center gap-2 rounded-box border px-3 text-left ${selected === item.key ? "border-primary bg-base-200" : "border-base-300"}`}
+                    className={`btn btn-ghost h-auto min-h-12 w-full justify-start gap-2 rounded-field border px-3 py-2 text-left text-sm font-medium tabular-nums sm:text-base ${selected === item.key ? "border-primary bg-base-200" : "border-base-300"}`}
                     disabled={item.value === 0}
                     aria-pressed={selected === item.key}
+                    aria-controls={selected === item.key ? "summary-improvements" : undefined}
                     aria-label={`${item.name} ${item.percent}% 개선안 보기`}
                     onClick={() => onSelect(item.key as "filler" | "repeat")}
                   >
@@ -120,7 +123,7 @@ export default function FeedbackChart({
                     {item.name} {item.percent}%
                   </button>
                 ) : (
-                  <div className="flex min-h-12 items-center gap-2 px-3">
+                  <div className="flex min-h-12 items-center gap-2 px-3 py-2 text-sm tabular-nums sm:text-base">
                     <span
                       className="size-2.5 shrink-0 rounded-full"
                       style={{ backgroundColor: item.fill }}
@@ -139,7 +142,7 @@ export default function FeedbackChart({
         </>
       ) : (
         <p className="mt-3 text-sm text-base-content/70">
-          분석할 구간의 시간이 없어 비율을 계산할 수 없어요.
+          분석할 단어가 없어 비율을 계산할 수 없어요.
         </p>
       )}
     </section>

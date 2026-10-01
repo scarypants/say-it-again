@@ -365,7 +365,7 @@ export default function InterviewExam({ onRestart }: { onRestart: () => void }) 
           {items.map((_, i) => (
             <span
               key={i}
-              className={`h-1.5 flex-1 rounded-full transition-colors duration-500 ease-soft ${i <= qi ? "bg-primary" : "bg-base-300"}`}
+              className={`h-1.5 flex-1 rounded-full transition-colors duration-300 ease-soft ${i <= qi ? "bg-primary" : "bg-base-300"}`}
             />
           ))}
         </div>

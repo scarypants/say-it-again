@@ -363,7 +363,7 @@ export default function ToeicSpeakingExam({ onRestart }: { onRestart: () => void
           {items.map((_, i) => (
             <span
               key={i}
-              className={`h-1.5 flex-1 rounded-full transition-colors duration-500 ease-soft ${i <= qi ? "bg-primary" : "bg-base-300"}`}
+              className={`h-1.5 flex-1 rounded-full transition-colors duration-300 ease-soft ${i <= qi ? "bg-primary" : "bg-base-300"}`}
             />
           ))}
         </div>
@@ -372,14 +372,14 @@ export default function ToeicSpeakingExam({ onRestart }: { onRestart: () => void
         </span>
       </div>
 
-      {/* 다음 문항으로 넘어가면 제목·본문이 새로 올라온다 */}
-      <h1 key={`t${qi}`} className="animate-enter text-xl font-bold">
+      {/* 제목은 제자리에서 바뀌고, 새 문항 본문만 살짝 올라온다. */}
+      <h1 key={`t${qi}`} className="animate-fade text-xl leading-snug font-bold">
         Part {item.part} <span className="font-medium text-secondary">{item.name}</span>
       </h1>
       <p
         key={`d${qi}`}
         lang="en"
-        className="mt-1 animate-enter text-xs leading-relaxed text-secondary"
+        className="mt-2 animate-fade text-sm leading-relaxed text-secondary"
       >
         {item.directions}
       </p>

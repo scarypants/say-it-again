@@ -6,10 +6,10 @@ type Props = { title: ReactNode; description?: ReactNode; action?: ReactNode };
 // action: 오른쪽 버튼 자리 (예: "설정 바꾸기")
 export default function PageHeader({ title, description, action }: Props) {
   return (
-    <section className="flex items-start justify-between gap-3 pt-2 pb-4">
+    <section className="flex flex-wrap items-start justify-between gap-3 pt-4 pb-5 sm:pt-2">
       <div className="min-w-0">
-        <h1 className="text-xl font-bold">{title}</h1>
-        {description && <p className="mt-1 text-sm text-secondary">{description}</p>}
+        <h1 className="text-xl leading-snug font-bold tracking-tight break-keep">{title}</h1>
+        {description && <p className="mt-2 max-w-prose text-sm leading-relaxed text-secondary">{description}</p>}
       </div>
       {action && <div className="shrink-0">{action}</div>}
     </section>
