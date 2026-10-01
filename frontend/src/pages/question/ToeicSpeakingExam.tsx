@@ -10,7 +10,7 @@ import { useLeaveGuard } from "../../components/common/useLeaveGuard";
 import { useRecorder } from "../../components/common/useRecorder";
 import CafeteriaScene from "./CafeteriaScene";
 import {
-  TOEIC_SPEAKING_ITEMS,
+  buildToeicExam,
   toeicSpeakingQuestionText,
   type Phase,
   type ToeicSpeakingItem,
@@ -44,15 +44,15 @@ type Stage = "intro" | "running" | "done";
 export default function ToeicSpeakingExam({ onRestart }: { onRestart: () => void }) {
   // 답변 시간이 끝나도 녹음은 계속하되, 서버 상한(답변당 60초, docs/api.md)에서 멈추고 다음 문제
   const rec = useRecorder(ANSWER_HARD_MAX_SEC);
+  // 시험마다 Part별로 문제를 새로 고른다 (다시 시작하면 다른 문제)
+  const [items] = useState(buildToeicExam);
 
   const [stage, setStage] = useState<Stage>("intro");
   const [qi, setQi] = useState(0);
   const [phase, setPhase] = useState<Phase | null>(null);
   const [endsAt, setEndsAt] = useState<number | null>(null);
   const [now, setNow] = useState(() => Date.now());
-  const [answers, setAnswers] = useState<(Blob | null)[]>(() =>
-    TOEIC_SPEAKING_ITEMS.map(() => null),
-  );
+  const [answers, setAnswers] = useState<(Blob | null)[]>(() => items.map(() => null));
   const [answerUrls, setAnswerUrls] = useState<(string | null)[]>([]);
   const [startError, setStartError] = useState<string | null>(null);
   const tx = useTranscribe(); // 녹음 → 대본 → 검토 화면
@@ -119,14 +119,14 @@ export default function ToeicSpeakingExam({ onRestart }: { onRestart: () => void
   }
 
   function nextQuestion(q: number) {
-    if (q + 1 < TOEIC_SPEAKING_ITEMS.length) runPhase(q + 1, 0);
+    if (q + 1 < items.length) runPhase(q + 1, 0);
     else finishExam();
   }
 
   function runPhase(q: number, p: number) {
     clearTimer();
     const token = ++tokenRef.current;
-    const item = TOEIC_SPEAKING_ITEMS[q];
+    const item = items[q];
     const ph = item.phases[p];
     if (!ph) return nextQuestion(q);
 
@@ -194,7 +194,7 @@ export default function ToeicSpeakingExam({ onRestart }: { onRestart: () => void
 
   // 질문과 답변을 모두 한 번에 백엔드로 (녹음이 없는 문제는 빼고 순서 유지)
   async function runAnalyze() {
-    const pairs = TOEIC_SPEAKING_ITEMS.flatMap((it, i) =>
+    const pairs = items.flatMap((it, i) =>
       answers[i] ? [{ question: toeicSpeakingQuestionText(it), audio: answers[i]! }] : [],
     );
     if (pairs.length === 0) return;
@@ -250,7 +250,7 @@ export default function ToeicSpeakingExam({ onRestart }: { onRestart: () => void
           자동으로 녹음돼요. 답변 시간이 끝나면 알려 드리고, 버튼을 누르면 다음 문제로 넘어가요.
         </p>
         <ol className="mt-5 divide-y divide-base-300 rounded-box border border-base-300">
-          {TOEIC_SPEAKING_ITEMS.map((it) => (
+          {items.map((it) => (
             <li key={it.part} className="flex items-center justify-between gap-3 px-4 py-3">
               <span>
                 <span className="font-semibold">Part {it.part}</span>{" "}
@@ -294,7 +294,7 @@ export default function ToeicSpeakingExam({ onRestart }: { onRestart: () => void
           description="답변을 들어 보고, 다섯 문제를 한 번에 분석해요."
         />
         <ul className="flex flex-col gap-3">
-          {TOEIC_SPEAKING_ITEMS.map((it, i) => (
+          {items.map((it, i) => (
             <li key={it.part} className="rounded-box border border-base-300 p-4">
               <p>
                 <span className="font-semibold">Part {it.part}</span>{" "}
@@ -345,7 +345,7 @@ export default function ToeicSpeakingExam({ onRestart }: { onRestart: () => void
     );
   }
 
-  const item = TOEIC_SPEAKING_ITEMS[qi];
+  const item = items[qi];
   const kind = phase?.kind;
   const remaining = endsAt ? (endsAt - now) / 1000 : null;
   // 답변 시간이 끝나도 녹음은 계속. 넘긴 시간을 +로 보여 준다
@@ -360,7 +360,7 @@ export default function ToeicSpeakingExam({ onRestart }: { onRestart: () => void
       {/* 진행 표시: 순서대로만 진행되므로 누를 수 없다 */}
       <div className="flex items-center gap-3 pt-2 pb-3">
         <div className="flex flex-1 gap-1" aria-hidden>
-          {TOEIC_SPEAKING_ITEMS.map((_, i) => (
+          {items.map((_, i) => (
             <span
               key={i}
               className={`h-1.5 flex-1 rounded-full transition-colors duration-500 ease-soft ${i <= qi ? "bg-primary" : "bg-base-300"}`}
@@ -368,7 +368,7 @@ export default function ToeicSpeakingExam({ onRestart }: { onRestart: () => void
           ))}
         </div>
         <span className="text-sm tabular-nums text-secondary">
-          {qi + 1} / {TOEIC_SPEAKING_ITEMS.length}
+          {qi + 1} / {items.length}
         </span>
       </div>
 

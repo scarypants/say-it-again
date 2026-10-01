@@ -48,6 +48,20 @@
       "ask": "I'd like to give you a situation and ask you to act it out. You want to have a birthday dinner for a friend at a new restaurant. Call the restaurant and ask three or four questions to make a reservation.",
       "solve": "I'm sorry, but there is a problem I need you to resolve. You ordered food for delivery, but the restaurant sent the wrong order. Call the restaurant, explain what went wrong, and suggest two or three ways to fix it.",
       "experience": "Tell me about a time when you had a problem at a restaurant or with a food order. What happened, and how was it handled?"
+    },
+    {
+      "id": "library",
+      "label": "도서관",
+      "ask": "I'd like to give you a situation and ask you to act it out. You want to start using a new library in your area. Call the library and ask three or four questions about its hours, membership, and services.",
+      "solve": "I'm sorry, but there is a problem I need you to resolve. You borrowed a book from the library, but you have lost it. Call the librarian, explain the situation, and suggest two or three ways to solve the problem.",
+      "experience": "Have you ever lost or damaged something that belonged to someone else? What happened, and how did you resolve it?"
+    },
+    {
+      "id": "friendMeeting",
+      "label": "친구와 약속",
+      "ask": "I'd like to give you a situation and ask you to act it out. A friend has invited you to a party this weekend. Call your friend and ask three or four questions about the party.",
+      "solve": "I'm sorry, but there is a problem I need you to resolve. You promised to meet your friend this evening, but something urgent has come up and you cannot go. Call your friend, explain the situation, and suggest two or three alternatives.",
+      "experience": "Have you ever had to cancel plans with a friend at the last minute? What happened, and how did your friend react?"
     }
   ]
 }
