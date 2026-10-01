@@ -21,7 +21,7 @@ const router = createBrowserRouter([
       { path: "/record", element: <RecordPage />, handle: wide }, // 고민준: 녹음
       { path: "/upload", element: <UploadPage /> }, // 고민준: 발표 자료 업로드
       { path: "/question", element: <QuestionPage /> }, // 고민준: 어학 질문
-      { path: "/review", element: <ReviewPage /> }, // 고민준: 대본 검토·수정
+      { path: "/review", element: <ReviewPage />, handle: wide }, // 고민준: 대본 검토·수정
       { path: "/script", element: <ScriptPage />, handle: wide }, // 고민준: 스크립트 하이라이트
       { path: "/summary", element: <SummaryPage /> }, // 김왁수: 총평
     ],
