@@ -12,7 +12,7 @@ export default function RetryComparison({
   if (!values) return null;
   const { before, after } = values;
   const rows = [
-    { label: "점수", old: before.score, now: after.score, unit: "점", higher: true },
+    { label: result.mode === "speaking" ? "말하기 습관 점수" : "점수", old: before.score, now: after.score, unit: "점", higher: true },
     { label: "군말/분", old: before.fillerPerMin, now: after.fillerPerMin, unit: "회" },
     { label: "반복/분", old: before.repeatPerMin, now: after.repeatPerMin, unit: "회" },
     { label: "패닉존/분", old: before.panicPerMin, now: after.panicPerMin, unit: "회" },

@@ -11,6 +11,7 @@ import { totalDuration } from "../../components/common/scriptFormat";
 import FollowUpSummary from "./components/FollowUpSummary";
 import AnswerComments from "./components/AnswerComments";
 import { isFollowUpSummary } from "./followUp";
+import { speakingScoreDetail } from "./speakingScore";
 const FeedbackChart = lazy(() => import("./components/FeedbackChart"));
 const FollowUpQuestions = lazy(() => import("../../components/common/FollowUpQuestions"));
 
@@ -50,6 +51,7 @@ export default function SummaryPage() {
   );
   const comparison = result && !isFollowUp ? comparablePrevious(result, previous) : null;
   const isRetry = Boolean(result?.compare || comparison);
+  const scoreDetail = result?.mode === "speaking" && !result.compare ? speakingScoreDetail(result.analysis) : null;
   const score =
     result && Number.isFinite(result.analysis.score)
       ? Math.min(100, Math.max(0, result.analysis.score))
@@ -91,7 +93,7 @@ export default function SummaryPage() {
                     {isRetry ? "재도전 점수" : isFollowUp ? "꼬리질문 답변 점수" : "말하기 점수"}
                   </h2>
                   <p className="text-sm leading-relaxed text-secondary">
-                    패닉존·군말·반복 기준
+                    {scoreDetail ? "말하기 습관 50% · 답변 정확성 50%" : "패닉존·군말·반복 기준"}
                   </p>
                   <span className="badge badge-outline">
                     {modeNames[result.mode]} · {timestamp(totalDuration(result.parts))}
@@ -102,6 +104,11 @@ export default function SummaryPage() {
                   <span className="ml-1 text-sm text-base-content/70">/ 100점</span>
                 </p>
               </div>
+              {scoreDetail && (
+                <p className="border-t border-base-300 px-5 py-3 text-sm leading-relaxed tabular-nums sm:px-6">
+                  말하기 습관 {scoreDetail.habit}점 · 답변 정확성 {scoreDetail.accuracy}점
+                </p>
+              )}
             </section>
             <Suspense
               fallback={
