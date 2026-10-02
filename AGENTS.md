@@ -19,8 +19,8 @@
 | 사람 | GitHub | AI | 역할 | 소유 경로 |
 |---|---|---|---|---|
 | 윤화영 | scarypants | Claude | 백엔드 | `backend/**`, `docs/api.md` |
-| 고민준 | KO-HOJINI | Claude | 프론트 (입력 화면 + 공용) | `frontend/src/pages/home/`, `frontend/src/pages/record/`, `frontend/src/pages/upload/`, `frontend/src/pages/question/`, 그리고 아래 프론트 공용 파일 |
-| 김왁수 | kimwaksoo | Codex | 프론트 (결과 화면) | `frontend/src/pages/script/`, `frontend/src/pages/summary/`, `frontend/src/mocks/` |
+| 고민준 | KO-HOJINI | Claude | 프론트 전체 | `frontend/**` (모든 페이지 + 아래 프론트 공용 파일 + `frontend/src/mocks/`) |
+| 김왁수 | kimwaksoo | Codex | (10/2 리허설부터 프론트 담당 해제) | 없음. 프론트 수정이 필요하면 고민준에게 요청 |
 
 - 루트 `package.json`·루트 `package-lock.json`(workspaces)은 공동 관리: 의존성 추가는 각자 자기 workspace에 `npm install <pkg> -w frontend|backend`로 하고, lock 충돌이 나면 `npm install`로 재생성한다.
 - 프론트 공용 파일(주인: 고민준): `frontend/package.json`, `frontend/vite.config.ts`, tailwind/DaisyUI 설정, `frontend/src/main.tsx`, `frontend/src/App.tsx`(라우터), `frontend/src/components/common/`, `frontend/src/api/`, `frontend/src/types/`, `frontend/src/store/`(페이지 간 공유 상태), `frontend/src/styles/`
@@ -31,7 +31,7 @@
 ## 3. 계약 우선 (프론트·백엔드 분리 작업)
 
 - 백엔드는 `docs/api.md`에 엔드포인트와 요청/응답 예시 JSON을 먼저 확정한다.
-- 프론트는 그 예시를 `frontend/src/mocks/`에 두고 서버 없이 개발한다. 결과 화면(김왁수)은 mock JSON만으로 시작할 수 있다.
+- 프론트는 그 예시를 `frontend/src/mocks/`에 두고 서버 없이 개발한다. 결과 화면은 mock JSON만으로 시작할 수 있다.
 - 응답 타입은 `frontend/src/types/api.ts`에 `docs/api.md`와 동일하게 둔다. 계약이 바뀌면 백엔드가 `docs/api.md`를 고치고, PR 설명 첫 줄에 `[API 변경]`을 쓰고, 팀 채팅에 알린다.
 - API 키는 서버에만 둔다. 클라이언트에서 OpenAI를 직접 호출하지 않는다.
 
