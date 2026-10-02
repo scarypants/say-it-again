@@ -34,6 +34,14 @@ const rejectUnknownOrigin: RequestHandler = (req, _res, next) => {
   next();
 };
 
+/** 요청마다 처리 시간을 남긴다 (데모 중 어디가 느린지 바로 보이도록). 본문·키는 남기지 않는다 */
+const logTiming: RequestHandler = (req, res, next) => {
+  const start = Date.now();
+  res.on('finish', () => console.log(`[http] ${req.method} ${req.originalUrl} ${res.statusCode} ${Date.now() - start}ms`));
+  next();
+};
+
+app.use(logTiming);
 app.use(rejectUnknownOrigin);
 app.use(cors({ origin: (origin, done) => done(null, !origin || isAllowedOrigin(origin)) }));
 app.use(express.json({ limit: '2mb' })); // analyze는 대본 전체를 JSON으로 받는다

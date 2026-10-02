@@ -29,6 +29,7 @@ Base URL: `http://localhost:8080/api`
 | 1 | `POST /api/transcribe` | multipart: 녹음 파일 + 모드 정보 | 파트별 문장 단위 대본 (`TranscribeResponse`) |
 | 2 | `POST /api/analyze` | JSON: 모드 정보 + 사용자가 고친 대본 | 분석 결과 (`AnalyzeResponse`) |
 | 3 | `POST /api/retry` | JSON: 2와 같음 + 이전 결과 요약(`previous`) | 재도전 결과 + 전후 비교 (`RetryResponse`) |
+| - | `GET /api/health` | 없음 | 서버 상태 (점검용): `{ ok, mock: { stt, llm }, openaiKey: boolean, llmModel, imageModel }`. 키 값은 내보내지 않는다 |
 
 ```
 (스피킹·면접) [0] questions(initial) → 질문마다 답변 녹음 ↓   (토익은 [0-1] questions/image를 뒤에서 함께)

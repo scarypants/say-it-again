@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import multer from 'multer';
-import { MAX_FILE_BYTES, MAX_FILES } from '../config';
+import { IMAGE_MODEL, LLM_MODEL, MAX_FILE_BYTES, MAX_FILES, MOCK_LLM, MOCK_STT } from '../config';
 import { generateQuestionImage } from '../llm/image';
 import { analyze } from '../pipeline/analyze';
 import { generateQuestions } from '../pipeline/questions';
@@ -21,6 +21,17 @@ const upload = multer({
 });
 
 export const router = Router();
+
+// 서버 상태 확인 (데모 직전 점검용). 키 값은 내보내지 않고 설정 여부만 알려 준다
+router.get('/health', (_req, res) => {
+  res.json({
+    ok: true,
+    mock: { stt: MOCK_STT, llm: MOCK_LLM },
+    openaiKey: Boolean(process.env.OPENAI_API_KEY),
+    llmModel: LLM_MODEL || null,
+    imageModel: IMAGE_MODEL || null,
+  });
+});
 
 // 1단계: 녹음 → 문장 단위 대본. audio 외의 파일 필드(예: material)는 multer가 에러로 처리한다.
 router.post('/transcribe', upload.fields([{ name: 'audio', maxCount: MAX_FILES }]), async (req, res) => {

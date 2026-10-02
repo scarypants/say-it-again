@@ -123,11 +123,15 @@ export async function analyzePart(input: AnalyzeInput, script: Line[], partIndex
   const highlight: Highlight[] = [];
   let expressions = 0;
   const inFinal = finalChecker(out.final);
+  let dropped = 0;
   for (const issue of out.issues) {
     const line = script[issue.line];
     if (!line || line.pause || issue.from < 0 || issue.to < issue.from || issue.to >= line.words.length) continue;
     if (issue.category === 'grammar' && !checksGrammar(input)) continue;
-    if (!inFinal(issue.fixed)) continue; // 고친 완성 대본(final)과 다른 표현은 화면에서 서로 어긋나므로 버린다
+    if (!inFinal(issue.fixed)) {
+      dropped++; // 고친 완성 대본(final)과 다른 표현은 화면에서 서로 어긋나므로 버린다
+      continue;
+    }
     if (issue.category === 'expression' && ++expressions > MAX_EXPRESSIONS) continue;
     highlight.push({
       from: line.offset + issue.from,
@@ -137,6 +141,8 @@ export async function analyzePart(input: AnalyzeInput, script: Line[], partIndex
       fixed: issue.fixed,
     });
   }
+
+  if (dropped > 0) console.log(`[llm] ${partIndex + 1}번째 파트: 완성 대본과 다른 하이라이트 ${dropped}/${out.issues.length}개 버림`);
 
   const panicNotes = new Map(
     out.panics.filter((p) => script[p.line]?.pause).map((p) => [p.line, { reason: toScreenTerms(p.reason), fixed: p.fixed }]),
@@ -333,6 +339,7 @@ export async function requestSummaryOutput(input: AnalyzeInput, parts: Part[]): 
 
 async function callJson<T>(name: string, schema: object, messages: { system: string; user: string }): Promise<T> {
   if (!LLM_MODEL) throw new Error('OPENAI_LLM_MODEL이 설정되지 않았습니다.');
+  const start = Date.now();
   const res = await getOpenAI().chat.completions.create(
     {
       model: LLM_MODEL,
@@ -345,6 +352,7 @@ async function callJson<T>(name: string, schema: object, messages: { system: str
     },
     { timeout: LLM_TIMEOUT_MS, maxRetries: LLM_MAX_RETRIES },
   );
+  console.log(`[llm] ${name} ${Date.now() - start}ms`);
   const content = res.choices[0]?.message?.content;
   if (!content) throw new Error(`LLM 응답이 비어 있습니다 (${name}).`);
   return JSON.parse(content) as T;
