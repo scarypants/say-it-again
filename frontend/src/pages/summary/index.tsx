@@ -52,7 +52,7 @@ export default function SummaryPage() {
   const comparison = result && !isFollowUp ? comparablePrevious(result, previous) : null;
   const isRetry = Boolean(result?.compare || comparison);
   // 스피킹·면접(발표 예상 질문 답변 포함)은 습관 점수와 답변 정확성을 섞는다 (docs/api.md 4절)
-  const scoreDetail = result && !result.compare ? speakingScoreDetail(result.analysis) : null;
+  const scoreDetail = result ? speakingScoreDetail(result.analysis) : null;
   const accuracyPct = scoreDetail ? Math.round(scoreDetail.accuracyWeight * 100) : 0;
   const score =
     result && Number.isFinite(result.analysis.score)

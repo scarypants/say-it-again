@@ -109,6 +109,7 @@ export type AnalyzeResponse = {
 export type RetryRequest = AnalyzeRequest & {
   previous: {
     durationSec: number; // 이전 parts[].duration의 합
+    accuracy?: number; // 이전 scoreDetail.accuracy. 보내면 서버가 정확성까지 다시 채점해 비교한다 (스피킹·면접)
     stats: Analysis["stats"];
     categoryRatio: Charts["categoryRatio"];
     topPriorities: string[];
@@ -134,6 +135,8 @@ export type CompareStats = {
   fillerPerMin: number; // 녹음 1분당 횟수. 길이가 달라지므로 비교는 이 값을 권장
   panicPerMin: number;
   repeatPerMin: number;
+  habit?: number; // 정확성까지 비교할 때만: 말하기 습관 점수
+  accuracy?: number; // 정확성까지 비교할 때만: 답변 정확성 점수
 };
 
 export type Retry = {

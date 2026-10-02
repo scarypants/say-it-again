@@ -11,8 +11,10 @@ export default function RetryComparison({
   const values = comparisonValues(result, previous);
   if (!values) return null;
   const { before, after } = values;
+  // 서버가 정확성까지 다시 채점했으면 총점 비교, 아니면 습관 점수끼리만 비교한 것
+  const withAccuracy = typeof before.accuracy === "number" && typeof after.accuracy === "number";
   const rows = [
-    { label: result.mode !== "presentation" ? "말하기 습관 점수" : "점수", old: before.score, now: after.score, unit: "점", higher: true },
+    { label: result.mode !== "presentation" && !withAccuracy ? "말하기 습관 점수" : "점수", old: before.score, now: after.score, unit: "점", higher: true },
     { label: "군말/분", old: before.fillerPerMin, now: after.fillerPerMin, unit: "회" },
     { label: "반복/분", old: before.repeatPerMin, now: after.repeatPerMin, unit: "회" },
     { label: "패닉존/분", old: before.panicPerMin, now: after.panicPerMin, unit: "회" },
@@ -65,6 +67,11 @@ export default function RetryComparison({
           })}
         </tbody>
       </table>
+      {withAccuracy && typeof before.habit === "number" && typeof after.habit === "number" && (
+        <p className="mt-3 text-sm font-medium tabular-nums">
+          말하기 습관 {before.habit} → {after.habit}점 · 답변 정확성 {before.accuracy} → {after.accuracy}점
+        </p>
+      )}
       {typeof result.compare?.scriptMatch === "number" && Number.isFinite(result.compare.scriptMatch) && (
         <p className="mt-3 text-sm font-medium">이전 대본과 일치한 비율 {result.compare.scriptMatch}%</p>
       )}

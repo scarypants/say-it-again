@@ -123,3 +123,19 @@ test("같은 언어의 면접 재도전은 비교하고 질문별 모범 답안�
   assert.deepEqual(reference.parts.map((part) => part.final), baseline.parts.map((part) => part.final));
   assert.ok(result.parts.every((part) => part.final.length === 0));
 });
+
+test("정확성까지 다시 채점한 재도전은 '점수'로 표시하고 습관·정확성 변화를 나눠 보여 준다", () => {
+  const scored = {
+    ...after,
+    mode: "speaking" as const,
+    compare: {
+      ...after.compare!,
+      before: { ...after.compare!.before, habit: 85, accuracy: 50 },
+      after: { ...after.compare!.after, habit: 100, accuracy: 80 },
+    },
+  };
+  const html = render(scored);
+  assert.ok(!html.includes("말하기 습관 점수"));
+  assert.ok(html.includes("말하기 습관 85"));
+  assert.match(html, /답변 정확성 50[^0-9]+80점/);
+});
