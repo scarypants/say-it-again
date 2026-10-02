@@ -64,6 +64,15 @@ export const PANIC_TAIL_WORDS = 3;
 export const REPEAT_WINDOW_LINES = 5;
 export const REPEAT_MIN_COUNT = 3;
 
+/**
+ * 총점에서 답변 정확성(LLM)의 비중. score = habit^(1-w) × accuracy^w (가중 기하평균).
+ * 기하평균이라 한쪽이 무너지면(질문과 상관없는 답 등) 다른 쪽이 좋아도 점수가 크게 떨어진다.
+ * - 스피킹: 시험은 유창성(습관)과 내용이 같은 비중 → 0.5 (= √(habit × accuracy))
+ * - 면접·발표 예상 질문 답변: 질문에 맞는 내용이 더 중요 → 0.7
+ * - 발표: 질문이 없어 정확성을 매기지 않는다 (습관 점수만)
+ */
+export const ACCURACY_WEIGHT = { speaking: 0.5, interview: 0.7 } as const;
+
 /** 하이라이트 우선순위 (categoryRatio 계산 시 겹치면 앞쪽 하나만 센다) */
 export const CATEGORY_PRIORITY: Category[] = ['panic', 'filler', 'repeat', 'expression', 'grammar'];
 

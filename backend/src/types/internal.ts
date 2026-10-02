@@ -25,7 +25,7 @@ export type LlmPartResult = {
   panicNotes: Map<number, { reason: string; fixed: string }>; // pause 줄 번호 → 원인·대안
   final: { words: string[] }[];
   comment?: string;
-  accuracy?: number; // 스피킹: 답변 정확성 0~100
+  accuracy?: number; // 스피킹·면접: 답변 정확성 0~100
 };
 
 /** STT 결과 */

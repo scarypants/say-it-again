@@ -132,8 +132,8 @@ export function partMessages(input: AnalyzeInput, script: Line[], partIndex: num
         : speaking
           ? '4. comment: 이 답변이 질문에 얼마나 맞게 답했는지, 시험 기준으로 한 줄 평가.'
           : '4. comment: 빈 문자열로 둔다.',
-    speaking
-      ? `5. accuracy: 답변의 정확성 점수(0~100 정수). ${ACCURACY_CRITERIA} 말하기 습관(패닉존·군말·반복)은 다른 점수에서 보므로 여기에 넣지 않는다.`
+    speaking || answering
+      ? `5. accuracy: 답변의 정확성 점수(0~100 정수). ${speaking ? ACCURACY_CRITERIA : qna ? QNA_ACCURACY_CRITERIA : INTERVIEW_ACCURACY_CRITERIA} ${ACCURACY_SCALE} 말하기 습관(패닉존·군말·반복)은 다른 점수에서 보므로 여기에 넣지 않는다.`
       : '5. accuracy: 0으로 둔다.',
     ...(interview ? ['', INTERVIEW_CRITERIA, '패닉존은 준비가 덜 된 지점이라는 관점에서, 무엇을 미리 정리해 두면 막히지 않을지 진단한다.'] : []),
     ...(qna ? ['', QNA_CRITERIA, '패닉존은 예상 질문에 대한 대비가 덜 된 지점이라는 관점에서, 발표 전에 무엇을 정리해 두면 막히지 않을지 진단한다.'] : []),
@@ -148,12 +148,17 @@ export function partMessages(input: AnalyzeInput, script: Line[], partIndex: num
   return { system, user };
 }
 
-/** 스피킹 정확성 점수 기준 (파트별 accuracy) */
+/** 정확성 점수 기준 (파트별 accuracy). 스피킹·면접·발표 질의응답마다 다르다 */
 const ACCURACY_CRITERIA = [
   '질문이 요구한 것에 맞게 답했는지(과제 수행), 이유·예시로 내용을 충분히 전개했는지, 문법·어휘가 정확한지를 시험 채점 기준처럼 본다.',
   '토익 스피킹 Part 1(지문 읽기)처럼 주어진 글을 읽는 문제는 지문을 빠뜨리거나 바꿔 읽지 않고 정확히 읽었는지로 본다.',
-  '답변이 질문과 상관없거나 거의 없으면 30점 이하, 요구를 대부분 채웠지만 전개나 정확성이 아쉬우면 60~80점, 시험 만점 답변에 가까우면 90점 이상.',
 ].join(' ');
+const INTERVIEW_ACCURACY_CRITERIA =
+  '면접 평가 기준으로 본다: 질문 의도에 맞게 답했는지가 가장 중요하고, 결론을 먼저 말했는지, 경험 질문이면 STAR를 갖췄는지, 구체적인지, 지원 직무와 이어지는지를 본다.';
+const QNA_ACCURACY_CRITERIA =
+  '질의응답 평가 기준으로 본다: 질문에 실제로 답했는지가 가장 중요하고, 근거를 댔는지, 모르는 부분을 인정하고 대안을 냈는지, 간결한지를 본다.';
+const ACCURACY_SCALE =
+  '답변이 질문과 상관없거나 거의 없으면 30점 이하, 질문에 답했지만 전개·근거·정확성이 아쉬우면 60~80점, 모범 답변에 가까우면 90점 이상.';
 
 /** 총평: 파트별 요약만 받아 전체 총평을 쓴다 (원문 전체를 다시 넣지 않는다) */
 export function summaryMessages(input: AnalyzeInput, parts: Part[]) {
