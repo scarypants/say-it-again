@@ -47,7 +47,7 @@ async function fix3gp(blob: Blob): Promise<Blob> {
 // [0] 처음 질문: 녹음 전 질문 화면에서 부른다 (면접은 지원 직무, 오픽은 서베이 주제·단계로).
 // 스피킹은 LLM이 실패하면 빈 목록이 오고, 화면이 가진 문항 데이터로 낸다
 export async function initialQuestions(req: InitialQuestionsRequest): Promise<QuestionsResponse> {
-  if (USE_MOCK) return mockInitialQuestions(req);
+  if (USE_MOCK) return track(mockInitialQuestions(req));
 
   return post<QuestionsResponse>("/api/questions", {
     method: "POST",
@@ -126,7 +126,7 @@ async function mockInitialQuestions(req: InitialQuestionsRequest): Promise<Quest
 // [0] 꼬리질문: 결과 화면에서 버튼을 누르면 실제로 말한 대본으로 질문 1~3개를 받는다 (docs/api.md 6절)
 export async function followUpQuestions(req: FollowUpQuestionsRequest): Promise<QuestionsResponse> {
   const res = USE_MOCK
-    ? await mockFollowUp(req)
+    ? await track(mockFollowUp(req))
     : await post<QuestionsResponse>("/api/questions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -343,7 +343,7 @@ export async function analyze(req: AnalyzeRequest): Promise<AnalyzeResponse> {
 
 // [3] "다시, 말해" 재도전: 새 대본 + 이전 결과 요약 → 분석 + 전후 비교
 export async function retry(req: RetryRequest): Promise<RetryResponse> {
-  if (USE_MOCK) return mockRetry(req);
+  if (USE_MOCK) return track(mockRetry(req));
 
   return post<RetryResponse>("/api/retry", {
     method: "POST",
@@ -452,9 +452,14 @@ function fit<T>(parts: T[], n: number): T[] {
   return Array.from({ length: Math.max(1, n) }, (_, i) => parts[i % parts.length]);
 }
 
+// mock도 실제 요청처럼 진행 중 표시(화면 클릭 막기)를 한다 (mock 시연 대비)
 async function mock<T>(load: () => Promise<{ default: unknown }>): Promise<T> {
-  await new Promise((r) => setTimeout(r, 1200)); // 로딩 화면 확인용
-  return (await load()).default as T;
+  return track(
+    (async () => {
+      await new Promise((r) => setTimeout(r, 1200)); // 로딩 화면 확인용
+      return (await load()).default as T;
+    })(),
+  );
 }
 
 // 서버가 돌려준 오류. status로 종류를 구분한다 (예: 422 = 음성이 감지되지 않음)
