@@ -58,12 +58,16 @@ export async function initialQuestions(req: InitialQuestionsRequest): Promise<Qu
 
 // 토익 Part 2 사진 생성 (10~30초). 질문을 받자마자 뒤에서 부른다. 실패하면 오류 → 기본 사진
 export async function questionImage(scene: string, signal?: AbortSignal): Promise<string> {
-  const res = await post<QuestionImageResponse>("/api/questions/image", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ scene }),
-    signal,
-  });
+  const res = await post<QuestionImageResponse>(
+    "/api/questions/image",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ scene }),
+      signal,
+    },
+    { background: true },
+  );
   return res.image;
 }
 
@@ -462,7 +466,35 @@ export class RequestError extends Error {
   }
 }
 
-async function post<T>(url: string, init: RequestInit): Promise<T> {
+// 진행 중인 요청 수. 0보다 크면 화면 전체 클릭을 막는다 (Layout). 뒤에서 도는 요청(토익 사진)은 세지 않는다
+let pending = 0;
+const pendingListeners = new Set<() => void>();
+function setPending(delta: number) {
+  pending += delta;
+  pendingListeners.forEach((l) => l());
+}
+export function subscribePending(listener: () => void) {
+  pendingListeners.add(listener);
+  return () => {
+    pendingListeners.delete(listener);
+  };
+}
+export const getPending = () => pending;
+
+async function track<T>(work: Promise<T>): Promise<T> {
+  setPending(1);
+  try {
+    return await work;
+  } finally {
+    setPending(-1);
+  }
+}
+
+async function post<T>(url: string, init: RequestInit, { background = false } = {}): Promise<T> {
+  return background ? send<T>(url, init) : track(send<T>(url, init));
+}
+
+async function send<T>(url: string, init: RequestInit): Promise<T> {
   let res: Response;
   try {
     res = await fetch(url, init);

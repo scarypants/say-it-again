@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
+import { getPending, subscribePending } from "../../api/client";
 import { Link, Outlet, useLocation, useMatches } from "react-router";
 import HistoryPanel from "./HistoryPanel";
 import Logo from "./Logo";
@@ -12,9 +13,12 @@ export default function Layout() {
   const { pathname } = useLocation();
   const wide = matches.some((m) => (m.handle as RouteHandle | undefined)?.wide);
   const [historyOpen, setHistoryOpen] = useState(false);
+  // 서버 요청 중에는 다른 버튼을 누르지 못하게 화면 전체를 막는다
+  const busy = useSyncExternalStore(subscribePending, getPending) > 0;
 
   return (
-    <div className="flex min-h-svh flex-col bg-base-100">
+    <div className="flex min-h-svh flex-col bg-base-100" aria-busy={busy}>
+      {busy && <div className="fixed inset-0 z-[60] cursor-wait" aria-hidden />}
       <header className="border-b border-base-300">
         <div className="mx-auto flex h-14 w-full max-w-md items-center justify-between px-5 lg:max-w-6xl lg:px-8">
           <Link to="/" className="flex items-center" aria-label="다시, 말해 처음으로">

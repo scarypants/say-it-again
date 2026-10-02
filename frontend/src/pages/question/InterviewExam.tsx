@@ -545,11 +545,19 @@ export default function InterviewExam({ onRestart }: { onRestart: () => void }) 
         <p className="-mt-2 text-sm font-semibold text-accent">
           {language === "en" ? "영어" : "한국어"}로 답해 주세요
         </p>
-        <p className="text-4xl font-semibold tabular-nums tracking-tight">
-          {mmss(rec.elapsed)}
-          <span className="text-lg font-medium text-secondary"> / {mmss(goal)}</span>
-        </p>
-        <LevelBars levels={rec.levels} />
+        {/* 녹음 전(질문 듣기·준비)에는 타이머와 파형을 흐리게: 녹음 중으로 보이지 않게 */}
+        <div
+          className={`flex w-full flex-col items-center gap-3 transition-opacity ${
+            rec.status === "recording" ? "" : "opacity-30"
+          }`}
+          aria-hidden={rec.status !== "recording"}
+        >
+          <p className="text-4xl font-semibold tabular-nums tracking-tight">
+            {mmss(rec.elapsed)}
+            <span className="text-lg font-medium text-secondary"> / {mmss(goal)}</span>
+          </p>
+          <LevelBars levels={rec.levels} />
+        </div>
         <MicButton
           key={qi}
           size="md"
