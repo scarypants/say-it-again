@@ -1,6 +1,6 @@
 import { LLM_MODEL, LLM_REASONING_EFFORT, LLM_TIMEOUT_MS, MAX_EXPRESSIONS, MOCK_LLM } from '../config';
 import { mockDelay, readFixture } from '../mock';
-import { accuracyWeight, checksGrammar } from '../modes';
+import { accuracyWeight, checksGrammar, isPresentationQna } from '../modes';
 import { toScreenTerms } from '../text';
 import { getOpenAI } from '../openai';
 import type {
@@ -121,10 +121,12 @@ export async function analyzePart(input: AnalyzeInput, script: Line[], partIndex
 
   const highlight: Highlight[] = [];
   let expressions = 0;
+  const inFinal = finalChecker(out.final);
   for (const issue of out.issues) {
     const line = script[issue.line];
     if (!line || line.pause || issue.from < 0 || issue.to < issue.from || issue.to >= line.words.length) continue;
     if (issue.category === 'grammar' && !checksGrammar(input)) continue;
+    if (!inFinal(issue.fixed)) continue; // 고친 완성 대본(final)과 다른 표현은 화면에서 서로 어긋나므로 버린다
     if (issue.category === 'expression' && ++expressions > MAX_EXPRESSIONS) continue;
     highlight.push({
       from: line.offset + issue.from,
@@ -149,6 +151,16 @@ export async function analyzePart(input: AnalyzeInput, script: Line[], partIndex
     ...(accuracyWeight(input) !== undefined &&
       Number.isFinite(out.accuracy) && { accuracy: Math.min(100, Math.max(0, Math.round(out.accuracy as number))) }),
   };
+}
+
+/**
+ * 하이라이트의 fixed가 고친 완성 대본(final)에 그대로 들어 있는지 확인하는 함수를 만든다.
+ * 공백·문장부호·대소문자는 무시한다. final이 비었거나(토익 Part 1) fixed가 빈 문자열(삭제 권장)이면 통과.
+ */
+function finalChecker(final: string[]): (fixed: string) => boolean {
+  const squash = (text: string) => text.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
+  const whole = squash(final.join(' '));
+  return (fixed) => !whole || !squash(fixed) || whole.includes(squash(fixed));
 }
 
 /** 파트별 결과의 요약본으로 전체 총평(summary)을 받는다. */
@@ -280,8 +292,15 @@ export async function requestInterviewQuestions(language: Language, job: string)
 export async function requestPartOutput(input: AnalyzeInput, script: Line[], partIndex: number): Promise<PartOutput> {
   if (MOCK_LLM) {
     await mockDelay(1500);
-    // 한국어 저장 응답은 발표용이라 코멘트가 없어서, 한국어 면접은 코멘트가 있는 면접용을 쓴다
-    const file = input.mode === 'interview' && input.language === 'ko' ? 'llm-part-interview-ko.json' : `llm-part-${input.language}.json`;
+    // 한국어 저장 응답은 발표용이라 코멘트가 없어서, 한국어 면접·발표 질의응답은 코멘트가 있는 것을 쓴다
+    const file =
+      input.language !== 'ko'
+        ? `llm-part-${input.language}.json`
+        : isPresentationQna(input)
+          ? 'llm-part-qna-ko.json'
+          : input.mode === 'interview'
+            ? 'llm-part-interview-ko.json'
+            : 'llm-part-ko.json';
     return readFixture<PartOutput>(file);
   }
   return callJson<PartOutput>('part_analysis', PART_SCHEMA, partMessages(input, script, partIndex));
