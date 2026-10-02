@@ -1,6 +1,6 @@
 import { LLM_MODEL, LLM_REASONING_EFFORT, LLM_TIMEOUT_MS, MAX_EXPRESSIONS, MOCK_LLM } from '../config';
 import { mockDelay, readFixture } from '../mock';
-import { checksGrammar } from '../modes';
+import { accuracyWeight, checksGrammar } from '../modes';
 import { toScreenTerms } from '../text';
 import { getOpenAI } from '../openai';
 import type {
@@ -32,7 +32,8 @@ import {
 const PART_SCHEMA = {
   type: 'object',
   additionalProperties: false,
-  required: ['panics', 'issues', 'final', 'comment', 'accuracy'],
+  // final을 issues보다 먼저 쓰게 한다 (issues의 fixed를 final에서 고친 표현과 맞추도록. strict 모드는 이 순서로 생성)
+  required: ['panics', 'final', 'issues', 'comment', 'accuracy'],
   properties: {
     panics: {
       type: 'array',
@@ -43,6 +44,7 @@ const PART_SCHEMA = {
         properties: { line: { type: 'integer' }, reason: { type: 'string' }, fixed: { type: 'string' } },
       },
     },
+    final: { type: 'array', items: { type: 'string' } },
     issues: {
       type: 'array',
       items: {
@@ -59,7 +61,6 @@ const PART_SCHEMA = {
         },
       },
     },
-    final: { type: 'array', items: { type: 'string' } },
     comment: { type: 'string' },
     accuracy: { type: 'integer' },
   },
@@ -70,7 +71,7 @@ export type PartOutput = {
   issues: { line: number; from: number; to: number; category: 'expression' | 'grammar'; reason: string; fixed: string }[];
   final: string[];
   comment: string;
-  accuracy?: number; // 스피킹만 (mock fixture에는 없을 수 있다)
+  accuracy?: number; // 스피킹·면접만 (mock fixture에는 없을 수 있다)
 };
 
 const SUMMARY_SCHEMA = {
@@ -145,7 +146,7 @@ export async function analyzePart(input: AnalyzeInput, script: Line[], partIndex
       .map((sentence) => ({ words: sentence.trim().split(/\s+/).filter(Boolean) }))
       .filter((s) => s.words.length > 0),
     comment: toScreenTerms(out.comment) || undefined,
-    ...(input.mode === 'speaking' &&
+    ...(accuracyWeight(input) !== undefined &&
       Number.isFinite(out.accuracy) && { accuracy: Math.min(100, Math.max(0, Math.round(out.accuracy as number))) }),
   };
 }

@@ -27,7 +27,7 @@ export type Highlight = {
 
 export type Part = {
   comment?: string;
-  accuracy?: number; // 스피킹만: 답변 정확성 0~100 (LLM)
+  accuracy?: number; // 스피킹·면접만: 답변 정확성 0~100 (LLM)
   duration: number;
   script: Line[];
   highlight: Highlight[];
@@ -41,8 +41,9 @@ export type Charts = {
 };
 
 export type Analysis = {
-  score: number; // 스피킹: (habit + accuracy) / 2, 그 외: habit
-  scoreDetail?: { habit: number; accuracy: number }; // 스피킹만: 말하기 습관 점수 + 파트별 정확성 평균
+  score: number; // scoreDetail이 있으면 round(habit^(1-w) × accuracy^w) (w = accuracyWeight), 없으면 habit
+  /** 스피킹·면접(발표 예상 질문 답변 포함)만. 프론트는 이 값으로 점수 산출 방식을 설명한다 */
+  scoreDetail?: { habit: number; accuracy: number; accuracyWeight: number };
   stats: {
     wpm: number;
     fillerCount: number;

@@ -1,5 +1,5 @@
 import { MAX_EXPRESSIONS } from '../config';
-import { checksGrammar, interviewJob } from '../modes';
+import { checksGrammar, interviewJob, isPresentationQna } from '../modes';
 import type { Charts, Compare, FollowUpQuestionsRequest, Language, Level, Line, Part } from '../types/api';
 import type { AnalyzeInput, ModeInfo, RetryInput } from '../types/internal';
 
@@ -46,6 +46,10 @@ function situation(input: AnalyzeInput, partIndex: number): string {
     const level = input.level ? LEVEL_LABEL[input.level] : '발표';
     return `상황: ${level}. 발표 언어: ${LANGUAGE_LABEL[input.language]}. 녹음 ${partIndex + 1}번째 구간.`;
   }
+  if (isPresentationQna(input)) {
+    const question = input.questions?.[partIndex] ?? '';
+    return `상황: 발표를 마친 뒤 청중(학우·교수님 등)의 질문에 답하는 질의응답 연습 (${LANGUAGE_LABEL[input.language]}). 아래 질문에 대한 답변이다.\n질문:\n${question}`;
+  }
   if (input.mode === 'interview') {
     const question = input.questions?.[partIndex] ?? '';
     return `상황: 취업 면접 답변 연습 (${LANGUAGE_LABEL[input.language]}). 아래 질문에 대한 답변이다.\n질문:\n${question}`;
@@ -66,25 +70,54 @@ const INTERVIEW_CRITERIA = [
   '- 답변 길이가 적당한가 (보통 1분~1분 30초)',
 ].join('\n');
 
-/** 파트 하나 분석 (패닉 원인·대안, 표현 개선, 문법, 최종 대본, 코멘트) */
+/** 발표 질의응답 답변 평가 기준 (발표 예상 질문 답변. 프론트가 면접 모드로 보낸다) */
+const QNA_CRITERIA = [
+  '발표 질의응답 평가 기준:',
+  '- 질문에 바로 답했는가 (첫 문장에 답의 결론이 있는가, 질문을 피해 가지 않았는가)',
+  '- 근거를 댔는가 (발표 내용·자료·수치·사례와 이어서 설명했는가)',
+  '- 모르는 부분은 솔직히 인정하고, 확인 방법이나 대안을 제시했는가',
+  '- 짧고 분명한가 (보통 30초~1분, 같은 말을 되풀이하지 않는가)',
+  '- 청중을 존중하는 태도인가 (방어적이거나 질문을 깎아내리지 않는가)',
+].join('\n');
+
+/** 파트 하나 분석 (패닉 원인·대안, 최종 대본, 표현 개선, 문법, 코멘트) */
 export function partMessages(input: AnalyzeInput, script: Line[], partIndex: number) {
   const speaking = input.mode === 'speaking';
-  const interview = input.mode === 'interview';
+  const qna = isPresentationQna(input);
+  const interview = input.mode === 'interview' && !qna;
+  const answering = interview || qna; // 다시 짠 모범 답안을 final로 쓰는 경우
   const grammar = checksGrammar(input);
   const system = [
     '너는 대학생의 말하기 연습을 돕는 코치다. 녹음을 전사한 대본을 보고 구체적이고 실천할 수 있는 피드백을 준다.',
     '대본은 문장마다 [줄 번호]가 있고, 각 단어 앞에 "단어 번호:"가 붙어 있다. "(패닉존 N초)" 줄은 말하다 멈춘 구간이다. 대본 맨 앞에 있으면 첫마디를 떼기 전에 멈춘 구간이다.',
     '',
-    '해야 할 일:',
+    '해야 할 일 (이 순서대로 쓴다):',
     '1. panics: 패닉존 줄마다 하나씩. line은 패닉존 줄 번호. reason에 바로 앞 문장의 흐름을 보고 왜 막혔는지 진단하고, fixed에 막히지 않고 이어 말할 수 있는 대안 대본(1~2문장)을 쓴다.',
     '   대본 맨 앞의 패닉존은 질문을 듣고 말문을 열지 못한 것이다. reason에 왜 시작이 늦었는지 진단하고, fixed에 바로 꺼낼 수 있는 첫 문장(1~2문장)을 쓴다.',
-    `2. issues: 고치면 좋아질 표현을 영향이 큰 순서로 최대 ${MAX_EXPRESSIONS}개. line은 문장 줄 번호, from·to는 그 줄 안의 단어 번호(to 포함). category는 "expression"(모호·약한 표현, 문어체, 어색하거나 부정확한 어휘)` +
+    ...(interview
+      ? [
+          '2. final: 이 답변을 면접 평가 기준에 맞게 다시 짠 모범 답안을 문장 배열로 쓴다. 결론을 첫 문장에 두고, 경험 질문이면 STAR 순서로 정리한다.',
+          '   답변에 있는 경험·사실을 살리고, 없는 경험이나 수치를 지어내지 않는다. 1분 안팎으로 말할 분량으로 쓴다. 군말과 반복은 뺀다.',
+        ]
+      : qna
+        ? [
+            '2. final: 이 답변을 질의응답 평가 기준에 맞게 다시 짠 모범 답변을 문장 배열로 쓴다. 첫 문장에 질문에 대한 답을 두고, 근거를 한두 문장으로 붙인다.',
+            '   답변에 있는 내용·사실을 살리고, 없는 수치나 사실을 지어내지 않는다. 모르는 내용이면 인정하고 확인 방법을 말하는 답으로 쓴다. 30초~1분 분량. 군말과 반복은 뺀다.',
+          ]
+        : [
+            '2. final: 대본 전체를 자연스럽게 다듬은 최종 대본을 문장 배열로 쓴다. 군말과 반복은 빼고, 내용과 순서는 유지한다.',
+            '   토익 스피킹 Part 1(지문 읽기)처럼 주어진 글을 그대로 읽는 문제라면 final은 빈 배열로 둔다.',
+          ]),
+    `3. issues: 고치면 좋아질 표현을 영향이 큰 순서로 최대 ${MAX_EXPRESSIONS}개. line은 문장 줄 번호, from·to는 그 줄 안의 단어 번호(to 포함). category는 "expression"(모호·약한 표현, 문어체, 어색하거나 부정확한 어휘)` +
       (grammar ? ' 또는 "grammar"(문법 오류).' : '. 이 모드에서는 grammar를 쓰지 않는다.') +
       ' fixed에는 그 범위를 대체할 표현을 쓴다.',
+    answering
+      ? '   fixed는 위 final에서 같은 내용을 말할 때 쓴 표현과 맞춘다. final에서 문장을 새로 짠 부분은 원래 문장 안에서 그 범위만 바꾼 표현을 쓴다.'
+      : '   fixed는 반드시 위 final에서 그 부분을 실제로 고쳐 쓴 표현을 그대로 옮긴다. final에서 바꾸지 않은 부분은 issues에 넣지 않고, final에서 고친 표현 개선은 빠뜨리지 않는다.',
     '   범위(from~to)는 실제로 바꿔야 하는 단어만 최소로 잡는다 (보통 1~4단어). 문장이나 절 전체를 잡지 않는다.',
     '   군말(음, 어, 그러니까, um, uh 등)과 반복은 다른 단계에서 찾으므로 issues에 넣지 않는다.',
-    ...(interview
-      ? ['   면접에서는 "~것 같습니다"처럼 자신 없는 말끝, 모호한 표현을 단정적이고 구체적인 표현으로 바꾸는 것을 우선한다.']
+    ...(answering
+      ? ['   "~것 같습니다"처럼 자신 없는 말끝, 모호한 표현을 단정적이고 구체적인 표현으로 바꾸는 것을 우선한다.']
       : []),
     ...(grammar
       ? [
@@ -92,24 +125,18 @@ export function partMessages(input: AnalyzeInput, script: Line[], partIndex: num
           '   final에서 고친 문법 오류는 반드시 issues에도 grammar로 있어야 한다.',
         ]
       : []),
-    ...(interview
-      ? [
-          '3. final: 이 답변을 면접 평가 기준에 맞게 다시 짠 모범 답안을 문장 배열로 쓴다. 결론을 첫 문장에 두고, 경험 질문이면 STAR 순서로 정리한다.',
-          '   답변에 있는 경험·사실을 살리고, 없는 경험이나 수치를 지어내지 않는다. 1분 안팎으로 말할 분량으로 쓴다. 군말과 반복은 뺀다.',
-        ]
-      : [
-          '3. final: 대본 전체를 자연스럽게 다듬은 최종 대본을 문장 배열로 쓴다. 군말과 반복은 빼고, 내용과 순서는 유지한다.',
-          '   토익 스피킹 Part 1(지문 읽기)처럼 주어진 글을 그대로 읽는 문제라면 final은 빈 배열로 둔다.',
-        ]),
     interview
       ? '4. comment: 면접 평가 기준 중 이 답변에서 가장 중요한 잘한 점이나 고칠 점을 한 줄로 평가 (예: "결론은 먼저 말했지만 STAR 중 결과가 빠졌어요").'
-      : speaking
-        ? '4. comment: 이 답변이 질문에 얼마나 맞게 답했는지, 시험 기준으로 한 줄 평가.'
-        : '4. comment: 빈 문자열로 둔다.',
-    speaking
-      ? `5. accuracy: 답변의 정확성 점수(0~100 정수). ${ACCURACY_CRITERIA} 말하기 습관(패닉존·군말·반복)은 다른 점수에서 보므로 여기에 넣지 않는다.`
+      : qna
+        ? '4. comment: 질의응답 평가 기준 중 이 답변에서 가장 중요한 잘한 점이나 고칠 점을 한 줄로 평가 (예: "질문에 바로 답했지만 근거가 발표 내용과 이어지지 않아요"). 면접·지원 직무·STAR 같은 면접 용어는 쓰지 않는다.'
+        : speaking
+          ? '4. comment: 이 답변이 질문에 얼마나 맞게 답했는지, 시험 기준으로 한 줄 평가.'
+          : '4. comment: 빈 문자열로 둔다.',
+    speaking || answering
+      ? `5. accuracy: 답변의 정확성 점수(0~100 정수). ${speaking ? ACCURACY_CRITERIA : qna ? QNA_ACCURACY_CRITERIA : INTERVIEW_ACCURACY_CRITERIA} ${ACCURACY_SCALE} 말하기 습관(패닉존·군말·반복)은 다른 점수에서 보므로 여기에 넣지 않는다.`
       : '5. accuracy: 0으로 둔다.',
     ...(interview ? ['', INTERVIEW_CRITERIA, '패닉존은 준비가 덜 된 지점이라는 관점에서, 무엇을 미리 정리해 두면 막히지 않을지 진단한다.'] : []),
+    ...(qna ? ['', QNA_CRITERIA, '패닉존은 예상 질문에 대한 대비가 덜 된 지점이라는 관점에서, 발표 전에 무엇을 정리해 두면 막히지 않을지 진단한다.'] : []),
     '',
     `reason과 comment는 한국어로 쓴다. fixed와 final은 대본과 같은 언어(${LANGUAGE_LABEL[input.language]})로 쓴다.`,
     '번호는 반드시 입력에 있는 번호만 쓴다.',
@@ -121,18 +148,24 @@ export function partMessages(input: AnalyzeInput, script: Line[], partIndex: num
   return { system, user };
 }
 
-/** 스피킹 정확성 점수 기준 (파트별 accuracy) */
+/** 정확성 점수 기준 (파트별 accuracy). 스피킹·면접·발표 질의응답마다 다르다 */
 const ACCURACY_CRITERIA = [
   '질문이 요구한 것에 맞게 답했는지(과제 수행), 이유·예시로 내용을 충분히 전개했는지, 문법·어휘가 정확한지를 시험 채점 기준처럼 본다.',
   '토익 스피킹 Part 1(지문 읽기)처럼 주어진 글을 읽는 문제는 지문을 빠뜨리거나 바꿔 읽지 않고 정확히 읽었는지로 본다.',
-  '답변이 질문과 상관없거나 거의 없으면 30점 이하, 요구를 대부분 채웠지만 전개나 정확성이 아쉬우면 60~80점, 시험 만점 답변에 가까우면 90점 이상.',
 ].join(' ');
+const INTERVIEW_ACCURACY_CRITERIA =
+  '면접 평가 기준으로 본다: 질문 의도에 맞게 답했는지가 가장 중요하고, 결론을 먼저 말했는지, 경험 질문이면 STAR를 갖췄는지, 구체적인지, 지원 직무와 이어지는지를 본다.';
+const QNA_ACCURACY_CRITERIA =
+  '질의응답 평가 기준으로 본다: 질문에 실제로 답했는지가 가장 중요하고, 근거를 댔는지, 모르는 부분을 인정하고 대안을 냈는지, 간결한지를 본다.';
+const ACCURACY_SCALE =
+  '답변이 질문과 상관없거나 거의 없으면 30점 이하, 질문에 답했지만 전개·근거·정확성이 아쉬우면 60~80점, 모범 답변에 가까우면 90점 이상.';
 
 /** 총평: 파트별 요약만 받아 전체 총평을 쓴다 (원문 전체를 다시 넣지 않는다) */
 export function summaryMessages(input: AnalyzeInput, parts: Part[]) {
   const system = [
     '너는 대학생의 말하기 연습을 돕는 코치다. 여러 녹음 구간의 분석 요약을 보고 전체 총평을 쓴다.',
-    'headline: 전체를 한 문장으로 평가. topPriorities: 가장 먼저 고칠 것 3개 (짧게, 구체적으로). comment: 상황(발표 성격, 시험 또는 면접 직무)에 맞춘 조언 2~3문장.',
+    'headline: 전체를 한 문장으로 평가. topPriorities: 가장 먼저 고칠 것 3개 (짧게, 구체적으로). comment: 상황(발표 성격, 시험, 면접 직무, 발표 질의응답)에 맞춘 조언 2~3문장.',
+    '상황이 발표 후 질의응답이면 면접·지원 직무 이야기를 하지 않고, 청중 질문에 답하는 관점(바로 답하기, 근거, 모르면 인정)으로 쓴다.',
     '모두 한국어로 쓴다.',
     '',
     TERMS,
@@ -230,7 +263,9 @@ function headLine(input: ModeInfo, suffix: string): string {
   const what =
     input.mode === 'presentation'
       ? `${input.level ? LEVEL_LABEL[input.level] : '발표'} (${LANGUAGE_LABEL[input.language]})`
-      : input.mode === 'interview'
+      : isPresentationQna(input)
+        ? `발표 후 질의응답 (${LANGUAGE_LABEL[input.language]})`
+        : input.mode === 'interview'
         ? `취업 면접${interviewJob(input) ? ` (지원 직무: ${interviewJob(input)})` : ''} (${LANGUAGE_LABEL[input.language]})`
         : (input.exam ? EXAM_LABEL[input.exam] : '영어 말하기 시험');
   return `상황: ${what}${suffix ? ` ${suffix}` : ''}`;

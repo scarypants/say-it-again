@@ -53,6 +53,14 @@ export function habitScore(ratio: Charts['categoryRatio']): number {
   return Math.min(100, Math.max(0, 100 - ratio.panic - ratio.filler - ratio.repeat));
 }
 
+/**
+ * 습관 점수와 답변 정확성을 합친 총점: 가중 기하평균 habit^(1-w) × accuracy^w (w = 정확성 비중).
+ * 평균과 달리 한쪽이 낮으면 크게 깎인다 (습관 100 · 정확성 10 → w 0.5: 32점, w 0.7: 20점).
+ */
+export function combinedScore(habit: number, accuracy: number, weight: number): number {
+  return Math.round(Math.pow(habit, 1 - weight) * Math.pow(accuracy, weight));
+}
+
 /** score = habitScore. wpm은 pause 줄과 줄 사이 간격을 뺀 발화 시간 기준(군말 포함). */
 export function buildStats(parts: Part[], charts: Charts): Pick<Analysis, 'score' | 'stats'> {
   const highlights = parts.flatMap((p) => p.highlight);

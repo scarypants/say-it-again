@@ -141,7 +141,7 @@ type AnalyzeResponse = {
 
 type Part = {
   comment?: string;       // 파트별 한 줄 코멘트 (질문 적합성 등). 스피킹·면접에만 있다
-  accuracy?: number;      // 스피킹만: 답변 정확성 0~100 (LLM). 이 파트의 LLM이 실패하면 없음
+  accuracy?: number;      // 스피킹·면접만: 답변 정확성 0~100 (LLM). 이 파트의 LLM이 실패하면 없음
   duration: number;       // 초
   script: Line[];         // 고친 대본 (offset 다시 계산됨)
   highlight: Highlight[];
@@ -164,8 +164,12 @@ type Charts = {
 };
 
 type Analysis = {
-  score: number;          // 0~100. 스피킹: (habit + accuracy) ÷ 2, 그 외: 100 − (panic + filler + repeat 비율)
-  scoreDetail?: { habit: number; accuracy: number };  // 스피킹만: 말하기 습관 점수 + 파트별 정확성 평균
+  score: number;          // 0~100. scoreDetail이 있으면 round(habit^(1−w) × accuracy^w), 없으면 habit (아래 규칙)
+  scoreDetail?: {         // 스피킹·면접(발표 예상 질문 답변 포함)만. 발표는 없음
+    habit: number;        // 말하기 습관 점수 = 100 − (panic + filler + repeat 비율)
+    accuracy: number;     // 파트별 accuracy의 평균(반올림)
+    accuracyWeight: number; // w = 정확성 비중. 스피킹 0.5, 면접·발표 예상 질문 답변 0.7
+  };
   stats: {
     wpm: number;
     fillerCount: number;
@@ -189,8 +193,17 @@ type Analysis = {
 - `categoryRatio`는 단어 기준 비율이다. 한 단어가 여러 카테고리에 걸리면 우선순위가 높은 하나만 세고, 6개 합은 100이다. `grammar`는 스피킹과 영어 면접(`interview` + `en`)에서만 나오고, 발표와 한국어 면접에서는 항상 0이다.
 - `repeatTop`·`fillerTop`은 전체 파트의 합산이다(최대 10개).
 - **점수(`score`)** = 100 − (`categoryRatio`의 panic + filler + repeat). 코드가 찾는 말하기 습관(패닉존·군말·반복)만 반영한다. 표현 개선·문법은 LLM이 정해서 실행마다 달라질 수 있으므로 감점하지 않고 하이라이트·비율로만 보여 준다. 그래서 같은 대본이면 점수는 항상 같다.
-  - **스피킹은 답변 정확성을 50% 섞는다**: `score` = round((`scoreDetail.habit` + `scoreDetail.accuracy`) ÷ 2). `habit`은 위 습관 점수, `accuracy`는 파트별 `accuracy`의 평균(반올림)이다. 파트 `accuracy`는 LLM이 시험 채점 기준(질문에 맞게 답했는지, 이유·예시로 전개했는지, 문법·어휘 정확성. 토익 Part 1은 지문을 정확히 읽었는지)으로 매긴다. 말하기 습관은 `accuracy`에 넣지 않는다.
-  - 스피킹은 정확성이 LLM 점수라 같은 대본이어도 실행마다 조금 달라질 수 있다. 모든 파트의 LLM이 실패하면 `scoreDetail` 없이 `score` = 습관 점수다.
+  - **질문에 답하는 모드는 답변 정확성을 섞는다** (가중 기하평균): `score` = round(`habit`^(1−w) × `accuracy`^w). 평균과 달리 한쪽이 무너지면 크게 깎인다. 질문과 상관없는 답은 말하기 습관이 깨끗해도 점수가 낮다.
+
+    | 범위 | w (`accuracyWeight`) | 이유 | 습관 100 · 정확성 10 | 습관 80 · 정확성 80 | 습관 90 · 정확성 60 |
+    |---|---|---|---|---|---|
+    | 스피킹 (토익·오픽) | 0.5 (= √(습관 × 정확성)) | 시험은 유창성과 내용이 같은 비중 | 32 | 80 | 73 |
+    | 면접, 발표 예상 질문 답변 | 0.7 | 질문에 맞는 내용이 더 중요 | 20 | 80 | 68 |
+    | 발표 | 없음 (습관 점수만) | 질문이 없어 정답 기준이 없음 | 100 | 80 | 90 |
+
+  - 파트 `accuracy`는 LLM이 범위별 기준으로 매긴다. 스피킹은 시험 채점 기준(질문에 맞게 답했는지, 이유·예시로 전개했는지, 문법·어휘. 토익 Part 1은 지문을 정확히 읽었는지), 면접은 면접 평가 기준(질문 의도·두괄식·STAR·구체성·직무), 발표 예상 질문 답변은 질의응답 기준(실제로 답했는지·근거·모르면 인정·간결함)이다. 공통 눈금: 질문과 상관없으면 30점 이하, 답했지만 아쉬우면 60~80점, 모범 답변에 가까우면 90점 이상. 말하기 습관은 `accuracy`에 넣지 않는다.
+  - 정확성은 LLM 점수라 같은 대본이어도 실행마다 조금 달라질 수 있다. 모든 파트의 LLM이 실패하면 `scoreDetail` 없이 `score` = 습관 점수다.
+  - **프론트 표시**: 총평 점수 아래에 산출 방식을 한 줄로 밝힌다. `scoreDetail`이 있으면 습관·정확성 점수와 비중(예: "말하기 습관 90점 · 답변 정확성 60점, 정확성 비중 70%로 계산 — 한쪽이 낮으면 크게 깎여요"), 없으면 "패닉존·군말·반복 기준".
   - `categoryRatio.normal`(정상 비율)은 다섯 항목을 모두 뺀 값이라 점수와 다를 수 있다 (점수 ≥ 정상 비율). 화면에서 점수 옆에 "패닉존·군말·반복 기준"이라고 밝혀 둔다.
 - `stats`는 모든 파트의 합산이다. `wpm` = 전체 단어 수 ÷ 발화 시간(분, pause 줄과 문장 사이 간격 제외, 필러 포함). `fillerCount`·`panicCount`·`repeatCount`·`expressionCount`·`grammarCount` = 해당 category의 하이라이트 수. `panicTotalSec` = `pauseSec`의 합.
 - `summary.comment`는 총평 LLM이 쓰는 전체 코멘트이고, `parts[].comment`는 파트별 코멘트(스피킹·면접만)다.
@@ -299,7 +312,7 @@ type RetryResponse = {
   language: "ko" | "en";
   parts: Part[];          // 새 녹음. 아래 "analyze와 다른 점" 참고
   charts: Charts;         // 새 녹음. expression·grammar는 항상 0
-  analysis: Analysis;     // 새 녹음. score = compare.after.score (스피킹도 습관 점수, scoreDetail 없음)
+  analysis: Analysis;     // 새 녹음. score = compare.after.score (스피킹·면접도 습관 점수, scoreDetail 없음)
   compare: Compare;       // 전후 비교 (서버가 같은 기준으로 계산)
   retry?: Retry;          // 재도전 총평. LLM 실패 시 없음
   warnings?: string[];    // "llm_failed", "script_mismatch"
@@ -346,7 +359,7 @@ type Retry = {
 
 ### 규칙
 - **점수 비교**: 양쪽 모두 analyze와 같은 점수 기준(100 − panic − filler − repeat)이다. 그래서 `before.score`는 이전 총평 화면의 `analysis.score`와 같고, `after.score`는 이 응답의 `analysis.score`와 같다.
-  - 스피킹은 재도전에서 정확성을 다시 매기지 않으므로(파트별 LLM 없음) 비교 점수가 **습관 점수**다. `before.score`는 이전 결과의 `scoreDetail.habit`과 같고 `analysis.score`와는 다르다. 화면에서 "말하기 습관 점수"로 표시한다.
+  - 스피킹·면접은 재도전에서 정확성을 다시 매기지 않으므로(파트별 LLM 없음) 비교 점수가 **습관 점수**다. `before.score`는 이전 결과의 `scoreDetail.habit`과 같고 `analysis.score`와는 다르다. 화면에서 "말하기 습관 점수"로 표시한다.
   - `before.score`는 `previous.categoryRatio`로 다시 계산한다. 예전 기준(표현 개선·문법까지 감점)으로 저장된 기록을 보내도 같은 기준으로 비교된다. 우선순위가 panic > filler > repeat > expression > grammar라서 앞의 세 비율은 expression 유무와 상관없이 같다.
 - **길이 보정**: 다시 녹음하면 길이가 달라지므로 필러·패닉·중복은 `*PerMin`(녹음 1분당 횟수 = 횟수 ÷ `durationSec` × 60)으로 비교하는 것을 권한다. 횟수는 보조로 쓴다. `before`의 횟수·`wpm`·`panicTotalSec`은 `previous.stats` 값 그대로다.
 - **대본 일치율(`scriptMatch`)**: 새 녹음이 이전 최종 대본을 얼마나 따라갔는지를 코드로 잰다 (LLM 없음).
@@ -703,6 +716,7 @@ type QuestionImageResponse = {
   ]
   ```
 - 꼬리질문은 머리말만 다르다: 면접 `Interview Follow-up N (about QM)` (M은 `answers[about].question`의 원래 질문 번호. 없으면 `about + 1`), 오픽 `OPIc Follow-up N (topic: …)`, 토익 `TOEIC Speaking Part 3/5 (…)` (처음 질문과 같은 형식), 발표 예상 질문 `Presentation Q&A N`.
+- 발표 예상 질문 답변(`Presentation Q&A N`)은 `mode: "interview"`로 분석하지만, 서버는 머리말을 보고 **발표 질의응답 기준**(바로 답하기·근거·모르면 인정·간결함)으로 코멘트·모범 답변·총평을 쓴다. 면접 기준(직무·STAR)은 쓰지 않는다.
 
 ### 검증
 - `mode`와 `language` 조합: 발표·면접은 `ko`·`en`, 스피킹은 `en`만 허용한다.

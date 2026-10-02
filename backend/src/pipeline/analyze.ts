@@ -2,11 +2,11 @@ import { findFillers } from '../detectors/fillers';
 import { findPanics } from '../detectors/panics';
 import { findRepeats } from '../detectors/repeats';
 import { analyzePart, summarize } from '../llm/requests';
-import { answersQuestions } from '../modes';
+import { accuracyWeight, answersQuestions } from '../modes';
 import type { AnalyzeResponse, Highlight, Language, Line, Part } from '../types/api';
 import type { AnalyzeInput } from '../types/internal';
 import { toWords, withOffsets } from './script';
-import { buildCharts, buildStats } from './stats';
+import { buildCharts, buildStats, combinedScore } from './stats';
 import { checkDurations } from './transcribe';
 
 /**
@@ -50,9 +50,12 @@ export async function analyze(input: AnalyzeInput): Promise<AnalyzeResponse> {
 
   const charts = buildCharts(parts);
   const { score: habit, stats } = buildStats(parts, charts);
-  const accuracy = averageAccuracy(parts);
-  // 스피킹: 말하기 습관 50 + 답변 정확성 50. 정확성을 하나도 못 받으면(LLM 실패) 습관 점수만
-  const score = accuracy === undefined ? habit : Math.round((habit + accuracy) / 2);
+  // 스피킹·면접: 습관 점수와 답변 정확성의 가중 기하평균. 발표이거나 정확성을 하나도 못 받으면(LLM 실패) 습관 점수만
+  const weight = accuracyWeight(input);
+  const accuracy = weight === undefined ? undefined : averageAccuracy(parts);
+  const scoreDetail =
+    weight !== undefined && accuracy !== undefined ? { habit, accuracy, accuracyWeight: weight } : undefined;
+  const score = scoreDetail ? combinedScore(habit, scoreDetail.accuracy, scoreDetail.accuracyWeight) : habit;
 
   let summary = { headline: '', topPriorities: [] as string[], comment: '' };
   try {
@@ -69,12 +72,12 @@ export async function analyze(input: AnalyzeInput): Promise<AnalyzeResponse> {
     language: input.language,
     parts,
     charts,
-    analysis: { score, ...(accuracy !== undefined && { scoreDetail: { habit, accuracy } }), stats, summary },
+    analysis: { score, ...(scoreDetail && { scoreDetail }), stats, summary },
     ...(warnings.length > 0 && { warnings }),
   };
 }
 
-/** 파트별 정확성(스피킹)의 평균. 받은 파트가 없으면 undefined */
+/** 파트별 정확성(스피킹·면접)의 평균. 받은 파트가 없으면 undefined */
 function averageAccuracy(parts: Part[]): number | undefined {
   const scores = parts.map((p) => p.accuracy).filter((a): a is number => a !== undefined);
   return scores.length > 0 ? Math.round(scores.reduce((sum, a) => sum + a, 0) / scores.length) : undefined;
