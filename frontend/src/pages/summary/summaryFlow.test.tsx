@@ -80,14 +80,14 @@ test("짧은 업로드 파일도 실제 누적 길이로 제목을 표시하며 
   assert.equal(partTitle("interview", 1, 18, "Q4 자기소개", 18), "질문 4");
 });
 
-test("꼬리질문 답변 총평은 질문·개별 코멘트·모범 답안을 표시한다", () => {
+test("다시, 질문 답변 총평은 질문·개별 코멘트·모범 답안을 표시한다", () => {
   const source = { ...result, mode: "interview" as const, parts: [{
     ...result.parts[0], comment: "개인 역할과 결과를 구체적으로 밝혔어요.",
     final: [{ words: ["저는", "API", "구현을", "담당했습니다."] }],
   }] };
   const html = render(source, ["Interview Follow-up 1 (about Q4)\nJob: 개발자\nQuestion: 본인의 역할은 무엇이었나요?"]);
-  assert.match(html, /꼬리질문 답변의 한 줄 요약/);
-  assert.match(html, /꼬리질문 답변 점수/);
+  assert.match(html, /다시, 질문 답변의 한 줄 요약/);
+  assert.match(html, /다시, 질문 답변 점수/);
   assert.match(html, /본인의 역할은 무엇이었나요/);
   assert.match(html, /개인 역할과 결과를 구체적으로 밝혔어요/);
   assert.match(html, /모범 답안 보기/);
@@ -115,7 +115,7 @@ test("다른 질문의 결과를 이전 면접과 재도전 점수로 비교하�
   const html = render(interview, ["Interview Follow-up 1\nQuestion: 무엇을 바꾸겠어요?"], interview);
   assert.ok(!html.includes("재도전 점수"));
   assert.ok(!html.includes("다시 말한 결과"));
-  assert.match(html, /꼬리질문 답변 점수/);
+  assert.match(html, /다시, 질문 답변 점수/);
 });
 
 test("스피킹 파트별 서버 코멘트는 질문 순서와 원래 파트 번호에 맞춰 표시한다", () => {
@@ -162,27 +162,28 @@ test("면접 질문별 코멘트는 건너뛴 질문 번호를 유지하고 누�
 test("발표와 꼬리질문 총평에는 일반 질문 코멘트 영역을 중복 표시하지 않는다", () => {
   assert.ok(!render(result).includes('id="answer-comments-title"'));
   const html = render({ ...result, mode: "interview" }, ["Interview Follow-up 1\nQuestion: 역할은 무엇인가요?"]);
-  assert.match(html, /꼬리질문별 피드백/);
+  assert.match(html, /다시, 질문별 피드백/);
   assert.ok(!html.includes('id="answer-comments-title"'));
 });
 
-test("꼬리질문 답변 총평에서는 추가 질문 요청 영역을 숨기고 첫 총평에는 유지한다", () => {
-  const pending = "추가 질문 기능을 불러오고 있어요.";
-  assert.ok(render(result).includes(pending));
+test("다시, 질문 답변 총평에서는 추가 질문 요청 영역을 숨기고 첫 총평에는 유지한다", () => {
+  const qna = "예상 질문 기능을 불러오고 있어요.";
+  const again = "다시, 질문 기능을 불러오고 있어요.";
+  assert.ok(render(result).includes(qna));
   for (const [mode, prompt] of [
     ["interview", "Interview Follow-up 1\nQuestion: What was your role?"],
     ["speaking", "OPIc Follow-up 1\nQuestion: What changed?"],
   ] as const) {
     const html = render({ ...result, mode }, [prompt]);
-    assert.match(html, /꼬리질문 답변 점수/);
-    assert.ok(!html.includes(pending));
+    assert.match(html, /다시, 질문 답변 점수/);
+    assert.ok(!html.includes(again));
   }
   const prompt = "TOEIC Speaking Part 3\nQuestion: What changed?";
   const speaking = { ...result, mode: "speaking" as const };
-  assert.ok(render(speaking, [prompt]).includes(pending));
+  assert.ok(render(speaking, [prompt]).includes(again));
   const html = render(speaking, [prompt], null, [{ type: "respond", text: "What changed?", prompt }]);
-  assert.match(html, /꼬리질문 답변 점수/);
-  assert.ok(!html.includes(pending));
+  assert.match(html, /다시, 질문 답변 점수/);
+  assert.ok(!html.includes(again));
 });
 
 test("스피킹은 서버 총점과 습관·정확성 내역 및 파트 정확성을 표시한다", () => {
@@ -197,7 +198,7 @@ test("스피킹은 서버 총점과 습관·정확성 내역 및 파트 정확�
   assert.match(html, /말하기 습관 80점 · 답변 정확성 60점/);
   assert.match(html, /답변 정확성 60점/);
   const followUp = render(source, ["OPIc Follow-up 1\nQuestion: What changed?"]);
-  assert.match(followUp, /꼬리질문별 피드백/);
+  assert.match(followUp, /다시, 질문별 피드백/);
   assert.match(followUp, /답변 정확성 60점/);
 });
 

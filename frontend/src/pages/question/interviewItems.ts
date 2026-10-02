@@ -19,7 +19,7 @@ export function practiceItem(q: Question, mode: Mode): ExamItem {
   const label = isPresentationQna(q.prompt)
     ? "예상 질문"
     : mode === "interview"
-      ? "꼬리질문"
+      ? "다시, 질문"
       : q.part
         ? `Part ${q.part}`
         : (q.topic?.label ?? "연습 질문");
@@ -65,7 +65,7 @@ const TYPE_EN: Record<InterviewQuestionType, string> = {
 
 // 화면 표시용 유형 이름. 서버가 모르는 유형을 보내도 화면은 깨지지 않게
 export function interviewTypeName(type: string) {
-  if (type === "followUp") return "꼬리질문";
+  if (type === "followUp") return "다시, 질문";
   return TYPE_NAME[type as InterviewQuestionType] ?? "질문";
 }
 

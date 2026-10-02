@@ -17,9 +17,9 @@ export function partTitle(
   startSec = index * PART_SEC,
 ) {
   if (mode !== "presentation") {
-    // 꼬리질문 연습: "Interview Follow-up 2 (about Q4)" → 꼬리질문 2
+    // 꼬리질문 연습: "Interview Follow-up 2 (about Q4)" → 다시, 질문 2
     const follow = question?.match(/\bFollow-up (\d+)\b/)?.[1];
-    if (follow) return `꼬리질문 ${follow}`;
+    if (follow) return `다시, 질문 ${follow}`;
     // 발표 예상 질문 연습: "Presentation Q&A 2" → 예상 질문 2
     const qna = question?.match(/^Presentation Q&A (\d+)/)?.[1];
     if (qna) return `예상 질문 ${qna}`;
@@ -38,6 +38,11 @@ export function questionLine(question: string | undefined) {
   if (q) return q.slice("Question: ".length);
   // 오픽 꼬리질문은 머리말 줄 다음이 질문이다
   return /\bFollow-up \d+/.test(lines[0]) && lines.length > 1 ? lines.slice(1).join(" ") : lines[0];
+}
+
+// 결과 화면에서 받은 추가 질문의 이름. 발표는 "예상 질문", 나머지는 "다시, 질문"
+export function followUpName(questions?: string[]) {
+  return questions?.[0]?.startsWith("Presentation Q&A") ? "예상 질문" : "다시, 질문";
 }
 
 export function totalDuration(parts: { duration: number }[]) {

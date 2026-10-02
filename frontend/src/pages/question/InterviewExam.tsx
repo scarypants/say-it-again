@@ -71,7 +71,7 @@ export default function InterviewExam({ onRestart }: { onRestart: () => void }) 
       ? "연습"
       : qna
         ? "예상 질문 연습"
-        : "꼬리질문 연습"
+        : "다시, 질문"
     : "면접";
   // 질문 생성: 화면을 열자마자 미리 받아 둔다. loadRound를 올리면 다시 받는다
   const [loadRound, setLoadRound] = useState(0);

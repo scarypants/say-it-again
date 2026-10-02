@@ -29,7 +29,7 @@ test("파트 제목은 질문 문자열의 원래 번호를 쓴다", () => {
 
 test("꼬리질문 연습 문자열: 제목·유형·질문 한 줄", () => {
   const q = "Interview Follow-up 2 (about Q4)\nJob: 백엔드 개발자\nQuestion: 그때 무엇을 직접 했나요?";
-  assert.equal(partTitle("interview", 0, 30, q), "꼬리질문 2");
+  assert.equal(partTitle("interview", 0, 30, q), "다시, 질문 2");
   assert.equal(questionLine(q), "그때 무엇을 직접 했나요?");
   assert.deepEqual(parseInterviewQuestion(q), {
     question: { type: "followUp", text: "그때 무엇을 직접 했나요?" },
