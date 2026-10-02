@@ -171,6 +171,7 @@ export default function InterviewExam({ onRestart }: { onRestart: () => void }) 
       return;
     }
     tokenRef.current++;
+    rec.reset(); // 마이크가 켜지는 중이면 끈다 (다음 질문까지 녹음이 이어지지 않게)
     stopSpeech();
     answersRef.current = answersRef.current.map((b, i) => (i === q ? null : b));
     setAnswers(answersRef.current);
