@@ -32,7 +32,8 @@ import {
 const PART_SCHEMA = {
   type: 'object',
   additionalProperties: false,
-  required: ['panics', 'issues', 'final', 'comment', 'accuracy'],
+  // final을 issues보다 먼저 쓰게 한다 (issues의 fixed를 final에서 고친 표현과 맞추도록. strict 모드는 이 순서로 생성)
+  required: ['panics', 'final', 'issues', 'comment', 'accuracy'],
   properties: {
     panics: {
       type: 'array',
@@ -43,6 +44,7 @@ const PART_SCHEMA = {
         properties: { line: { type: 'integer' }, reason: { type: 'string' }, fixed: { type: 'string' } },
       },
     },
+    final: { type: 'array', items: { type: 'string' } },
     issues: {
       type: 'array',
       items: {
@@ -59,7 +61,6 @@ const PART_SCHEMA = {
         },
       },
     },
-    final: { type: 'array', items: { type: 'string' } },
     comment: { type: 'string' },
     accuracy: { type: 'integer' },
   },

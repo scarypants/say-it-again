@@ -21,6 +21,14 @@ export function panicRule(info: Pick<ModeInfo, 'mode'>): { gap: number; lead?: n
   };
 }
 
+/**
+ * 발표 예상 질문 답변인지: 프론트는 면접 모드로 보내고 질문 문자열 머리말이 "Presentation Q&A N"이다.
+ * 이때는 면접이 아니라 발표 질의응답 기준으로 평가한다.
+ */
+export function isPresentationQna(info: Pick<ModeInfo, 'mode' | 'questions'>): boolean {
+  return info.mode === 'interview' && (info.questions ?? []).some((q) => q.startsWith('Presentation Q&A'));
+}
+
 /** 면접 질문 문자열에서 지원 직무를 꺼낸다 ("Job: 백엔드 개발자" 줄). 없으면 undefined */
 export function interviewJob(info: Pick<ModeInfo, 'questions'>): string | undefined {
   for (const q of info.questions ?? []) {

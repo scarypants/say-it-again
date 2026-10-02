@@ -703,6 +703,7 @@ type QuestionImageResponse = {
   ]
   ```
 - 꼬리질문은 머리말만 다르다: 면접 `Interview Follow-up N (about QM)` (M은 `answers[about].question`의 원래 질문 번호. 없으면 `about + 1`), 오픽 `OPIc Follow-up N (topic: …)`, 토익 `TOEIC Speaking Part 3/5 (…)` (처음 질문과 같은 형식), 발표 예상 질문 `Presentation Q&A N`.
+- 발표 예상 질문 답변(`Presentation Q&A N`)은 `mode: "interview"`로 분석하지만, 서버는 머리말을 보고 **발표 질의응답 기준**(바로 답하기·근거·모르면 인정·간결함)으로 코멘트·모범 답변·총평을 쓴다. 면접 기준(직무·STAR)은 쓰지 않는다.
 
 ### 검증
 - `mode`와 `language` 조합: 발표·면접은 `ko`·`en`, 스피킹은 `en`만 허용한다.
