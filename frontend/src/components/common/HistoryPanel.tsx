@@ -16,7 +16,8 @@ const when = new Intl.DateTimeFormat("ko-KR", {
   hourCycle: "h23",
 });
 
-function kind(r: HistoryRecord["result"]) {
+function kind(r: HistoryRecord["result"], questions?: string[]) {
+  if (questions?.[0]?.startsWith("Presentation Q&A")) return "발표 예상 질문";
   if (r.mode === "interview") return r.language === "en" ? "영어 면접" : "면접";
   if (r.mode === "speaking") return r.exam ? EXAM_LABEL[r.exam] : "어학 스피킹";
   return r.level ? LEVEL_LABEL[r.level] : "발표";
@@ -159,12 +160,13 @@ function HistoryItem({ record, onOpen, onRetry, onDelete }: ItemProps) {
         type="button"
         className="group block w-full text-left"
         onClick={() => onOpen("/summary")}
-        aria-label={`${when.format(record.savedAt)} ${kind(r)} 총평 보기`}
+        aria-label={`${when.format(record.savedAt)} ${kind(r, record.questions)} 총평 보기`}
       >
         <div className="flex items-baseline justify-between gap-3">
           <p className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-secondary">
             <span>
-              {when.format(record.savedAt)} · {kind(r)} · {mmss(totalDuration(r.parts))}
+              {when.format(record.savedAt)} · {kind(r, record.questions)} ·{" "}
+              {mmss(totalDuration(r.parts))}
             </span>
             {compare && (
               <span className="badge shrink-0 badge-xs border-0 bg-primary text-primary-content">
