@@ -52,6 +52,8 @@ export function useRecorder(maxSec = 300, { maxTotalSec = maxSec }: { maxTotalSe
   const doneSecRef = useRef(0);
   const runStartRef = useRef(0);
   const limitRef = useRef(maxSec);
+  // start()마다 올린다. 마이크를 켜는 사이 reset()되면 늦게 켜진 마이크는 바로 끈다
+  const startGenRef = useRef(0);
 
   const stopLoops = useCallback(() => {
     if (timerRef.current) clearInterval(timerRef.current);
@@ -200,6 +202,7 @@ export function useRecorder(maxSec = 300, { maxTotalSec = maxSec }: { maxTotalSe
       }
 
       setStatus("requesting");
+      const gen = ++startGenRef.current;
       let stream: MediaStream;
       try {
         stream = await navigator.mediaDevices.getUserMedia({
@@ -207,7 +210,11 @@ export function useRecorder(maxSec = 300, { maxTotalSec = maxSec }: { maxTotalSe
         });
       } catch (err) {
         setError(permissionMessage(err));
-        setStatus("idle");
+        if (startGenRef.current === gen) setStatus("idle");
+        return;
+      }
+      if (startGenRef.current !== gen) {
+        stream.getTracks().forEach((t) => t.stop());
         return;
       }
       streamRef.current = stream;
@@ -237,7 +244,15 @@ export function useRecorder(maxSec = 300, { maxTotalSec = maxSec }: { maxTotalSe
     [maxSec, revokeAll, runLoops, startFile],
   );
 
+  // 녹음 중이거나 마이크를 켜는 중이면 파일을 만들지 않고(onRecorded 없이) 끈다
   const reset = useCallback(() => {
+    startGenRef.current++;
+    const rec = recorderRef.current;
+    if (rec && rec.state !== "inactive") {
+      rec.onstop = null;
+      rec.stop();
+    }
+    teardown();
     revokeAll();
     setBlobs([]);
     setUrls([]);
@@ -247,7 +262,7 @@ export function useRecorder(maxSec = 300, { maxTotalSec = maxSec }: { maxTotalSe
     setError(null);
     setLevels(Array(BAR_COUNT).fill(0));
     setStatus("idle");
-  }, [maxSec, revokeAll]);
+  }, [maxSec, revokeAll, teardown]);
 
   useEffect(
     () => () => {
