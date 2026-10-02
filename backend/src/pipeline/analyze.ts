@@ -95,11 +95,29 @@ export function averageAccuracy(parts: Part[]): number | undefined {
 }
 
 /**
+ * 사용자가 지워 단어가 없어진 줄을 빼고, 그래서 이어 붙은 pause 줄은 하나로 합친다
+ * (두 멈춤 사이 문장을 지우면 같은 문장 끝에 패닉존이 두 번 붙지 않도록. 합친 구간은 처음 멈춤의 시작~마지막 멈춤의 끝)
+ */
+function mergePauses(lines: Line[]): Line[] {
+  const out: Line[] = [];
+  for (const line of lines) {
+    if (!line.pause && line.words.length === 0) continue;
+    const last = out.at(-1);
+    if (line.pause && last?.pause) {
+      out[out.length - 1] = { ...last, end: Math.max(last.end, line.end) };
+      continue;
+    }
+    out.push(line);
+  }
+  return out;
+}
+
+/**
  * LLM 없이 코드로만 하는 분석: offset 재계산 → 패닉존, 필러, 중복 하이라이트.
  * panic 하이라이트에는 pauseSec만 있고 reason / fixed는 LLM이 채운다 (retry는 비워 둔다).
  */
 export function analyzeByCode(edited: Line[], language: Language) {
-  const script = withOffsets(edited); // 단어를 고쳤으면 단어 수가 바뀌므로 offset을 다시 계산
+  const script = withOffsets(mergePauses(edited)); // 단어를 고쳤으면 단어 수가 바뀌므로 offset을 다시 계산
   const panics = findPanics(script);
   const codeHighlight: Highlight[] = [
     ...panics.map((p) => p.highlight),

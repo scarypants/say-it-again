@@ -46,6 +46,10 @@ app.use(rejectUnknownOrigin);
 app.use(cors({ origin: (origin, done) => done(null, !origin || isAllowedOrigin(origin)) }));
 app.use(express.json({ limit: '2mb' })); // analyze는 대본 전체를 JSON으로 받는다
 app.use('/api', router);
+// 없는 경로·메서드도 프론트가 읽을 수 있게 JSON 오류로 (Express 기본은 HTML)
+app.use((req, res) => {
+  res.status(404).json({ error: `없는 API입니다: ${req.method} ${req.path}` });
+});
 
 const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
   if (err instanceof HttpError) {

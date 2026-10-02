@@ -191,8 +191,9 @@ type Analysis = {
 ### 규칙
 - 하이라이트는 단어 번호 범위라서 문장을 넘는 구·절도 표시할 수 있다. 겹치는 구간은 그대로 두고, 색 우선순위(빨강 > 노랑 > 보라 > 파랑 > 초록)는 프론트가 적용한다.
 - `expression`·`grammar` 하이라이트의 `fixed`는 **고친 완성 대본(`final`)에 글자 그대로 들어 있는 구절**이다. LLM이 `final`과 다른 표현을 주면 서버가 그 하이라이트를 버린다 (공백·문장부호·대소문자는 무시하고 비교, `final`이 비었으면 검사하지 않음). 그래서 대본 화면의 고친 표현과 "고친 완성 대본" 탭이 항상 같다.
+- 사용자가 단어를 모두 지운 줄은 빼고, 그래서 이어 붙은 pause 줄은 하나로 합친다(처음 멈춤의 시작 ~ 마지막 멈춤의 끝). 같은 문장 끝에 패닉존이 두 번 붙지 않는다. 응답의 `parts[].script`는 정리된 대본이다.
 - `panic` 하이라이트는 pause 줄 직전 문장의 **마지막 3단어**에 붙는다. 맨 앞 pause 줄(첫마디 전 침묵)은 바로 뒤 문장의 **처음 3단어**에 붙는다. 이유와 대안 대본(`fixed`)은 LLM이 채운다 (맨 앞이면 바로 꺼낼 수 있는 첫 문장).
-- 필러는 코드가 찾는다. 확실한 군말(어, 음, um, uh)은 항상, 애매한 말(그, 이제, 그러니까, like, so)은 바로 뒤에 멈칫했거나 다른 필러 바로 뒤일 때만 필러로 본다.
+- 필러는 코드가 찾는다. 확실한 군말(어, 음, um, uh)은 항상, 애매한 말(그, 이제, 그러니까, like, so)은 바로 뒤에 멈칫했거나 다른 필러 바로 뒤일 때만 필러로 본다. 애매한 말을 바로 되풀이하면("그 그 그") 말 더듬기라 간격과 상관없이 필러다. 문장부호(. ? !)로 끝나는 애매한 말("I think so.", "That's right.")은 문장의 일부라 필러가 아니다.
 - 중복 단어(`repeat`)도 코드가 찾는다. ① 같은 말(1~3단어)을 바로 반복("하지만 하지만", "every day every day", "정말 정말 정말")하면 반복된 범위를 묶고 `fixed`에 한 번만 쓴 표현을 넣는다. ② 5문장 안에서 같은 어간(조사를 뗀 형태)이 3번 이상이면 각 단어를 표시한다. ①로 묶인 말은 한 번만 센다("school school"은 school 1번). 이어지는 표시(서로 5문장 안)는 한 묶음이고, 묶음의 모든 단어 `reason`에 같은 횟수(= 그 묶음의 하이라이트 수)가 들어간다. 필러와 흔한 말("저는", "있습니다", "the" 등)은 제외한다. `repeatTop`은 어간 기준으로 센다.
 - `categoryRatio`는 단어 기준 비율이다. 한 단어가 여러 카테고리에 걸리면 우선순위가 높은 하나만 세고, 6개 합은 100이다. `grammar`는 스피킹과 영어 면접(`interview` + `en`)에서만 나오고, 발표와 한국어 면접에서는 항상 0이다.
 - `repeatTop`·`fillerTop`은 전체 파트의 합산이다(최대 10개).
@@ -294,7 +295,7 @@ type RetryRequest = {
 
   // 이전 AnalyzeResponse에서 그대로 복사한다
   previous: {
-    durationSec: number;                  // 이전 parts[].duration의 합
+    durationSec: number;                  // 이전 parts[].duration의 합 (0보다 커야 한다. 0이면 400)
     stats: Analysis["stats"];             // 이전 analysis.stats
     categoryRatio: Charts["categoryRatio"];  // 이전 charts.categoryRatio
     topPriorities: string[];              // 이전 analysis.summary.topPriorities
@@ -764,13 +765,15 @@ questions/image: 검증 → 이미지 생성 1회 (실패·60초 초과 시 502 
 
 ## 8. 에러
 
-`{ "error": "메시지" }` + 상태 코드
+`{ "error": "메시지" }` + 상태 코드. 없는 경로·메서드도 같은 형식의 404다.
 
 | 상황 | 코드 |
 |---|---|
 | 요청 조합이 틀림 (모드·언어·level·exam 불일치, 질문·녹음 개수 불일치), 길이·개수·형식 초과, 잘못된 JSON | 400 |
 | whisper가 읽을 수 없는 오디오 형식 (transcribe) | 400 |
 | 음성이 감지되지 않음 (transcribe, 몇 번째 녹음인지 포함) | 422 |
+| 사용자가 한 녹음의 대본 단어를 모두 지움 (analyze·retry, 몇 번째 녹음인지 포함) | 422 |
+| 녹음 길이(`duration`)가 음수, 대본 단어가 문자열이 아님 (analyze·retry) | 400 |
 | STT 실패 (transcribe, 1회 재시도 후, 몇 번째인지 포함) | 502 |
 | LLM 실패 (analyze) | 200. `final`은 빈 배열, `summary`는 빈 문자열·빈 배열로 내려가고 `warnings: ["llm_failed"]`가 붙는다 |
 | LLM 실패 (questions) | 200. 면접 처음 질문은 기본 질문 5개, 나머지는 `questions: []`. 둘 다 `warnings: ["llm_failed"]` (6절) |
