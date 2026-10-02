@@ -8,7 +8,7 @@ import { transcribe } from './stt';
 
 /** 1단계: 녹음마다 병렬 STT → 문장 단위 대본. 사용자가 이 대본의 전사 오류를 고친 뒤 analyze를 부른다. */
 export async function transcribeAll(input: TranscribeInput): Promise<TranscribeResponse> {
-  const transcripts = await Promise.all(input.audio.map((file, i) => transcribe(file, input.language, i)));
+  const transcripts = await Promise.all(input.audio.map((file, i) => transcribe(file, input.language, i, input.questions?.[i])));
   checkDurations(input, transcripts.map((t) => t.duration));
 
   return {

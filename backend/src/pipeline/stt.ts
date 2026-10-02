@@ -15,17 +15,38 @@ const FILLER_PROMPT: Record<Language, string> = {
   en: 'Um, uh, like, you know, so... I mean, er, hmm.',
 };
 
+/** 질문 문자열에서 whisper 힌트로 쓸 줄 (질문·직무·상황·자료). 너무 길면 앞쪽만 */
+const HINT_LINE = /^(Question|Job|Situation|Information):\s*(.+)$/;
+const MAX_HINT_CHARS = 400;
+
 /**
- * whisper로 전사해 단어별 타임스탬프와 녹음 길이를 돌려준다.
+ * whisper 힌트: 질문 내용(고유명사·전문용어를 맞게 받아 적도록) + 군말 예시.
+ * whisper는 힌트의 뒤쪽을 더 많이 반영하므로 군말 예시를 맨 뒤에 둔다.
+ * 토익 Part 1 지문은 넣지 않는다: 잘못 읽은 부분까지 지문대로 받아 적으면 지문 읽기 정확성이 부풀려진다.
+ */
+export function whisperPrompt(language: Language, question?: string): string {
+  const hint = (question ?? '')
+    .split('\n')
+    .map((line) => HINT_LINE.exec(line.trim())?.[2]?.trim())
+    .filter(Boolean)
+    .join(' ')
+    .slice(0, MAX_HINT_CHARS);
+  return hint ? `${hint} ${FILLER_PROMPT[language]}` : FILLER_PROMPT[language];
+}
+
+/**
+ * whisper로 전사해 단어별 타임스탬프와 녹음 길이를 돌려준다. question이 있으면 힌트에 넣는다.
  * 단어가 거의 없으면 422, API 실패는 1회 재시도 후 502.
  */
 export async function transcribe(
   file: Express.Multer.File,
   language: Language,
   index: number,
+  question?: string,
 ): Promise<Transcript> {
   const label = `${index + 1}번째 녹음`;
-  const request = MOCK_STT ? () => mockWhisper(language) : () => requestWhisper(file, language);
+  const prompt = whisperPrompt(language, question);
+  const request = MOCK_STT ? () => mockWhisper(language) : () => requestWhisper(file, language, prompt);
   const result = await withRetry(request).catch((err: unknown) => {
     console.error(`[stt] ${label} 실패`, err);
     if (err instanceof OpenAI.BadRequestError) {
@@ -50,12 +71,12 @@ export async function transcribe(
   };
 }
 
-async function requestWhisper(file: Express.Multer.File, language: Language): Promise<TranscriptionVerbose> {
+async function requestWhisper(file: Express.Multer.File, language: Language, prompt: string): Promise<TranscriptionVerbose> {
   return getOpenAI().audio.transcriptions.create({
     file: await toFile(file.buffer, file.originalname, { type: file.mimetype }),
     model: STT_MODEL,
     language,
-    prompt: FILLER_PROMPT[language],
+    prompt,
     response_format: 'verbose_json',
     timestamp_granularities: ['word', 'segment'],
   });

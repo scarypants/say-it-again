@@ -82,7 +82,18 @@ function parsePrevious(raw: unknown): RetryPrevious {
     }
     return { words };
   });
-  return { durationSec: p.durationSec, stats, categoryRatio, topPriorities: p.topPriorities, final };
+  const accuracy = p.accuracy;
+  if (accuracy !== undefined && (typeof accuracy !== 'number' || accuracy < 0 || accuracy > 100)) {
+    throw new HttpError(400, 'previous.accuracy는 0~100 숫자여야 합니다.');
+  }
+  return {
+    durationSec: p.durationSec,
+    stats,
+    categoryRatio,
+    topPriorities: p.topPriorities,
+    final,
+    ...(accuracy !== undefined && { accuracy }),
+  };
 }
 
 function pickNumbers<K extends string>(raw: unknown, keys: readonly K[], name: string): Record<K, number> {

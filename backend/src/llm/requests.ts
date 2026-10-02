@@ -20,6 +20,7 @@ import {
   followUpMessages,
   interviewQuestionMessages,
   opicQuestionMessages,
+  accuracyMessages,
   partMessages,
   retryMessages,
   summaryMessages,
@@ -161,6 +162,22 @@ function finalChecker(final: string[]): (fixed: string) => boolean {
   const squash = (text: string) => text.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
   const whole = squash(final.join(' '));
   return (fixed) => !whole || !squash(fixed) || whole.includes(squash(fixed));
+}
+
+const ACCURACY_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['accuracy'],
+  properties: { accuracy: { type: 'integer' } },
+};
+
+/** 재도전: 다시 답한 대본의 답변 정확성(0~100)만 받는다. mock 모드에서는 고정값 */
+export async function requestAccuracy(input: AnalyzeInput, script: Line[], partIndex: number): Promise<number> {
+  const out = MOCK_LLM
+    ? await mockDelay(300).then(() => ({ accuracy: 80 }))
+    : await callJson<{ accuracy: number }>('accuracy', ACCURACY_SCHEMA, accuracyMessages(input, script, partIndex));
+  if (!Number.isFinite(out.accuracy)) throw new Error('LLM 응답에 accuracy가 없습니다.');
+  return Math.min(100, Math.max(0, Math.round(out.accuracy)));
 }
 
 /** 파트별 결과의 요약본으로 전체 총평(summary)을 받는다. */
