@@ -4,7 +4,7 @@ import { findRepeats } from '../detectors/repeats';
 import { analyzePart, summarize } from '../llm/requests';
 import { accuracyWeight, answersQuestions, readAloudText } from '../modes';
 import type { AnalyzeResponse, Highlight, Language, Line, Part } from '../types/api';
-import type { AnalyzeInput } from '../types/internal';
+import type { AnalyzeInput, ModeInfo } from '../types/internal';
 import { bigramCoverage } from '../text';
 import { flattenWords, toWords, withOffsets } from './script';
 import { buildCharts, buildStats, combinedScore } from './stats';
@@ -26,9 +26,7 @@ export async function analyze(input: AnalyzeInput): Promise<AnalyzeResponse> {
   const parts: Part[] = await Promise.all(
     input.parts.map(async ({ duration, script: edited }, i) => {
       const { script, panics, codeHighlight } = analyzeByCode(edited, input.language);
-      // 토익 Part 1(지문 읽기)은 정확성을 LLM 대신 코드로 잰다: 지문과 읽은 대본의 일치율 (매번 같은 점수)
-      const passage = input.mode === 'speaking' ? readAloudText(input.questions?.[i]) : undefined;
-      const readAccuracy = passage ? (bigramCoverage(passage.split(/\s+/), flattenWords(script)) ?? undefined) : undefined;
+      const readAccuracy = readAloudAccuracy(input, script, i);
       try {
         const llm = await analyzePart(input, script, i);
         // 코드가 만든 panic 하이라이트에 LLM의 원인·대안을 채운다 (pause 줄 번호로 매칭)
@@ -81,8 +79,17 @@ export async function analyze(input: AnalyzeInput): Promise<AnalyzeResponse> {
   };
 }
 
-/** 파트별 정확성(스피킹·면접)의 평균. 받은 파트가 없으면 undefined */
-function averageAccuracy(parts: Part[]): number | undefined {
+/**
+ * 토익 Part 1(지문 읽기)은 정확성을 LLM 대신 코드로 잰다: 지문과 읽은 대본의 일치율 (매번 같은 점수).
+ * 지문 읽기 문제가 아니면 undefined
+ */
+export function readAloudAccuracy(input: ModeInfo, script: Line[], partIndex: number): number | undefined {
+  const passage = input.mode === 'speaking' ? readAloudText(input.questions?.[partIndex]) : undefined;
+  return passage ? (bigramCoverage(passage.split(/\s+/), flattenWords(script)) ?? undefined) : undefined;
+}
+
+/** 파트별 정확성(스피킹·면접·발표 질의응답)의 평균. 받은 파트가 없으면 undefined */
+export function averageAccuracy(parts: Part[]): number | undefined {
   const scores = parts.map((p) => p.accuracy).filter((a): a is number => a !== undefined);
   return scores.length > 0 ? Math.round(scores.reduce((sum, a) => sum + a, 0) / scores.length) : undefined;
 }

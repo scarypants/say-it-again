@@ -100,12 +100,15 @@ export type RetryPrevious = {
   categoryRatio: Charts['categoryRatio'];
   topPriorities: string[];
   final: { words: string[] }[]; // 이전 parts[].final을 파트 순서대로 이어 붙인 것. 없으면 []
+  accuracy?: number; // 이전 analysis.scoreDetail.accuracy (스피킹·면접·발표 질의응답). 보내면 정확성까지 비교한다
 };
 
 export type RetryRequest = AnalyzeRequest & { previous: RetryPrevious };
 
 export type CompareStats = {
-  score: number; // 코드 기준 점수: 100 − (panic + filler + repeat 비율)
+  score: number; // habit/accuracy가 있으면 analyze와 같은 공식의 총점, 없으면 습관 점수
+  habit?: number; // 정확성까지 비교할 때만: 습관 점수 (100 − panic − filler − repeat)
+  accuracy?: number; // 정확성까지 비교할 때만: 답변 정확성 (before = previous.accuracy, after = 새로 채점)
   durationSec: number;
   wpm: number;
   fillerCount: number;

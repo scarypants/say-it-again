@@ -83,6 +83,7 @@ type Line = {
 
 - 문장은 whisper의 문장 경계에서 끊고, 2초(스피킹은 1.5초) 이상 멈춘 곳에서는 문장 중간이라도 끊고 pause 줄을 넣는다.
 - 스피킹·면접은 첫마디 전 침묵이 3초 이상이면 대본 **맨 앞**에도 pause 줄을 넣는다(`start` = 0, 질문을 듣고 말문이 막힌 것). 발표는 맨 앞 침묵을 무시한다. 녹음 맨 뒤 침묵은 모든 모드에서 무시한다.
+- whisper 힌트: `questions[i]`가 있으면 그 질문의 `Question:`·`Job:`·`Situation:`·`Information:` 줄 내용을 군말 예시 앞에 넣어 고유명사·전문용어를 맞게 받아 적게 한다 (400자까지). 토익 Part 1 지문은 넣지 않는다: 잘못 읽은 부분까지 지문대로 받아 적으면 지문 읽기 정확성이 부풀려진다.
 - whisper는 멈춘 시간을 앞뒤 단어에 붙이곤 해서(특히 영어에서 um을 지울 때), 1.5초보다 긴 단어는 1.5초로 잘라 멈춤을 잰다. 첫 단어나 문장 첫 단어는 앞쪽을, 그 외는 뒤쪽을 자른다. 잘린 시간이 `wordTimes`·`start`·`end`에 그대로 들어간다.
 - 단어 `i`의 파트 전체 번호는 `offset + i`다.
 - 시간(`start`, `end`, `wordTimes`)은 파트마다 따로 잰다. 문장 재생은 프론트가 해당 파트의 녹음 파일에서 `start`~`end` 구간을 재생하면 된다 (서버는 오디오를 자르거나 저장하지 않는다). whisper 시간은 조금 어긋날 수 있어 앞뒤 0.2초 정도 여유를 두는 것을 권한다.
@@ -297,6 +298,7 @@ type RetryRequest = {
     categoryRatio: Charts["categoryRatio"];  // 이전 charts.categoryRatio
     topPriorities: string[];              // 이전 analysis.summary.topPriorities
     final: { words: string[] }[];         // 이전 parts[].final을 파트 순서대로 이어 붙인 것. 없으면 []
+    accuracy?: number;                    // 이전 analysis.scoreDetail.accuracy (있을 때만). 보내면 정확성까지 비교한다
   };
 };
 ```
@@ -314,7 +316,7 @@ type RetryResponse = {
   language: "ko" | "en";
   parts: Part[];          // 새 녹음. 아래 "analyze와 다른 점" 참고
   charts: Charts;         // 새 녹음. expression·grammar는 항상 0
-  analysis: Analysis;     // 새 녹음. score = compare.after.score (스피킹·면접도 습관 점수, scoreDetail 없음)
+  analysis: Analysis;     // 새 녹음. score = compare.after.score. 정확성까지 비교하면 scoreDetail도 있다
   compare: Compare;       // 전후 비교 (서버가 같은 기준으로 계산)
   retry?: Retry;          // 재도전 총평. LLM 실패 시 없음
   warnings?: string[];    // "llm_failed", "script_mismatch"
@@ -327,7 +329,9 @@ type Compare = {
 };
 
 type CompareStats = {
-  score: number;          // 코드 기준 점수: 100 − (panic + filler + repeat 비율)
+  score: number;          // habit·accuracy가 있으면 analyze와 같은 공식의 총점, 없으면 습관 점수(100 − panic − filler − repeat)
+  habit?: number;         // 정확성까지 비교할 때만: 습관 점수
+  accuracy?: number;      // 정확성까지 비교할 때만: before = previous.accuracy, after = 새로 채점한 파트별 평균
   durationSec: number;    // 녹음 길이 합 (초)
   wpm: number;
   fillerCount: number;
@@ -355,13 +359,15 @@ type Retry = {
 | `parts[].final` | 최종 대본 | 항상 `[]` (이전 결과의 최종 대본을 그대로 쓴다) |
 | `parts[].comment` | 스피킹·면접만 | 없음 |
 | `analysis.summary` | 총평 LLM | `retry`로 채운다: `headline` = `retry.comment`, `topPriorities` = `retry.remaining`, `comment` = `""` |
-| LLM 호출 | 파트 수 + 1회 | 재도전 총평 1회 |
+| `parts[].accuracy` | 스피킹·면접·발표 질의응답 | `previous.accuracy`를 보냈을 때만 (정확성만 가볍게 채점) |
+| LLM 호출 | 파트 수 + 1회 | 재도전 총평 1회 (+ 정확성 비교 시 파트 수만큼 가벼운 채점) |
 
 - `analysis.summary`는 기존 스크립트·총평 컴포넌트가 깨지지 않도록 채워 두는 것이다. 재도전 화면은 `compare`와 `retry`를 보여 준다.
 
 ### 규칙
 - **점수 비교**: 양쪽 모두 analyze와 같은 점수 기준(100 − panic − filler − repeat)이다. 그래서 `before.score`는 이전 총평 화면의 `analysis.score`와 같고, `after.score`는 이 응답의 `analysis.score`와 같다.
-  - 스피킹·면접은 재도전에서 정확성을 다시 매기지 않으므로(파트별 LLM 없음) 비교 점수가 **습관 점수**다. `before.score`는 이전 결과의 `scoreDetail.habit`과 같고 `analysis.score`와는 다르다. 화면에서 "말하기 습관 점수"로 표시한다.
+  - **정확성까지 비교 (스피킹·면접·발표 질의응답)**: 프론트가 `previous.accuracy`(= 이전 `analysis.scoreDetail.accuracy`)를 보내면, 서버가 새 녹음의 파트별 정확성만 가볍게 다시 매겨(토익 Part 1은 코드로) analyze와 같은 공식으로 양쪽 총점을 낸다. 이때 `before.score`는 이전 `analysis.score`와 같고, `before/after`에 `habit`·`accuracy`가 붙고, `analysis.scoreDetail`도 온다. 화면은 "점수"로 표시하고 습관·정확성을 나눠 보여 줄 수 있다.
+  - `previous.accuracy`를 안 보내거나(예전 기록, 발표 본편) 정확성 채점이 모두 실패하면 양쪽 모두 **습관 점수**로 비교한다. 이때 스피킹·면접의 `before.score`는 이전 `scoreDetail.habit`과 같고, 화면에서 "말하기 습관 점수"로 표시한다.
   - `before.score`는 `previous.categoryRatio`로 다시 계산한다. 예전 기준(표현 개선·문법까지 감점)으로 저장된 기록을 보내도 같은 기준으로 비교된다. 우선순위가 panic > filler > repeat > expression > grammar라서 앞의 세 비율은 expression 유무와 상관없이 같다.
 - **길이 보정**: 다시 녹음하면 길이가 달라지므로 필러·패닉·중복은 `*PerMin`(녹음 1분당 횟수 = 횟수 ÷ `durationSec` × 60)으로 비교하는 것을 권한다. 횟수는 보조로 쓴다. `before`의 횟수·`wpm`·`panicTotalSec`은 `previous.stats` 값 그대로다.
 - **대본 일치율(`scriptMatch`)**: 새 녹음이 이전 최종 대본을 얼마나 따라갔는지를 코드로 잰다 (LLM 없음).
@@ -740,10 +746,11 @@ type QuestionImageResponse = {
 ### 처리 흐름
 
 ```
-transcribe: 검증 → 녹음마다 병렬 STT(whisper) → 문장 단위 분할 + pause 줄
+transcribe: 검증 → 녹음마다 병렬 STT(whisper, 질문 내용을 힌트로) → 문장 단위 분할 + pause 줄
 analyze:    검증 → 파트별 코드 분석(패닉존, 필러, 중복) → 파트별 LLM 병렬(패닉 원인, 표현 개선, 문법, 최종 대본)
             → 총평 LLM 1회 → 합산
-retry:      검증 → 파트별 코드 분석(패닉존, 필러, 중복) → 합산 + 전후 비교·대본 일치율 → 재도전 총평 LLM 1회
+retry:      검증 → 파트별 코드 분석(패닉존, 필러, 중복) → (previous.accuracy가 있으면 파트별 정확성 채점 병렬)
+            → 합산 + 전후 비교·대본 일치율 → 재도전 총평 LLM 1회
 questions:  검증 → 질문 생성 LLM 1회 (initial 면접은 실패 시 기본 질문, 나머지는 빈 목록)
             (토익 initial은 Part 2 장면 설명까지 같은 LLM 호출로)
 questions/image: 검증 → 이미지 생성 1회 (실패·60초 초과 시 502 → 프론트가 기본 사진)
