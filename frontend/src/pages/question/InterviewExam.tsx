@@ -336,7 +336,9 @@ export default function InterviewExam({ onRestart }: { onRestart: () => void }) 
         />
         <p className="text-[0.9375rem] leading-relaxed">
           {practice
-            ? `결과 화면에서 받은 질문 ${items.length}개에 답해요. 끝나면 이 답변만 따로 분석해 드려요.`
+            ? qna
+              ? `발표가 끝난 뒤 받을 법한 질문 ${items.length}개에 답해요. 끝나면 이 답변만 따로 분석해 드려요.`
+              : `결과 화면에서 받은 질문 ${items.length}개에 답해요. 끝나면 이 답변만 따로 분석해 드려요.`
             : retry
               ? `지난번과 같은 질문 ${items.length}개에 다시 답해요. 질문마다 지난번 모범 답안을 펼쳐 볼 수 있고, 끝나면 지난번과 비교해 드려요.`
               : `AI가 ${job} 직무에 맞춰 만든 다섯 질문에 답해요. 자기소개로 시작해 마무리로 끝나요.`}{" "}
@@ -350,7 +352,9 @@ export default function InterviewExam({ onRestart }: { onRestart: () => void }) 
           <li>
             {isSpeaking
               ? "의견이나 답을 먼저 말하고, 이유와 예시를 붙여 보세요."
-              : "결론을 먼저 말하고, 구체적인 경험으로 뒷받침해 보세요."}
+              : qna
+                ? "질문의 핵심에 먼저 답하고, 발표에서 말한 근거·수치로 뒷받침해 보세요."
+                : "결론을 먼저 말하고, 구체적인 경험으로 뒷받침해 보세요."}
           </li>
           <li>답하기 어려운 질문은 건너뛸 수 있어요. 건너뛴 질문은 분석에서 빠져요.</li>
           <li>이전 질문으로는 돌아갈 수 없어요.</li>
