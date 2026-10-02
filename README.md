@@ -21,7 +21,7 @@
 - **대본 하이라이트**: 막힌 지점(빨강), 군말(노랑), 반복(보라), 표현 개선(파랑), 문법(초록, 스피킹). 패닉존을 누르면 원인과 대안 대본이 나온다.
 - **총평**: 점수, 말 속도(WPM), 군말·반복 차트, 가장 먼저 고칠 3가지, 고친 완성 대본.
 - **"다시, 말해" 재도전**: 같은 내용을 다시 녹음하면 이전 결과와 전후 비교.
-- **꼬리질문**: 결과 화면에서 실제로 말한 내용을 바탕으로 추가 질문 1~3개를 받아 바로 이어서 연습.
+- **꼬리질문**: 결과 화면에서 실제로 말한 내용을 바탕으로 추가 질문 1\~3개를 받아 바로 이어서 연습.
 
 ## 동작 흐름
 
@@ -56,16 +56,29 @@ npm run dev:front                    # http://localhost:5173
 
 ```
 frontend/src/
-  pages/home        모드 선택
-  pages/question    스피킹·면접 질문별 녹음
-  pages/record      발표 녹음·업로드·자료 보기
-  pages/review      대본 검토(전사 오류 수정)
-  pages/script      대본 하이라이트
-  pages/summary     총평
-  api/ types/ store/ components/common/   공용
+  pages/home        모드 선택 (발표 수준·언어, 스피킹 시험, 면접 직무)
+  pages/question    스피킹(토익·오픽)·면접·꼬리질문 질문별 녹음
+  pages/record      발표 녹음·파일 업로드·발표 자료(PDF) 보기·"다시, 말해" 녹음
+  pages/review      대본 검토 (전사 오류 수정)
+  pages/script      대본 하이라이트 + 고친 완성 대본
+  pages/summary     총평·점수 산출·재도전 비교·꼬리질문
+  api/              서버 호출 (mock 분기 포함)
+  types/            API 타입 (docs/api.md와 같게)
+  store/            페이지 간 공유 상태·연습 기록
+  components/common/  공용 컴포넌트 (녹음·재생·레이아웃 등)
+  mocks/            서버 없이 개발할 때 쓰는 응답 샘플
 backend/src/
-  server.ts  config.ts(튜닝 상수)  http/(라우트)  pipeline/(전사·문장 분할)
-  detectors/(군말·반복)  llm/(OpenAI 호출·프롬프트)  types/
+  server.ts         진입점 (허용 출처 검사·처리 시간 로그)
+  config.ts         튜닝 상수 (패닉존 기준, 점수 비중, 제한 등)
+  modes.ts          모드별 규칙 (문법 검사·정확성 비중·패닉존 기준)
+  http/             라우트·요청 검증
+  pipeline/         전사(STT)·문장 분할·분석·재도전·질문 생성·통계
+  detectors/        패닉존·군말·반복 탐지 (코드)
+  llm/              OpenAI 호출·프롬프트·토익 사진 생성
+  types/            API 타입·서버 내부 타입
+backend/fixtures/   mock 모드(MOCK_STT·MOCK_LLM)에서 쓰는 저장된 응답
+backend/scripts/    샘플 녹음 전사·분석 테스트 (npm run test:samples -w backend)
+docs/               API 계약(api.md)·기획(plan.md)·화면 설계
 ```
 
 ## 팀
