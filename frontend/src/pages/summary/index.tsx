@@ -96,7 +96,10 @@ export default function SummaryPage() {
                     {scoreDetail ? "말하기 습관 50% · 답변 정확성 50%" : "패닉존·군말·반복 기준"}
                   </p>
                   <span className="badge badge-outline">
-                    {modeNames[result.mode]} · {timestamp(totalDuration(result.parts))}
+                    {session?.questions?.[0]?.startsWith("Presentation Q&A")
+                      ? "발표 예상 질문"
+                      : modeNames[result.mode]}{" "}
+                    · {timestamp(totalDuration(result.parts))}
                   </span>
                 </div>
                 <p className="shrink-0 tabular-nums">
