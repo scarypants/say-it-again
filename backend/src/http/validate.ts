@@ -102,7 +102,13 @@ function parseModeInfo(body: Record<string, unknown>, count: number): ModeInfo {
       throw new HttpError(400, '발표 모드의 language는 ko 또는 en이어야 합니다.');
     }
     if (!LEVELS.includes(level as Level)) throw new HttpError(400, 'level이 올바르지 않습니다.');
-    return { mode, language, level: level as Level };
+    // 발표 예상 질문 답변(질의응답)이면 questions가 온다. 없거나 빈 배열이면 발표 본편
+    const questions = body.questions === undefined || body.questions === '' ? [] : parseQuestions(body.questions);
+    if (questions.length === 0) return { mode, language, level: level as Level };
+    if (questions.length !== count) {
+      throw new HttpError(400, '질문 수와 녹음(파트) 수가 같아야 합니다.');
+    }
+    return { mode, language, level: level as Level, questions };
   }
 
   if (mode === 'speaking') {

@@ -8,20 +8,22 @@ export function checksGrammar(info: Pick<ModeInfo, 'mode' | 'language'>): boolea
   return info.mode === 'speaking' || (info.mode === 'interview' && info.language === 'en');
 }
 
-/** 질문에 답하는 모드: 파트별 코멘트(parts[].comment)가 있다 */
-export function answersQuestions(info: Pick<ModeInfo, 'mode'>): boolean {
-  return info.mode === 'speaking' || info.mode === 'interview';
+type QuestionInfo = Pick<ModeInfo, 'mode' | 'questions'>;
+
+/** 질문에 답하는 경우: 스피킹, 면접, 발표 예상 질문 답변. 파트별 코멘트(parts[].comment)가 있다 */
+export function answersQuestions(info: QuestionInfo): boolean {
+  return info.mode === 'speaking' || info.mode === 'interview' || isPresentationQna(info);
 }
 
-/** 답변 정확성(parts[].accuracy)을 매기는 모드와 총점에서의 비중. 발표는 undefined (습관 점수만) */
-export function accuracyWeight(info: Pick<ModeInfo, 'mode'>): number | undefined {
+/** 답변 정확성(parts[].accuracy)을 매기는 경우와 총점에서의 비중. 발표 본편은 undefined (습관 점수만) */
+export function accuracyWeight(info: QuestionInfo): number | undefined {
   if (info.mode === 'speaking') return ACCURACY_WEIGHT.speaking;
-  if (info.mode === 'interview') return ACCURACY_WEIGHT.interview; // 발표 예상 질문 답변(질의응답)도 포함
+  if (info.mode === 'interview' || isPresentationQna(info)) return ACCURACY_WEIGHT.interview;
   return undefined;
 }
 
-/** 줄 분할의 패닉존 기준: 멈춤(gap)과 첫마디 전 침묵(lead, 질문에 답하는 모드만) */
-export function panicRule(info: Pick<ModeInfo, 'mode'>): { gap: number; lead?: number } {
+/** 줄 분할의 패닉존 기준: 멈춤(gap)과 첫마디 전 침묵(lead, 질문에 답하는 경우만) */
+export function panicRule(info: QuestionInfo): { gap: number; lead?: number } {
   return {
     gap: info.mode === 'speaking' ? SPEAKING_PANIC_GAP : PANIC_GAP,
     ...(answersQuestions(info) && { lead: LEAD_PANIC_SEC }),
@@ -29,11 +31,14 @@ export function panicRule(info: Pick<ModeInfo, 'mode'>): { gap: number; lead?: n
 }
 
 /**
- * 발표 예상 질문 답변인지: 프론트는 면접 모드로 보내고 질문 문자열 머리말이 "Presentation Q&A N"이다.
- * 이때는 면접이 아니라 발표 질의응답 기준으로 평가한다.
+ * 발표 예상 질문 답변(발표 질의응답)인지: 발표 모드에 questions가 있으면 그렇다.
+ * 예전 프론트처럼 면접 모드로 보내도 질문 머리말이 "Presentation Q&A N"이면 같게 본다.
+ * 이때는 발표 본편·면접이 아니라 발표 질의응답 기준으로 평가한다.
  */
-export function isPresentationQna(info: Pick<ModeInfo, 'mode' | 'questions'>): boolean {
-  return info.mode === 'interview' && (info.questions ?? []).some((q) => q.startsWith('Presentation Q&A'));
+export function isPresentationQna(info: QuestionInfo): boolean {
+  const questions = info.questions ?? [];
+  if (info.mode === 'presentation') return questions.length > 0;
+  return info.mode === 'interview' && questions.some((q) => q.startsWith('Presentation Q&A'));
 }
 
 /** 면접 질문 문자열에서 지원 직무를 꺼낸다 ("Job: 백엔드 개발자" 줄). 없으면 undefined */

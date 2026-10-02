@@ -48,7 +48,8 @@ function situation(input: AnalyzeInput, partIndex: number): string {
   }
   if (isPresentationQna(input)) {
     const question = input.questions?.[partIndex] ?? '';
-    return `상황: 발표를 마친 뒤 청중(학우·교수님 등)의 질문에 답하는 질의응답 연습 (${LANGUAGE_LABEL[input.language]}). 아래 질문에 대한 답변이다.\n질문:\n${question}`;
+    const what = input.level ? LEVEL_LABEL[input.level] : '발표';
+    return `상황: ${what}를 마친 뒤 청중(학우·교수님 등)의 질문에 답하는 질의응답 연습 (${LANGUAGE_LABEL[input.language]}). 아래 질문에 대한 답변이다.\n질문:\n${question}`;
   }
   if (input.mode === 'interview') {
     const question = input.questions?.[partIndex] ?? '';
@@ -111,9 +112,10 @@ export function partMessages(input: AnalyzeInput, script: Line[], partIndex: num
     `3. issues: 고치면 좋아질 표현을 영향이 큰 순서로 최대 ${MAX_EXPRESSIONS}개. line은 문장 줄 번호, from·to는 그 줄 안의 단어 번호(to 포함). category는 "expression"(모호·약한 표현, 문어체, 어색하거나 부정확한 어휘)` +
       (grammar ? ' 또는 "grammar"(문법 오류).' : '. 이 모드에서는 grammar를 쓰지 않는다.') +
       ' fixed에는 그 범위를 대체할 표현을 쓴다.',
+    '   fixed는 반드시 위 final 안의 구절을 글자 그대로 복사한다 (조사·어미·띄어쓰기까지 똑같이). final에 그대로 들어 있지 않은 표현은 fixed로 쓰지 않는다 (서버가 확인해서 버린다).',
     answering
-      ? '   fixed는 위 final에서 같은 내용을 말할 때 쓴 표현과 맞춘다. final에서 문장을 새로 짠 부분은 원래 문장 안에서 그 범위만 바꾼 표현을 쓴다.'
-      : '   fixed는 반드시 위 final에서 그 부분을 실제로 고쳐 쓴 표현을 그대로 옮긴다. final에서 바꾸지 않은 부분은 issues에 넣지 않고, final에서 고친 표현 개선은 빠뜨리지 않는다.',
+      ? '   final에서 문장을 새로 짠 부분도, 원래 범위(from~to)와 같은 내용을 말하는 final의 구절을 찾아 그대로 복사한다. 그런 구절이 없으면 그 issue는 넣지 않는다.'
+      : '   final에서 바꾸지 않은 부분은 issues에 넣지 않고, final에서 고친 표현 개선은 빠뜨리지 않는다.',
     '   범위(from~to)는 실제로 바꿔야 하는 단어만 최소로 잡는다 (보통 1~4단어). 문장이나 절 전체를 잡지 않는다.',
     '   군말(음, 어, 그러니까, um, uh 등)과 반복은 다른 단계에서 찾으므로 issues에 넣지 않는다.',
     ...(answering
@@ -189,7 +191,7 @@ export function summaryMessages(input: AnalyzeInput, parts: Part[]) {
       .join('\n');
   });
 
-  const head = headLine(input, input.mode === 'presentation' ? '' : `답변 ${parts.length}개`);
+  const head = headLine(input, input.mode === 'presentation' && !isPresentationQna(input) ? '' : `답변 ${parts.length}개`);
   return { system, user: `${head}\n\n${digest.join('\n\n')}` };
 }
 
@@ -261,10 +263,10 @@ export function retryMessages(input: RetryInput, parts: Part[], charts: Charts, 
 /** 총평·재도전 총평 맨 위 상황 한 줄. 예) "상황: 시험(평가) 발표 (한국어) 재도전" */
 function headLine(input: ModeInfo, suffix: string): string {
   const what =
-    input.mode === 'presentation'
-      ? `${input.level ? LEVEL_LABEL[input.level] : '발표'} (${LANGUAGE_LABEL[input.language]})`
-      : isPresentationQna(input)
-        ? `발표 후 질의응답 (${LANGUAGE_LABEL[input.language]})`
+    isPresentationQna(input)
+      ? `${input.level ? LEVEL_LABEL[input.level] : '발표'}를 마친 뒤 질의응답 (${LANGUAGE_LABEL[input.language]})`
+      : input.mode === 'presentation'
+        ? `${input.level ? LEVEL_LABEL[input.level] : '발표'} (${LANGUAGE_LABEL[input.language]})`
         : input.mode === 'interview'
         ? `취업 면접${interviewJob(input) ? ` (지원 직무: ${interviewJob(input)})` : ''} (${LANGUAGE_LABEL[input.language]})`
         : (input.exam ? EXAM_LABEL[input.exam] : '영어 말하기 시험');

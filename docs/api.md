@@ -12,12 +12,13 @@ Base URL: `http://localhost:8080/api`
 | 언어 | `ko` 또는 `en` | `en` 고정 | `ko` 또는 `en` (질문·답변 언어) |
 | 세부 | `level`: `assignment` \| `exam` \| `keynote` | `exam`: `TOEIC-Speaking` \| `opic` | - (지원 직무는 `questions` 문자열 안에) |
 | 녹음 | 5분 단위로 나눈 파일, 1~5개 | 질문별 답변 파일, 1~5개 | 질문별 답변 파일, 1~5개 (보통 5개) |
-| 추가 입력 | - | `questions` (질문 문자열 배열) | `questions` (질문 문자열 배열) |
+| 추가 입력 | 예상 질문 답변이면 `questions` (`Presentation Q&A N`) | `questions` (질문 문자열 배열) | `questions` (질문 문자열 배열) |
 
 - 파일 하나가 결과의 `parts` 하나가 된다. `audio`를 보낸 순서 = `parts` 순서.
 - `level`은 발표의 성격이다: 과제 발표(`assignment`), 시험 발표(`exam`), 큰 강연(`keynote`).
 - 스피킹·면접 질문은 `POST /api/questions`(6절)로 서버가 LLM으로 만든다 (면접은 지원 직무에 맞춰). 그 뒤 흐름(질문별 녹음 → transcribe → 검토 → analyze)은 같다.
 - 결과 화면에서 버튼을 누르면 모든 모드에서 꼬리질문을 최대 3개 받을 수 있다 (6절).
+- **발표 예상 질문 답변**은 `mode: "presentation"` + `level` + `questions`로 보낸다(질문마다 답변 파일 하나). `questions`가 있으면 서버는 발표 본편이 아니라 **발표 질의응답**으로 평가한다: 질문의 핵심에 먼저 답했는지, 발표 내용·근거로 뒷받침했는지, 모르면 인정했는지, 간결한지. `parts[i].comment`(질문별 한 줄, 면접 표현 없음), `accuracy`·`scoreDetail`(정확성 비중 0.7)이 붙고, 응답 `mode`는 `"presentation"` 그대로다.
 
 ## 2. API 목록
 
@@ -52,7 +53,7 @@ Base URL: `http://localhost:8080/api`
 | `audio` | File[] (1~5개) | O | 보낸 순서대로. 발표는 5분 단위로 나눈 파일, 스피킹·면접은 질문별 답변 |
 | `level` | `"assignment"` \| `"exam"` \| `"keynote"` | 발표만 | 발표 성격 |
 | `exam` | `"TOEIC-Speaking"` \| `"opic"` | 스피킹만 | 시험 종류 |
-| `questions` | string (JSON 배열) | 스피킹·면접 | 질문 문자열 배열. `audio`와 같은 순서·같은 개수 |
+| `questions` | string (JSON 배열) | 스피킹·면접 (발표는 예상 질문 답변일 때만) | 질문 문자열 배열. `audio`와 같은 순서·같은 개수 |
 
 - 예시 — 발표: `audio=part1-recording.webm`, `mode=presentation`, `language=ko`, `level=exam` / 스피킹: `mode=speaking`, `language=en`, `exam=opic`, `questions=[…]`, `audio=q1-recording.webm` / 면접: `mode=interview`, `language=ko`, `questions=[…]`, `audio=q1-recording.webm` …
 - `audio`는 같은 필드 이름으로 여러 번 붙인다. 서버는 파일 이름이 아니라 **붙인 순서**를 파트 순서로 쓴다. webm과 mp4(Safari)를 허용한다.
@@ -116,7 +117,7 @@ type AnalyzeRequest = {
   level?: "assignment" | "exam" | "keynote";   // 발표
   exam?: "TOEIC-Speaking" | "opic";            // 스피킹
   language: "ko" | "en";
-  questions?: string[];                        // 스피킹·면접. JSON 배열 그대로 (문자열로 바꾸지 않는다)
+  questions?: string[];                        // 스피킹·면접, 발표 예상 질문 답변. JSON 배열 그대로 (문자열로 바꾸지 않는다)
   parts: { duration: number; script: Line[] }[];  // transcribe 응답의 parts에서 words만 고쳐서 보낸다
 };
 ```
@@ -140,8 +141,8 @@ type AnalyzeResponse = {
 };
 
 type Part = {
-  comment?: string;       // 파트별 한 줄 코멘트 (질문 적합성 등). 스피킹·면접에만 있다
-  accuracy?: number;      // 스피킹·면접만: 답변 정확성 0~100 (LLM). 이 파트의 LLM이 실패하면 없음
+  comment?: string;       // 파트별 한 줄 코멘트 (질문 적합성 등). 스피킹·면접·발표 예상 질문 답변에만 있다
+  accuracy?: number;      // 스피킹·면접·발표 예상 질문 답변만: 답변 정확성 0~100 (LLM). 이 파트의 LLM이 실패하면 없음
   duration: number;       // 초
   script: Line[];         // 고친 대본 (offset 다시 계산됨)
   highlight: Highlight[];
@@ -165,7 +166,7 @@ type Charts = {
 
 type Analysis = {
   score: number;          // 0~100. scoreDetail이 있으면 round(habit^(1−w) × accuracy^w), 없으면 habit (아래 규칙)
-  scoreDetail?: {         // 스피킹·면접(발표 예상 질문 답변 포함)만. 발표는 없음
+  scoreDetail?: {         // 스피킹·면접·발표 예상 질문 답변만. 발표 본편은 없음
     habit: number;        // 말하기 습관 점수 = 100 − (panic + filler + repeat 비율)
     accuracy: number;     // 파트별 accuracy의 평균(반올림)
     accuracyWeight: number; // w = 정확성 비중. 스피킹 0.5, 면접·발표 예상 질문 답변 0.7
@@ -187,6 +188,7 @@ type Analysis = {
 
 ### 규칙
 - 하이라이트는 단어 번호 범위라서 문장을 넘는 구·절도 표시할 수 있다. 겹치는 구간은 그대로 두고, 색 우선순위(빨강 > 노랑 > 보라 > 파랑 > 초록)는 프론트가 적용한다.
+- `expression`·`grammar` 하이라이트의 `fixed`는 **고친 완성 대본(`final`)에 글자 그대로 들어 있는 구절**이다. LLM이 `final`과 다른 표현을 주면 서버가 그 하이라이트를 버린다 (공백·문장부호·대소문자는 무시하고 비교, `final`이 비었으면 검사하지 않음). 그래서 대본 화면의 고친 표현과 "고친 완성 대본" 탭이 항상 같다.
 - `panic` 하이라이트는 pause 줄 직전 문장의 **마지막 3단어**에 붙는다. 맨 앞 pause 줄(첫마디 전 침묵)은 바로 뒤 문장의 **처음 3단어**에 붙는다. 이유와 대안 대본(`fixed`)은 LLM이 채운다 (맨 앞이면 바로 꺼낼 수 있는 첫 문장).
 - 필러는 코드가 찾는다. 확실한 군말(어, 음, um, uh)은 항상, 애매한 말(그, 이제, 그러니까, like, so)은 바로 뒤에 멈칫했거나 다른 필러 바로 뒤일 때만 필러로 본다.
 - 중복 단어(`repeat`)도 코드가 찾는다. ① 같은 말(1~3단어)을 바로 반복("하지만 하지만", "every day every day", "정말 정말 정말")하면 반복된 범위를 묶고 `fixed`에 한 번만 쓴 표현을 넣는다. ② 5문장 안에서 같은 어간(조사를 뗀 형태)이 3번 이상이면 각 단어를 표시한다. ①로 묶인 말은 한 번만 센다("school school"은 school 1번). 이어지는 표시(서로 5문장 안)는 한 묶음이고, 묶음의 모든 단어 `reason`에 같은 횟수(= 그 묶음의 하이라이트 수)가 들어간다. 필러와 흔한 말("저는", "있습니다", "the" 등)은 제외한다. `repeatTop`은 어간 기준으로 센다.
@@ -199,7 +201,7 @@ type Analysis = {
     |---|---|---|---|---|---|
     | 스피킹 (토익·오픽) | 0.5 (= √(습관 × 정확성)) | 시험은 유창성과 내용이 같은 비중 | 32 | 80 | 73 |
     | 면접, 발표 예상 질문 답변 | 0.7 | 질문에 맞는 내용이 더 중요 | 20 | 80 | 68 |
-    | 발표 | 없음 (습관 점수만) | 질문이 없어 정답 기준이 없음 | 100 | 80 | 90 |
+    | 발표 본편 (questions 없음) | 없음 (습관 점수만) | 질문이 없어 정답 기준이 없음 | 100 | 80 | 90 |
 
   - 파트 `accuracy`는 LLM이 범위별 기준으로 매긴다. 스피킹은 시험 채점 기준(질문에 맞게 답했는지, 이유·예시로 전개했는지, 문법·어휘. 토익 Part 1은 지문을 정확히 읽었는지), 면접은 면접 평가 기준(질문 의도·두괄식·STAR·구체성·직무), 발표 예상 질문 답변은 질의응답 기준(실제로 답했는지·근거·모르면 인정·간결함)이다. 공통 눈금: 질문과 상관없으면 30점 이하, 답했지만 아쉬우면 60~80점, 모범 답변에 가까우면 90점 이상. 말하기 습관은 `accuracy`에 넣지 않는다.
   - 정확성은 LLM 점수라 같은 대본이어도 실행마다 조금 달라질 수 있다. 모든 파트의 LLM이 실패하면 `scoreDetail` 없이 `score` = 습관 점수다.
@@ -716,7 +718,7 @@ type QuestionImageResponse = {
   ]
   ```
 - 꼬리질문은 머리말만 다르다: 면접 `Interview Follow-up N (about QM)` (M은 `answers[about].question`의 원래 질문 번호. 없으면 `about + 1`), 오픽 `OPIc Follow-up N (topic: …)`, 토익 `TOEIC Speaking Part 3/5 (…)` (처음 질문과 같은 형식), 발표 예상 질문 `Presentation Q&A N`.
-- 발표 예상 질문 답변(`Presentation Q&A N`)은 `mode: "interview"`로 분석하지만, 서버는 머리말을 보고 **발표 질의응답 기준**(바로 답하기·근거·모르면 인정·간결함)으로 코멘트·모범 답변·총평을 쓴다. 면접 기준(직무·STAR)은 쓰지 않는다.
+- 발표 예상 질문 답변(`Presentation Q&A N`)은 `mode: "presentation"` + `questions`로 보낸다 (1절). 서버는 **발표 질의응답 기준**(바로 답하기·근거·모르면 인정·간결함)으로 코멘트·모범 답변·총평을 쓰고, 면접 기준(직무·STAR)은 쓰지 않는다. 예전처럼 `mode: "interview"`로 보내도 머리말을 보고 같은 기준으로 평가한다 (프론트가 옮길 때까지 호환).
 
 ### 검증
 - `mode`와 `language` 조합: 발표·면접은 `ko`·`en`, 스피킹은 `en`만 허용한다.
