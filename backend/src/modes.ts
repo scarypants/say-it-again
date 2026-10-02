@@ -41,6 +41,12 @@ export function isPresentationQna(info: QuestionInfo): boolean {
   return info.mode === 'interview' && questions.some((q) => q.startsWith('Presentation Q&A'));
 }
 
+/** 토익 Part 1(지문 읽기) 질문 문자열에서 읽을 지문을 꺼낸다 ("Text to read aloud: …" 줄). 아니면 undefined */
+export function readAloudText(question: string | undefined): string | undefined {
+  if (!question?.startsWith('TOEIC Speaking Part 1')) return undefined;
+  return /^Text to read aloud:\s*(.+)$/m.exec(question)?.[1]?.trim() || undefined;
+}
+
 /** 면접 질문 문자열에서 지원 직무를 꺼낸다 ("Job: 백엔드 개발자" 줄). 없으면 undefined */
 export function interviewJob(info: Pick<ModeInfo, 'questions'>): string | undefined {
   for (const q of info.questions ?? []) {

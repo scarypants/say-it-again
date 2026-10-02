@@ -3,6 +3,33 @@ export function normalize(word: string): string {
   return word.toLowerCase().replace(/[^\p{L}\p{N}']/gu, '');
 }
 
+/**
+ * 일치율(0~100): 기준 글(target)의 두 글자 묶음(bigram) 중 말한 대본(spoken)에도 있는 것의 비율.
+ * 공백·문장부호를 지우고 이어 붙여 비교하므로 띄어쓰기·전사 차이에 덜 민감하다.
+ * 같은 bigram은 말한 대본에 나온 횟수만큼만 센다. 기준 글이 비었으면 null.
+ * 재도전 대본 일치율, 토익 Part 1(지문 읽기) 정확성에 쓴다.
+ */
+export function bigramCoverage(target: string[], spoken: string[]): number | null {
+  const goal = bigrams(target);
+  if (goal.length === 0) return null;
+  const left = new Map<string, number>();
+  for (const b of bigrams(spoken)) left.set(b, (left.get(b) ?? 0) + 1);
+  let matched = 0;
+  for (const b of goal) {
+    const n = left.get(b) ?? 0;
+    if (n > 0) {
+      matched++;
+      left.set(b, n - 1);
+    }
+  }
+  return Math.round((matched / goal.length) * 100);
+}
+
+function bigrams(words: string[]): string[] {
+  const chars = [...words.map(normalize).join('')];
+  return chars.slice(1).map((c, i) => chars[i] + c);
+}
+
 /** 한국어 끝 조사 (긴 것부터 비교) */
 const KO_PARTICLE = /(에서는|에게서|으로는|이라고|에서|에게|한테|까지|부터|처럼|보다|으로|라고|이랑|은|는|이|가|을|를|에|의|도|로|와|과|랑)$/;
 

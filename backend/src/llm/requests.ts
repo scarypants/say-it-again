@@ -1,4 +1,4 @@
-import { LLM_MODEL, LLM_REASONING_EFFORT, LLM_TIMEOUT_MS, MAX_EXPRESSIONS, MOCK_LLM } from '../config';
+import { LLM_MAX_RETRIES, LLM_MODEL, LLM_REASONING_EFFORT, LLM_TIMEOUT_MS, MAX_EXPRESSIONS, MOCK_LLM } from '../config';
 import { mockDelay, readFixture } from '../mock';
 import { accuracyWeight, checksGrammar, isPresentationQna } from '../modes';
 import { toScreenTerms } from '../text';
@@ -326,7 +326,7 @@ async function callJson<T>(name: string, schema: object, messages: { system: str
       ],
       response_format: { type: 'json_schema', json_schema: { name, strict: true, schema: schema as Record<string, unknown> } },
     },
-    { timeout: LLM_TIMEOUT_MS },
+    { timeout: LLM_TIMEOUT_MS, maxRetries: LLM_MAX_RETRIES },
   );
   const content = res.choices[0]?.message?.content;
   if (!content) throw new Error(`LLM 응답이 비어 있습니다 (${name}).`);

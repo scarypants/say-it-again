@@ -85,7 +85,12 @@ export const TOP_N = 10;
 // OpenAI
 export const STT_MODEL = 'whisper-1';
 export const LLM_MODEL = process.env.OPENAI_LLM_MODEL ?? '';
-export const LLM_TIMEOUT_MS = 90_000;
+/**
+ * LLM 호출 한 번의 제한 시간과 재시도 횟수 (SDK 기본은 재시도 2번).
+ * 늦어지면 오래 기다리기보다 빨리 실패하고, 코드 분석 결과(패닉존·군말·반복·점수)만이라도 돌려준다.
+ */
+export const LLM_TIMEOUT_MS = 45_000;
+export const LLM_MAX_RETRIES = 1;
 /** 추론 강도. 높을수록 느리고 꼼꼼하다 ('minimal' | 'low' | 'medium' | 'high') */
 export const LLM_REASONING_EFFORT = 'low' as const;
 

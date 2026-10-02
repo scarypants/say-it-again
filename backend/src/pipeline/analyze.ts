@@ -2,10 +2,11 @@ import { findFillers } from '../detectors/fillers';
 import { findPanics } from '../detectors/panics';
 import { findRepeats } from '../detectors/repeats';
 import { analyzePart, summarize } from '../llm/requests';
-import { accuracyWeight, answersQuestions } from '../modes';
+import { accuracyWeight, answersQuestions, readAloudText } from '../modes';
 import type { AnalyzeResponse, Highlight, Language, Line, Part } from '../types/api';
 import type { AnalyzeInput } from '../types/internal';
-import { toWords, withOffsets } from './script';
+import { bigramCoverage } from '../text';
+import { flattenWords, toWords, withOffsets } from './script';
 import { buildCharts, buildStats, combinedScore } from './stats';
 import { checkDurations } from './transcribe';
 
@@ -25,6 +26,9 @@ export async function analyze(input: AnalyzeInput): Promise<AnalyzeResponse> {
   const parts: Part[] = await Promise.all(
     input.parts.map(async ({ duration, script: edited }, i) => {
       const { script, panics, codeHighlight } = analyzeByCode(edited, input.language);
+      // 토익 Part 1(지문 읽기)은 정확성을 LLM 대신 코드로 잰다: 지문과 읽은 대본의 일치율 (매번 같은 점수)
+      const passage = input.mode === 'speaking' ? readAloudText(input.questions?.[i]) : undefined;
+      const readAccuracy = passage ? (bigramCoverage(passage.split(/\s+/), flattenWords(script)) ?? undefined) : undefined;
       try {
         const llm = await analyzePart(input, script, i);
         // 코드가 만든 panic 하이라이트에 LLM의 원인·대안을 채운다 (pause 줄 번호로 매칭)
@@ -34,7 +38,7 @@ export async function analyze(input: AnalyzeInput): Promise<AnalyzeResponse> {
         }
         return {
           comment: answersQuestions(input) ? llm.comment : undefined,
-          accuracy: llm.accuracy,
+          accuracy: readAccuracy ?? llm.accuracy,
           duration,
           script,
           highlight: [...codeHighlight, ...llm.highlight],
@@ -43,7 +47,7 @@ export async function analyze(input: AnalyzeInput): Promise<AnalyzeResponse> {
       } catch (err) {
         console.error(`[llm] ${i + 1}번째 파트 분석 실패`, err);
         warn('llm_failed');
-        return { duration, script, highlight: codeHighlight, final: [] };
+        return { accuracy: readAccuracy, duration, script, highlight: codeHighlight, final: [] };
       }
     }),
   );
