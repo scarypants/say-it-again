@@ -1,12 +1,13 @@
 import { Link } from "react-router";
 import type { AnalyzeResponse } from "../../../types/api";
-import { questionLine } from "../../../components/common/scriptFormat";
+import { followUpName, questionLine } from "../../../components/common/scriptFormat";
 import { partAccuracy } from "../speakingScore";
 
 export default function FollowUpSummary({ result, questions }: { result: AnalyzeResponse; questions?: string[] }) {
+  const name = followUpName(questions);
   return (
     <section aria-labelledby="follow-up-summary-title">
-      <h2 id="follow-up-summary-title" className="text-xl font-bold">꼬리질문별 피드백</h2>
+      <h2 id="follow-up-summary-title" className="text-xl font-bold">{name}별 피드백</h2>
       {questions?.length !== result.parts.length && (
         <p role="status" className="mt-3 text-sm text-secondary">질문 정보가 없어 답변 순서대로 표시해요.</p>
       )}
@@ -14,7 +15,7 @@ export default function FollowUpSummary({ result, questions }: { result: Analyze
         {result.parts.map((part, index) => (
           <article key={index} className="py-5">
             <p className="text-sm font-semibold text-secondary">
-              꼬리질문 {questions?.length === result.parts.length
+              {name} {questions?.length === result.parts.length
                 ? questions[index].match(/^(?:Interview|OPIc) Follow-up (\d+)\b/)?.[1] ?? index + 1
                 : index + 1}
             </p>

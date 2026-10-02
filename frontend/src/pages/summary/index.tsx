@@ -7,7 +7,7 @@ import { feedbackRows } from "./feedbackRows";
 import WordFrequency from "./components/WordFrequency";
 import RetryComparison from "./components/RetryComparison";
 import { comparablePrevious, retryReference } from "./retryComparison";
-import { totalDuration } from "../../components/common/scriptFormat";
+import { followUpName, totalDuration } from "../../components/common/scriptFormat";
 import FollowUpSummary from "./components/FollowUpSummary";
 import AnswerComments from "./components/AnswerComments";
 import { isFollowUpSummary } from "./followUp";
@@ -63,7 +63,7 @@ export default function SummaryPage() {
     <div className="flex flex-1 flex-col gap-6 pt-8 font-sans sm:gap-8">
       <header>
         <p className="text-sm font-semibold text-secondary">
-          {result ? isFollowUp ? "꼬리질문 답변의 한 줄 요약" : "이 녹음의 한 줄 요약" : "말하기 분석"}
+          {result ? isFollowUp ? `${followUpName(session?.questions)} 답변의 한 줄 요약` : "이 녹음의 한 줄 요약" : "말하기 분석"}
         </p>
         <h1 className="mt-3 max-w-[28ch] text-[1.75rem] leading-snug font-bold tracking-tight text-balance break-keep sm:text-4xl lg:max-w-[36ch]">
           {result?.analysis.summary.headline || "이번 말하기를 돌아봐요"}
@@ -92,7 +92,7 @@ export default function SummaryPage() {
               <div className="flex items-center justify-between gap-3 p-5 sm:p-6">
                 <div className="flex flex-col items-start gap-2">
                   <h2 id="score-title" className="text-lg font-bold sm:text-xl">
-                    {isRetry ? "재도전 점수" : isFollowUp ? "꼬리질문 답변 점수" : "말하기 점수"}
+                    {isRetry ? "재도전 점수" : isFollowUp ? `${followUpName(session?.questions)} 답변 점수` : "말하기 점수"}
                   </h2>
                   <p className="text-sm leading-relaxed text-secondary">
                     {scoreDetail
@@ -270,7 +270,7 @@ export default function SummaryPage() {
               </Link>
             </div>
             {!result.compare && !isFollowUp && (
-              <Suspense fallback={<p role="status" className="text-sm text-secondary">추가 질문 기능을 불러오고 있어요.</p>}>
+              <Suspense fallback={<p role="status" className="text-sm text-secondary">{`${result.mode === "presentation" ? "예상 질문" : "다시, 질문"} 기능을 불러오고 있어요.`}</p>}>
                 <FollowUpQuestions result={result} questions={session?.questions} />
               </Suspense>
             )}
