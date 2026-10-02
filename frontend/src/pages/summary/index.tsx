@@ -51,7 +51,9 @@ export default function SummaryPage() {
   );
   const comparison = result && !isFollowUp ? comparablePrevious(result, previous) : null;
   const isRetry = Boolean(result?.compare || comparison);
-  const scoreDetail = result?.mode === "speaking" && !result.compare ? speakingScoreDetail(result.analysis) : null;
+  // 스피킹·면접(발표 예상 질문 답변 포함)은 습관 점수와 답변 정확성을 섞는다 (docs/api.md 4절)
+  const scoreDetail = result && !result.compare ? speakingScoreDetail(result.analysis) : null;
+  const accuracyPct = scoreDetail ? Math.round(scoreDetail.accuracyWeight * 100) : 0;
   const score =
     result && Number.isFinite(result.analysis.score)
       ? Math.min(100, Math.max(0, result.analysis.score))
@@ -93,7 +95,9 @@ export default function SummaryPage() {
                     {isRetry ? "재도전 점수" : isFollowUp ? "꼬리질문 답변 점수" : "말하기 점수"}
                   </h2>
                   <p className="text-sm leading-relaxed text-secondary">
-                    {scoreDetail ? "말하기 습관 50% · 답변 정확성 50%" : "패닉존·군말·반복 기준"}
+                    {scoreDetail
+                      ? `말하기 습관 ${100 - accuracyPct}% · 답변 정확성 ${accuracyPct}%`
+                      : "패닉존·군말·반복 기준"}
                   </p>
                   <span className="badge badge-outline">
                     {session?.questions?.[0]?.startsWith("Presentation Q&A")
@@ -109,7 +113,8 @@ export default function SummaryPage() {
               </div>
               {scoreDetail && (
                 <p className="border-t border-base-300 px-5 py-3 text-sm leading-relaxed tabular-nums sm:px-6">
-                  말하기 습관 {scoreDetail.habit}점 · 답변 정확성 {scoreDetail.accuracy}점
+                  말하기 습관 {scoreDetail.habit}점 · 답변 정확성 {scoreDetail.accuracy}점을 정확성{" "}
+                  {accuracyPct}% 비중으로 계산했어요. 한쪽이 낮으면 점수가 크게 깎여요.
                 </p>
               )}
             </section>

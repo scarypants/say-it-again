@@ -24,7 +24,7 @@ export default function AnswerComments({ result, questions }: {
             : partTitle(result.mode, index, part.duration, question);
           const prompt = questionLine(question);
           const comment = part.comment?.trim();
-          const accuracy = result.mode === "speaking" ? partAccuracy(part) : null;
+          const accuracy = partAccuracy(part); // 스피킹·면접 (응답에 있을 때만)
 
           return (
             <div key={index} className="grid gap-3 py-5 xl:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] xl:gap-6">
