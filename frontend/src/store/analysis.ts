@@ -183,6 +183,7 @@ export function retryPrevious(r: AnalyzeResponse): RetryRequest["previous"] {
     stats: r.analysis.stats,
     categoryRatio: r.charts.categoryRatio,
     topPriorities: r.analysis.summary.topPriorities,
+    ...(r.analysis.scoreDetail && { accuracy: r.analysis.scoreDetail.accuracy }),
     final: retryFinal(r),
   };
 }
