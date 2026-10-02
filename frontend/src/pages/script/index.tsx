@@ -3,7 +3,7 @@ import { Fragment, useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import Collapse from "../../components/common/Collapse";
 import PlayLineButton from "../../components/common/PlayLineButton";
-import { mmss, partTitle, questionLine, totalDuration } from "../../components/common/scriptFormat";
+import { mmss, partTitle, questionLine, sentenceNumber, totalDuration } from "../../components/common/scriptFormat";
 import { useClipPlayer } from "../../components/common/useClipPlayer";
 import { DESKTOP_QUERY, useMediaQuery } from "../../components/common/useMediaQuery";
 import { useAnalysis } from "../../store/analysis";
@@ -285,7 +285,7 @@ export default function ScriptPage() {
                             <PlayLineButton
                               playing={player.playing === key}
                               disabled={!audio[pi]}
-                              label={`${li + 1}번째 문장`}
+                              label={`${sentenceNumber(part.script, li)}번째 문장`}
                               onClick={() => void player.play(key, audio[pi], line.start, line.end)}
                             />
                           </div>

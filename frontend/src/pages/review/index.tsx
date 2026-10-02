@@ -5,7 +5,7 @@ import { analyze, retry } from "../../api/client";
 import AnalyzingView from "../../components/common/AnalyzingView";
 import Collapse from "../../components/common/Collapse";
 import PlayLineButton from "../../components/common/PlayLineButton";
-import { mmss, partTitle, questionLine, totalDuration } from "../../components/common/scriptFormat";
+import { mmss, partTitle, questionLine, sentenceNumber, totalDuration } from "../../components/common/scriptFormat";
 import { useClipPlayer } from "../../components/common/useClipPlayer";
 import { useLeaveGuard } from "../../components/common/useLeaveGuard";
 import { retryPrevious, useAnalysis } from "../../store/analysis";
@@ -214,7 +214,7 @@ function Review({ transcript, audio, questions, setResult, previous }: ReviewPro
                       <PlayLineButton
                         playing={player.playing === key}
                         disabled={!audio[pi]}
-                        label={`${li + 1}번째 문장`}
+                        label={`${sentenceNumber(part.script, li)}번째 문장`}
                         onClick={() => void player.play(key, audio[pi], line.start, line.end)}
                       />
                     </li>
