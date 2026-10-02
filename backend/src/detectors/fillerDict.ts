@@ -17,7 +17,7 @@ export const FILLERS: Record<Language, FillerDict> = {
   },
   en: {
     certain: ['um', 'uh', 'er', 'erm', 'ah', 'hmm', 'uhm'],
-    patterns: [/^(u+m+|u+h+|a+h+|e+r+m*|h*m+)$/],
+    patterns: [/^(u+m+|u+h+|a+h+|e+r+m*|h+m+|m{2,})$/], // "m" 한 글자(a.m./p.m.를 떼어 전사)는 제외
     ambiguous: ['like', 'so', 'well', 'actually', 'basically', 'literally', 'right'],
     phrases: [
       ['you', 'know'],
