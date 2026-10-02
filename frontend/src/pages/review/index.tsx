@@ -175,8 +175,13 @@ function Review({ transcript, audio, questions, setResult, previous }: ReviewPro
                   const key = `${pi}:${li}`;
                   if (line.pause)
                     return (
-                      <li key={key} className="py-1 text-xs text-hl-panic tabular-nums">
+                      <li
+                        key={key}
+                        className="flex items-center gap-2 py-1.5 text-xs font-medium text-hl-panic tabular-nums"
+                      >
+                        <span className="h-px flex-1 border-t border-dashed border-current opacity-40" />
                         {(line.end - line.start).toFixed(1)}초 멈춤
+                        <span className="h-px flex-1 border-t border-dashed border-current opacity-40" />
                       </li>
                     );
                   const changed = line.words.join(" ") !== original[pi].script[li].words.join(" ");
