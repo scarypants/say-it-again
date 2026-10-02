@@ -66,8 +66,9 @@ const RATIO_KEYS = ['panic', 'filler', 'repeat', 'expression', 'grammar', 'norma
 function parsePrevious(raw: unknown): RetryPrevious {
   const p = raw as Partial<RetryPrevious> | null;
   if (!p || typeof p !== 'object') throw new HttpError(400, 'previous가 필요합니다.');
-  if (typeof p.durationSec !== 'number' || p.durationSec < 0) {
-    throw new HttpError(400, 'previous.durationSec가 올바르지 않습니다.');
+  // 0이면 이전 분당 횟수를 낼 수 없어 0회/분처럼 잘못 보이므로 받지 않는다
+  if (typeof p.durationSec !== 'number' || !(p.durationSec > 0)) {
+    throw new HttpError(400, 'previous.durationSec는 0보다 커야 합니다.');
   }
   const stats = pickNumbers(p.stats, STAT_KEYS, 'previous.stats') as Analysis['stats'];
   const categoryRatio = pickNumbers(p.categoryRatio, RATIO_KEYS, 'previous.categoryRatio') as Charts['categoryRatio'];
@@ -294,10 +295,15 @@ function parseParts(raw: unknown): TranscriptPart[] {
   }
   return raw.map((part: unknown, i) => {
     const p = part as Partial<TranscriptPart> | null;
-    if (!p || typeof p.duration !== 'number' || !Array.isArray(p.script)) {
+    if (!p || typeof p.duration !== 'number' || p.duration < 0 || !Array.isArray(p.script)) {
       throw new HttpError(400, `${i + 1}번째 파트의 duration·script가 올바르지 않습니다.`);
     }
-    return { duration: p.duration, script: p.script.map((line, j) => parseLine(line, i, j)) };
+    const script = p.script.map((line, j) => parseLine(line, i, j));
+    // 사용자가 대본을 다 지웠으면 분석할 말이 없다 (그대로 두면 습관 점수 100점이 나온다). transcribe와 같은 422
+    if (script.every((line) => line.words.length === 0)) {
+      throw new HttpError(422, `${i + 1}번째 녹음의 대본이 비어 있습니다. 말한 내용을 남기거나 다시 녹음해 주세요.`);
+    }
+    return { duration: p.duration, script };
   });
 }
 
@@ -307,11 +313,13 @@ function parseLine(raw: unknown, partIndex: number, lineIndex: number): Line {
   if (!l || typeof l.start !== 'number' || typeof l.end !== 'number' || l.end < l.start || !Array.isArray(l.words)) {
     throw new HttpError(400, `${where}이 올바르지 않습니다.`);
   }
+  if (!l.words.every((w) => typeof w === 'string')) {
+    throw new HttpError(400, `${where}의 words는 문자열 배열이어야 합니다.`);
+  }
   if (l.pause) return { start: l.start, end: l.end, offset: 0, words: [], pause: true };
 
   // 사용자가 한 칸에 여러 단어를 적었을 수 있어 공백으로 다시 나눈다.
-  const words = l.words
-    .filter((w): w is string => typeof w === 'string')
+  const words = (l.words as string[])
     .flatMap((w) => w.trim().split(/\s+/))
     .filter((w) => w.length > 0);
   const wordTimes = isWordTimes(l.wordTimes) && l.wordTimes.length === words.length ? l.wordTimes : undefined;
