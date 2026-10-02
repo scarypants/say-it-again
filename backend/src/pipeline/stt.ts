@@ -47,6 +47,7 @@ export async function transcribe(
   const label = `${index + 1}번째 녹음`;
   const prompt = whisperPrompt(language, question);
   const request = MOCK_STT ? () => mockWhisper(language) : () => requestWhisper(file, language, prompt);
+  const start = Date.now();
   const result = await withRetry(request).catch((err: unknown) => {
     console.error(`[stt] ${label} 실패`, err);
     if (err instanceof OpenAI.BadRequestError) {
@@ -55,6 +56,7 @@ export async function transcribe(
     throw new HttpError(502, `${label}을 전사하지 못했습니다. 잠시 후 다시 시도해 주세요.`);
   });
 
+  console.log(`[stt] ${label} ${Math.round(result.duration ?? 0)}초 녹음 → ${Date.now() - start}ms`);
   await dump(result, index);
 
   const words = (result.words ?? [])
