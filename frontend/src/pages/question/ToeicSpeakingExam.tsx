@@ -18,6 +18,7 @@ import {
   type ToeicSpeakingItem,
 } from "./toeicSpeakingItems";
 import { speakingQuestions } from "./serverQuestions";
+import { useAnalysis } from "../../store/analysis";
 import AnswerActions from "./AnswerActions";
 import { failedAnswerIndex } from "./answerRetry";
 
@@ -56,8 +57,12 @@ export default function ToeicSpeakingExam({ onRestart }: { onRestart: () => void
   // 답변 시간이 끝나도 녹음은 계속하되, 서버 상한(답변당 60초, docs/api.md)에서 멈추고 다음 문제
   const rec = useRecorder(ANSWER_HARD_MAX_SEC);
   // 서버(LLM)가 문제를 만든다. 받기 전·실패하면 문항 데이터에서 Part별로 무작위 (다시 시작하면 다른 문제)
-  const [items, setItems] = useState(buildToeicExam);
-  const [loading, setLoading] = useState(true);
+  // 결과 화면에서 받은 연습 질문(Part 3·5)이면 그 질문으로 같은 시험 화면을 진행한다
+  const practice = useAnalysis().settings.practice;
+  const [items, setItems] = useState(() =>
+    practice?.length ? practice.map(toeicItemFromServer) : buildToeicExam(),
+  );
+  const [loading, setLoading] = useState(!practice?.length);
   // Part 2 사진: 문제를 받자마자 뒤에서 생성. promise는 사진(data URL) 또는 실패면 null
   const imageRef = useRef<{
     done: boolean;
@@ -317,6 +322,7 @@ export default function ToeicSpeakingExam({ onRestart }: { onRestart: () => void
   // 문제 받기: 화면을 열자마자. Part 2가 있으면 사진 생성을 바로 뒤에서 시작한다.
   // 화면을 떠나면 사진 요청을 끊고 결과는 버린다
   useEffect(() => {
+    if (practice?.length) return;
     let cancelled = false;
     const abort = new AbortController();
     void speakingQuestions(
@@ -350,7 +356,7 @@ export default function ToeicSpeakingExam({ onRestart }: { onRestart: () => void
       cancelled = true;
       abort.abort();
     };
-  }, []);
+  }, [practice]);
 
   // 남은 시간 표시용 시계
   useEffect(() => {
@@ -382,14 +388,17 @@ export default function ToeicSpeakingExam({ onRestart }: { onRestart: () => void
   if (stage === "intro") {
     return (
       <div className="flex flex-1 flex-col">
-        <PageHeader title="토익 스피킹 모의시험" />
+        <PageHeader title={practice?.length ? "토익 스피킹 연습 질문" : "토익 스피킹 모의시험"} />
         <p className="text-[0.9375rem] leading-relaxed">
-          실제 시험처럼 Part 1부터 5까지 한 문제씩 이어서 진행해요. 준비 시간이 끝나면 신호음과 함께
-          자동으로 녹음돼요. 답변 시간이 끝나면 알려 드리고, 버튼을 누르면 다음 문제로 넘어가요.
+          {practice?.length
+            ? `방금 답변에 이어지는 연습 문제 ${items.length}개를 실제 시험처럼 한 문제씩 진행해요.`
+            : "실제 시험처럼 Part 1부터 5까지 한 문제씩 이어서 진행해요."}{" "}
+          준비 시간이 끝나면 신호음과 함께 자동으로 녹음돼요. 답변 시간이 끝나면 알려 드리고, 버튼을
+          누르면 다음 문제로 넘어가요.
         </p>
         <ol className="mt-5 divide-y divide-base-300 rounded-box border border-base-300">
-          {items.map((it) => (
-            <li key={it.part} className="flex items-center justify-between gap-3 px-4 py-3">
+          {items.map((it, i) => (
+            <li key={i} className="flex items-center justify-between gap-3 px-4 py-3">
               <span>
                 <span className="font-semibold">Part {it.part}</span>{" "}
                 <span className="text-secondary">{it.name}</span>
@@ -442,11 +451,11 @@ export default function ToeicSpeakingExam({ onRestart }: { onRestart: () => void
         {leaveGuard}
         <PageHeader
           title="시험이 끝났어요"
-          description="답변을 들어 보고, 다섯 문제를 한 번에 분석해요."
+          description={`답변을 들어 보고, ${items.length}문제를 한 번에 분석해요.`}
         />
         <ul className="flex flex-col gap-3">
           {items.map((it, i) => (
-            <li key={it.part} className="rounded-box border border-base-300 p-4">
+            <li key={i} className="rounded-box border border-base-300 p-4">
               <p>
                 <span className="font-semibold">Part {it.part}</span>{" "}
                 <span className="text-secondary">{it.name}</span>

@@ -10,9 +10,8 @@ export default function QuestionPage() {
   // 다시 응시하면 key를 바꿔 시험 상태(답변·단계)를 처음부터 새로 만든다
   const [round, setRound] = useState(0);
   const restart = () => setRound((r) => r + 1);
-  // 꼬리질문 연습은 스피킹도 면접 화면처럼 질문 하나씩 바로 답한다
-  if (settings.mode === "interview" || settings.practice?.length)
-    return <InterviewExam key={round} onRestart={restart} />;
+  // 꼬리질문 연습: 면접·발표 예상 질문은 면접 화면, 스피킹은 처음 시험과 같은 시험 화면에서 답한다
+  if (settings.mode !== "speaking") return <InterviewExam key={round} onRestart={restart} />;
   return settings.exam === "TOEIC-Speaking" ? (
     <ToeicSpeakingExam key={round} onRestart={restart} />
   ) : (

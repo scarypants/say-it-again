@@ -24,6 +24,7 @@ import {
   type OpicItem,
 } from "./opicItems";
 import { speakingQuestions } from "./serverQuestions";
+import { useAnalysis } from "../../store/analysis";
 
 const canSpeak = typeof window !== "undefined" && "speechSynthesis" in window;
 
@@ -46,6 +47,9 @@ const minText = (sec: number) => `${Math.floor(sec / 60)}분${sec % 60 ? ` ${sec
 
 export default function OpicExam({ onRestart }: { onRestart: () => void }) {
   const rec = useRecorder(ANSWER_MAX_SEC); // 2분이 되면 자동으로 멈추고 다음 문제
+  // 결과 화면에서 받은 연습 질문이면 서베이 없이 그 질문으로 같은 시험 화면을 진행한다
+  const practice = useAnalysis().settings.practice;
+  const practiceItems = practice?.length ? practice.map(opicItemFromServer) : null;
 
   const [stage, setStage] = useState<Stage>("setup");
   const [topicIds, setTopicIds] = useState<string[]>([]);
@@ -189,7 +193,7 @@ export default function OpicExam({ onRestart }: { onRestart: () => void }) {
   }
 
   async function startExam() {
-    if (!level || topicIds.length === 0) return;
+    if (!practiceItems && (!level || topicIds.length === 0)) return;
     setStartError(null);
     // 첫 문제에서 자동 녹음이 막히지 않도록 시작할 때 마이크 권한을 먼저 받는다
     if (!navigator.mediaDevices?.getUserMedia) {
@@ -206,6 +210,8 @@ export default function OpicExam({ onRestart }: { onRestart: () => void }) {
       return;
     }
     beepCtxRef.current = new AudioContext();
+    if (practiceItems) return begin(practiceItems);
+    if (!level) return;
     // 고른 주제·단계로 서버가 문제를 만든다. 실패하면 문항 데이터에서 고른다
     setPreparing(true);
     const token = tokenRef.current; // 기다리는 사이 화면을 떠나면 시작하지 않는다
@@ -219,7 +225,10 @@ export default function OpicExam({ onRestart }: { onRestart: () => void }) {
     );
     if (tokenRef.current !== token) return;
     setPreparing(false);
-    const exam = server ? server.map(opicItemFromServer) : buildOpicExam(topicIds, level);
+    begin(server ? server.map(opicItemFromServer) : buildOpicExam(topicIds, level));
+  }
+
+  function begin(exam: OpicItem[]) {
     itemsRef.current = exam;
     answersRef.current = exam.map(() => null);
     setItems(exam);
@@ -265,9 +274,9 @@ export default function OpicExam({ onRestart }: { onRestart: () => void }) {
   }
 
   async function runAnalyze() {
-    if (!level) return;
+    if (!level && !practiceItems) return;
     const pairs = items.flatMap((it, i) =>
-      answers[i] ? [{ question: opicQuestionText(it, i, level), audio: answers[i]! }] : [],
+      answers[i] ? [{ question: opicQuestionText(it, i, level ?? 0), audio: answers[i]! }] : [],
     );
     if (pairs.length === 0) return;
     await tx.run({
@@ -305,6 +314,32 @@ export default function OpicExam({ onRestart }: { onRestart: () => void }) {
         {leaveGuard}
       </>
     );
+
+  if (stage === "setup" && practiceItems) {
+    return (
+      <div className="flex flex-1 flex-col">
+        <PageHeader title="오픽 연습 질문" />
+        <p className="text-[0.9375rem] leading-relaxed">
+          방금 답변에 이어지는 연습 질문 {practiceItems.length}개를 실제 시험처럼 풀어요. 질문은
+          소리로만 나오고, 끝나면 신호음과 함께 자동으로 녹음돼요.
+        </p>
+        {startError && (
+          <div role="alert" className="alert alert-error alert-soft mt-4 text-sm">
+            {startError}
+          </div>
+        )}
+        <div className="mt-auto pt-6">
+          <button
+            type="button"
+            className="btn btn-primary btn-lg btn-block"
+            onClick={() => void startExam()}
+          >
+            시험 시작
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (stage === "setup") {
     const ready = topicIds.length > 0 && level !== null;
@@ -412,7 +447,7 @@ export default function OpicExam({ onRestart }: { onRestart: () => void }) {
         {leaveGuard}
         <PageHeader
           title="시험이 끝났어요"
-          description="질문과 답변을 확인하고, 다섯 문제를 한 번에 분석해요."
+          description={`질문과 답변을 확인하고, ${items.length}문제를 한 번에 분석해요.`}
         />
         <ul className="flex flex-col gap-3">
           {items.map((it, i) => (
