@@ -7,7 +7,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { Session, Settings } from "../../store/analysis";
 import type { AnalyzeResponse } from "../../types/api";
-import { partTitle, totalDuration } from "../../components/common/scriptFormat";
+import { partTitle, sentenceNumber, totalDuration } from "../../components/common/scriptFormat";
 import { isFollowUpSummary } from "./followUp";
 import { accuracyScore, speakingScoreDetail } from "./speakingScore";
 
@@ -217,4 +217,9 @@ test("정확성 필드가 없거나 잘못된 기록은 습관 점수만 표시�
     assert.equal(accuracyScore(value), null);
     assert.equal(speakingScoreDetail({ scoreDetail: { habit: 80, accuracy: value } }), null);
   }
+});
+
+test("문장 번호는 멈춤 줄을 세지 않는다", () => {
+  const script = [{}, { pause: true }, {}, {}, { pause: true }, {}];
+  assert.deepEqual([0, 2, 3, 5].map((i) => sentenceNumber(script, i)), [1, 2, 3, 4]);
 });

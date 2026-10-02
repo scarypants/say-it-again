@@ -48,3 +48,8 @@ export function followUpName(questions?: string[]) {
 export function totalDuration(parts: { duration: number }[]) {
   return parts.reduce((sum, p) => sum + p.duration, 0);
 }
+
+// 멈춤 줄(pause)을 빼고 센 문장 번호 (1부터). 문장 재생 버튼의 스크린리더 라벨에 쓴다
+export function sentenceNumber(script: { pause?: boolean }[], index: number) {
+  return script.slice(0, index + 1).filter((l) => !l.pause).length;
+}
