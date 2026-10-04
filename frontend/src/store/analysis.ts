@@ -127,7 +127,8 @@ export function usePracticeFollowUp() {
   const navigate = useNavigate();
   return useCallback(
     (from: AnalyzeResponse, practice: Question[], job?: string) => {
-      // 발표 예상 질문은 질문에 답하는 연습이라 면접 모드로 분석한다 (발표 모드는 질문을 받지 않는다)
+      // 발표 예상 질문은 질문에 답하는 연습이라 면접 모드로 보낸다. 서버가 질문 머리말("Presentation Q&A")을 보고
+      // 발표 질의응답 기준으로 평가한다 (서버는 발표 모드 + questions도 받는다. docs/api.md 7절)
       const mode = from.mode === "presentation" ? "interview" : from.mode;
       setSettings({ mode, language: from.language, exam: from.exam, job, practice });
       setPrevious(null);

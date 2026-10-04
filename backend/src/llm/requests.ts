@@ -72,7 +72,7 @@ export type PartOutput = {
   issues: { line: number; from: number; to: number; category: 'expression' | 'grammar'; reason: string; fixed: string }[];
   final: string[];
   comment: string;
-  accuracy?: number; // 스피킹·면접만 (mock fixture에는 없을 수 있다)
+  accuracy?: number; // 질문에 답하는 경우만 (스피킹·면접·발표 예상 질문 답변). mock fixture에는 없을 수 있다
 };
 
 const SUMMARY_SCHEMA = {
@@ -114,7 +114,7 @@ const QUESTIONS_SCHEMA = {
 export type InterviewQuestionsOutput = Record<'intro' | 'motivation' | 'job' | 'experience' | 'closing', string>;
 
 /**
- * 파트 하나에 대해 패닉 원인·대안, expression / grammar 하이라이트, 최종 대본, 코멘트를 받는다.
+ * 파트 하나에 대해 패닉 원인·대안, expression / grammar 하이라이트, 최종 대본, 코멘트, 답변 정확성을 받는다.
  * LLM의 줄·단어 번호는 파트 전체 단어 번호(offset 기준)로 바꾸고, 범위를 벗어나면 버린다.
  */
 export async function analyzePart(input: AnalyzeInput, script: Line[], partIndex: number): Promise<LlmPartResult> {

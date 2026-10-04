@@ -26,7 +26,7 @@ function mmss(sec: number) {
   return `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
 }
 
-// 와이어프레임 녹음 화면: (발표 자료) + 마이크 + 파일 업로드 → 분석하기 → /script
+// 와이어프레임 녹음 화면: (발표 자료) + 마이크 + 파일 업로드 → 대본 만들기(전사) → /review (대본 검토)
 export default function RecordPage() {
   const { settings, previous } = useAnalysis();
   // "다시, 말해" 재도전: 지난 결과의 대안 대본을 띄워 두고 녹음한다

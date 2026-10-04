@@ -27,7 +27,7 @@ export type Highlight = {
 
 export type Part = {
   comment?: string;
-  accuracy?: number; // 스피킹·면접만: 답변 정확성 0~100 (LLM)
+  accuracy?: number; // 스피킹·면접·발표 예상 질문 답변만: 답변 정확성 0~100 (LLM, 토익 Part 1은 지문 일치율)
   duration: number;
   script: Line[];
   highlight: Highlight[];
@@ -87,7 +87,7 @@ export type AnalyzeRequest = {
   level?: Level;
   exam?: Exam;
   language: Language;
-  questions?: string[]; // 스피킹만
+  questions?: string[]; // 스피킹·면접, 발표 예상 질문 답변
   parts: TranscriptPart[]; // transcribe 응답의 parts에서 words만 고쳐서 보낸다
 };
 

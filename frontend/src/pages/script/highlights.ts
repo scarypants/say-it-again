@@ -23,7 +23,7 @@ export const CATEGORY: Record<
     mark: "bg-hl-panic-soft",
     dot: "bg-hl-panic",
     under: "decoration-hl-panic",
-    desc: "2초 이상 말이 멈추기 직전의 구간",
+    desc: "오래 멈추기 바로 전에 한 말 (2초, 스피킹은 1.5초 이상). 첫마디가 3초 넘게 늦으면 처음 한 말",
   },
   filler: {
     label: "군말",

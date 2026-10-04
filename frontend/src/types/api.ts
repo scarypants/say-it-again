@@ -1,5 +1,6 @@
 // docs/api.md 와 동일하게 유지한다. 계약이 바뀌면 이 파일도 같이 고친다.
-// 흐름: 녹음 → [1] POST /api/transcribe → 대본 검토·수정 → [2] POST /api/analyze → 결과
+// 흐름: (스피킹·면접) [0] POST /api/questions로 질문 받기 → 녹음 → [1] POST /api/transcribe → 대본 검토·수정 → [2] POST /api/analyze → 결과
+// 결과 화면에서: 재도전은 [3] POST /api/retry, 꼬리질문은 [0] POST /api/questions (followUp)
 
 export type Mode = "presentation" | "speaking" | "interview"; // 발표 / 어학 스피킹 / 면접
 export type Lang = "ko" | "en";
@@ -9,7 +10,7 @@ export type PresentationLevel = "assignment" | "exam" | "keynote";
 
 export type Exam = "TOEIC-Speaking" | "opic"; // 토익 스피킹 / 오픽
 
-// 대본의 한 줄 = 한 문장. 2초 이상 정지는 pause 줄로 따로 들어간다
+// 대본의 한 줄 = 한 문장. 2초(스피킹 1.5초) 이상 정지는 pause 줄로 따로 들어간다 (질문에 답하는 연습은 첫마디 전 3초 이상 침묵도)
 export type Line = {
   start: number; // 초
   end: number;

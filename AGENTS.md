@@ -19,8 +19,8 @@
 | 사람 | GitHub | AI | 역할 | 소유 경로 |
 |---|---|---|---|---|
 | 윤화영 | scarypants | Claude | 백엔드 | `backend/**`, `docs/api.md` |
-| 고민준 | KO-HOJINI | Claude | 프론트 전체 | `frontend/**` (모든 페이지 + 아래 프론트 공용 파일 + `frontend/src/mocks/`) |
-| 김왁수 | kimwaksoo | Codex | (10/2 리허설부터 프론트 담당 해제) | 없음. 프론트 수정이 필요하면 고민준에게 요청 |
+| 고민준 | KO-HOJINI | Claude | 프론트엔드 (입력 화면 + 공용) | `frontend/src/pages/home/`, `frontend/src/pages/record/`, `frontend/src/pages/question/`, `frontend/src/pages/review/`, 그리고 아래 프론트 공용 파일 |
+| 김왁수 | kimwaksoo | Codex | 프론트엔드 (결과 화면) | `frontend/src/pages/summary/`, `frontend/src/mocks/`. 대본 하이라이트(`frontend/src/pages/script/`)는 고민준과 함께 |
 
 - 루트 `package.json`·루트 `package-lock.json`(workspaces)은 공동 관리: 의존성 추가는 각자 자기 workspace에 `npm install <pkg> -w frontend|backend`로 하고, lock 충돌이 나면 `npm install`로 재생성한다.
 - 프론트 공용 파일(주인: 고민준): `frontend/package.json`, `frontend/vite.config.ts`, tailwind/DaisyUI 설정, `frontend/src/main.tsx`, `frontend/src/App.tsx`(라우터), `frontend/src/components/common/`, `frontend/src/api/`, `frontend/src/types/`, `frontend/src/store/`(페이지 간 공유 상태), `frontend/src/styles/`
@@ -73,7 +73,7 @@
 - 포맷은 Prettier(`.prettierrc`), 줄바꿈 LF, 들여쓰기 2칸. 자기 소유 파일에만 포맷을 적용한다.
 - 파일명: 컴포넌트 `PascalCase.tsx`, 그 외 `camelCase.ts`.
 - 서버 튜닝 상수는 `backend/src/config.ts` 한곳에 모은다: `PANIC_GAP=2.0`, `SPEAKING_PANIC_GAP=1.5`, `LEAD_PANIC_SEC=3.0`, `MAX_WORDS=40`, `PANIC_TAIL_WORDS=3`, `AMBIGUOUS_FILLER_GAP=0.3`, `ACCURACY_WEIGHT`, `LLM_TIMEOUT_MS` 등. 모드에 따라 달라지는 규칙(문법 검사 여부, 정확성 비중, 패닉존 기준)은 `backend/src/modes.ts`에 모은다.
-- UI: DaisyUI 컴포넌트 우선. 하이라이트 5색 규칙은 `docs/plan.md` 6-1절을 따른다. 이모지 남발·의미 없는 카드 중첩 금지.
+- UI: DaisyUI 컴포넌트 우선. 하이라이트 색 규칙은 `docs/plan.md` 6-1절을 따른다. 이모지 남발·의미 없는 카드 중첩 금지.
 
 ## 7. 비밀값 · 환경 변수
 
