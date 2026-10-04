@@ -52,7 +52,8 @@ export async function analyze(input: AnalyzeInput): Promise<AnalyzeResponse> {
 
   const charts = buildCharts(parts);
   const { score: habit, stats } = buildStats(parts, charts);
-  // 스피킹·면접: 습관 점수와 답변 정확성의 가중 기하평균. 발표이거나 정확성을 하나도 못 받으면(LLM 실패) 습관 점수만
+  // 질문에 답하는 경우(스피킹·면접·발표 예상 질문 답변): 습관 점수와 답변 정확성의 가중 기하평균.
+  // 발표 본편이거나 정확성을 하나도 못 받으면(LLM 실패) 습관 점수만
   const weight = accuracyWeight(input);
   const accuracy = weight === undefined ? undefined : averageAccuracy(parts);
   const scoreDetail =

@@ -18,7 +18,7 @@ export const EXTRA_ORIGINS: string[] = (process.env.CORS_ORIGIN ?? '')
 export const PANIC_GAP = 2.0;
 /** 스피킹은 답변이 30~60초로 짧아 1.5초만 멈춰도 티가 난다 */
 export const SPEAKING_PANIC_GAP = 1.5;
-/** 질문에 답하는 모드(스피킹·면접): 녹음 시작 후 첫마디까지 이 이상 걸리면 패닉존 (말문이 막힌 것) */
+/** 질문에 답하는 경우(스피킹·면접·발표 예상 질문 답변): 녹음 시작 후 첫마디까지 이 이상 걸리면 패닉존 (말문이 막힌 것) */
 export const LEAD_PANIC_SEC = 3.0;
 /**
  * 한 단어가 이보다 길면 whisper가 침묵을 단어에 붙인 것으로 보고 이 길이로 자른다.
@@ -57,10 +57,10 @@ export const MIN_WORDS = 3;
 /** 애매한 필러(그, 이제, like 등)는 바로 뒤에 이 이상 멈칫했을 때만 필러로 본다 ("그… 저는") */
 export const AMBIGUOUS_FILLER_GAP = 0.3;
 
-/** 패닉존 하이라이트는 정지 직전 줄의 마지막 몇 단어만 표시한다 */
+/** 패닉존 하이라이트는 정지 직전 문장의 마지막 몇 단어만 표시한다 (대본 맨 앞 정지는 바로 뒤 문장의 처음 몇 단어) */
 export const PANIC_TAIL_WORDS = 3;
 
-// 중복 단어: 5줄 윈도우에서 같은 어간 3회 이상
+// 중복 단어: 5문장 윈도우에서 같은 어간 3회 이상
 export const REPEAT_WINDOW_LINES = 5;
 export const REPEAT_MIN_COUNT = 3;
 
@@ -69,7 +69,7 @@ export const REPEAT_MIN_COUNT = 3;
  * 기하평균이라 한쪽이 무너지면(질문과 상관없는 답 등) 다른 쪽이 좋아도 점수가 크게 떨어진다.
  * - 스피킹: 시험은 유창성(습관)과 내용이 같은 비중 → 0.5 (= √(habit × accuracy))
  * - 면접·발표 예상 질문 답변: 질문에 맞는 내용이 더 중요 → 0.7
- * - 발표: 질문이 없어 정확성을 매기지 않는다 (습관 점수만)
+ * - 발표 본편: 질문이 없어 정확성을 매기지 않는다 (습관 점수만)
  */
 export const ACCURACY_WEIGHT = { speaking: 0.5, interview: 0.7 } as const;
 

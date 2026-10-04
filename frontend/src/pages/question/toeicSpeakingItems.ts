@@ -1,6 +1,7 @@
 import type { Question } from "../../types/api";
 
-// 토익 스피킹 모의시험: 실제 시험 Part 1~5에서 한 문제씩 (Part마다 여러 세트 중 무작위)
+// 토익 스피킹 모의시험: 실제 시험 Part 1~5에서 한 문제씩. 문제는 서버(LLM)가 만들고, 받기 전이거나 실패하면
+// 이 파일의 기본 문항에서 낸다 (Part마다 여러 세트 중 무작위)
 // read = 자료 읽기, listen = 질문 듣기(TTS), prep = 준비, speak = 답변(자동 녹음)
 export type Phase =
   | { kind: "read"; sec: number }
@@ -101,7 +102,7 @@ const PART1 = [
   ),
 ];
 
-// Part 2 사진은 코드로 그린 장면이라 지금은 하나다 (CafeteriaScene.tsx)
+// 기본 문항의 Part 2 사진은 코드로 그린 장면이라 하나다 (CafeteriaScene.tsx). 서버가 만든 문제는 생성한 사진을 쓰고, 실패하면 이 장면을 쓴다
 const PART2: ToeicSpeakingItem[] = [
   {
     part: 2,

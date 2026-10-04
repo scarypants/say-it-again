@@ -18,9 +18,9 @@ const router = createBrowserRouter([
     children: [
       { path: "/", element: <HomePage />, handle: wide }, // 고민준: 모드 선택
       { path: "/record", element: <RecordPage />, handle: wide }, // 고민준: 녹음
-      { path: "/question", element: <QuestionPage /> }, // 고민준: 어학 질문
+      { path: "/question", element: <QuestionPage /> }, // 고민준: 스피킹·면접 질문, 꼬리질문 연습
       { path: "/review", element: <ReviewPage />, handle: wide }, // 고민준: 대본 검토·수정
-      { path: "/script", element: <ScriptPage />, handle: wide }, // 고민준: 스크립트 하이라이트
+      { path: "/script", element: <ScriptPage />, handle: wide }, // 고민준·김왁수: 스크립트 하이라이트
       { path: "/summary", element: <SummaryPage />, handle: wide }, // 김왁수: 총평
     ],
   },

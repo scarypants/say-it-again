@@ -4,7 +4,7 @@ import type { Exam, Highlight, InterviewQuestionType, Language, Level, Mode, Ret
 
 export type Word = { word: string; start: number; end: number };
 
-/** 두 API 공통 요청 정보 */
+/** transcribe·analyze·retry 공통 요청 정보 */
 export type ModeInfo = {
   mode: Mode;
   language: Language;
@@ -25,7 +25,7 @@ export type LlmPartResult = {
   panicNotes: Map<number, { reason: string; fixed: string }>; // pause 줄 번호 → 원인·대안
   final: { words: string[] }[];
   comment?: string;
-  accuracy?: number; // 스피킹·면접: 답변 정확성 0~100
+  accuracy?: number; // 스피킹·면접·발표 예상 질문 답변: 답변 정확성 0~100
 };
 
 /** STT 결과 */

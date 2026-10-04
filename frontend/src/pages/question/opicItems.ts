@@ -1,4 +1,4 @@
-// 오픽 모의시험: data/opic/*.json(문항 데이터)으로 문제 5개를 만든다.
+// 오픽 모의시험: 문제는 서버(LLM)가 만들고(opicItemFromServer), 실패하면 data/opic/*.json(문항 데이터)으로 문제 5개를 만든다(buildOpicExam).
 // 실제 시험 순서를 줄인 것: Q1 자기소개 → Q2~4 서베이 주제 콤보(묘사 → 루틴 → 과거 경험) → Q5 롤플레이
 import intro from "./data/opic/intro.json";
 import rolePlays from "./data/opic/rolePlays.json";

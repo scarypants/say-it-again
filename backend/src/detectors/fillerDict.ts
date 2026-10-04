@@ -4,8 +4,8 @@ import type { Language } from '../types/api';
 export type FillerDict = {
   certain: string[]; // 항상 필러로 본다
   patterns: RegExp[]; // 늘여 말한 형태 (예: 어어, 음음)
-  ambiguous: string[]; // 앞뒤 간격이 길 때만 필러로 본다
-  phrases: string[][]; // 연속된 여러 단어로 된 필러
+  ambiguous: string[]; // 바로 뒤에 멈칫했거나, 다른 필러 바로 뒤이거나, 바로 되풀이했을 때만 필러로 본다
+  phrases: string[][]; // 연속된 여러 단어로 된 필러 (바로 뒤에 멈칫했을 때만)
 };
 
 export const FILLERS: Record<Language, FillerDict> = {
