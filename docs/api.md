@@ -57,7 +57,7 @@ Base URL: `http://localhost:8080/api`
 | `questions` | string (JSON 배열) | 스피킹·면접 (발표는 예상 질문 답변일 때만) | 질문 문자열 배열. `audio`와 같은 순서·같은 개수 |
 
 - 예시 — 발표: `audio=part1-recording.webm`, `mode=presentation`, `language=ko`, `level=exam` / 스피킹: `mode=speaking`, `language=en`, `exam=opic`, `questions=[…]`, `audio=q1-recording.webm` / 면접: `mode=interview`, `language=ko`, `questions=[…]`, `audio=q1-recording.webm` …
-- `audio`는 같은 필드 이름으로 여러 번 붙인다. 서버는 파일 이름이 아니라 **붙인 순서**를 파트 순서로 쓴다. webm과 mp4(Safari)를 허용한다.
+- `audio`는 같은 필드 이름으로 여러 번 붙인다. 서버는 파일 이름이 아니라 **붙인 순서**를 파트 순서로 쓴다. webm·mp4(Safari)·m4a(파일 업로드)를 허용한다 (mimetype `audio/webm`, `video/webm`, `audio/mp4`, `video/mp4`, `audio/x-m4a`). 파일 하나는 25MB까지다 (whisper 제한).
 - 발표 자료(PDF)는 받지 않는다. `audio` 외의 파일 필드(예: `material`)가 오면 400이다.
 
 ### 응답 200
@@ -82,8 +82,9 @@ type Line = {
 };
 ```
 
-- 문장은 whisper의 문장 경계에서 끊고, 2초(스피킹은 1.5초) 이상 멈춘 곳에서는 문장 중간이라도 끊고 pause 줄을 넣는다.
-- 스피킹·면접은 첫마디 전 침묵이 3초 이상이면 대본 **맨 앞**에도 pause 줄을 넣는다(`start` = 0, 질문을 듣고 말문이 막힌 것). 발표는 맨 앞 침묵을 무시한다. 녹음 맨 뒤 침묵은 모든 모드에서 무시한다.
+- 문장은 whisper의 문장 경계에서 끊고, 2초(스피킹은 1.5초) 이상 멈춘 곳에서는 문장 중간이라도 끊고 pause 줄을 넣는다. 한 문장이 40단어를 넘으면 끊는다 (whisper가 아주 긴 문장을 줄 때의 안전장치).
+- 질문에 답하는 경우(스피킹·면접·발표 예상 질문 답변)는 첫마디 전 침묵이 3초 이상이면 대본 **맨 앞**에도 pause 줄을 넣는다(`start` = 0, 질문을 듣고 말문이 막힌 것). 발표 본편은 맨 앞 침묵을 무시한다. 녹음 맨 뒤 침묵은 모든 모드에서 무시한다.
+- 전사된 단어가 3개 미만이면 음성이 없는 것으로 보고 422를 돌려준다.
 - whisper 힌트: `questions[i]`가 있으면 그 질문의 `Question:`·`Job:`·`Situation:`·`Information:` 줄 내용을 군말 예시 앞에 넣어 고유명사·전문용어를 맞게 받아 적게 한다 (400자까지). 토익 Part 1 지문은 넣지 않는다: 잘못 읽은 부분까지 지문대로 받아 적으면 지문 읽기 정확성이 부풀려진다.
 - whisper는 멈춘 시간을 앞뒤 단어에 붙이곤 해서(특히 영어에서 um을 지울 때), 1.5초보다 긴 단어는 1.5초로 잘라 멈춤을 잰다. 첫 단어나 문장 첫 단어는 앞쪽을, 그 외는 뒤쪽을 자른다. 잘린 시간이 `wordTimes`·`start`·`end`에 그대로 들어간다.
 - 단어 `i`의 파트 전체 번호는 `offset + i`다.
@@ -148,7 +149,7 @@ type Part = {
   duration: number;       // 초
   script: Line[];         // 고친 대본 (offset 다시 계산됨)
   highlight: Highlight[];
-  final: { words: string[] }[];   // 문장 단위 최종 대본(면접은 모범 답안). 빈 배열이면 없음 (토익 Part 1)
+  final: { words: string[] }[];   // 문장 단위 최종 대본(면접·발표 예상 질문 답변은 다시 짠 모범 답안). 빈 배열이면 없음 (토익 Part 1, LLM 실패)
 };
 
 type Highlight = {
@@ -191,6 +192,7 @@ type Analysis = {
 ### 규칙
 - 하이라이트는 단어 번호 범위라서 문장을 넘는 구·절도 표시할 수 있다. 겹치는 구간은 그대로 두고, 색 우선순위(빨강 > 노랑 > 보라 > 파랑 > 초록)는 프론트가 적용한다.
 - `expression`·`grammar` 하이라이트의 `fixed`는 **고친 완성 대본(`final`)에 글자 그대로 들어 있는 구절**이다. LLM이 `final`과 다른 표현을 주면 서버가 그 하이라이트를 버린다 (공백·문장부호·대소문자는 무시하고 비교, `final`이 비었으면 검사하지 않음). 그래서 대본 화면의 고친 표현과 "고친 완성 대본" 탭이 항상 같다.
+- `expression` 하이라이트는 파트당 최대 8개다 (영향이 큰 순서, 서버 `MAX_EXPRESSIONS`). LLM이 준 줄·단어 번호가 대본 범위를 벗어나면 그 하이라이트는 버린다.
 - 사용자가 단어를 모두 지운 줄은 빼고, 그래서 이어 붙은 pause 줄은 하나로 합친다(처음 멈춤의 시작 ~ 마지막 멈춤의 끝). 같은 문장 끝에 패닉존이 두 번 붙지 않는다. 응답의 `parts[].script`는 정리된 대본이다.
 - `panic` 하이라이트는 pause 줄 직전 문장의 **마지막 3단어**에 붙는다. 맨 앞 pause 줄(첫마디 전 침묵)은 바로 뒤 문장의 **처음 3단어**에 붙는다. 이유와 대안 대본(`fixed`)은 LLM이 채운다 (맨 앞이면 바로 꺼낼 수 있는 첫 문장).
 - 필러는 코드가 찾는다. 확실한 군말(어, 음, um, uh)은 항상, 애매한 말(그, 이제, 그러니까, like, so)은 바로 뒤에 멈칫했거나 다른 필러 바로 뒤일 때만 필러로 본다. 애매한 말을 바로 되풀이하면("그 그 그") 말 더듬기라 간격과 상관없이 필러다. 문장부호(. ? !)로 끝나는 애매한 말("I think so.", "That's right.")은 문장의 일부라 필러가 아니다.
@@ -211,7 +213,7 @@ type Analysis = {
   - **프론트 표시**: 총평 점수 아래에 산출 방식을 한 줄로 밝힌다. `scoreDetail`이 있으면 습관·정확성 점수와 비중(예: "말하기 습관 90점 · 답변 정확성 60점, 정확성 비중 70%로 계산 — 한쪽이 낮으면 크게 깎여요"), 없으면 "패닉존·군말·반복 기준".
   - `categoryRatio.normal`(정상 비율)은 다섯 항목을 모두 뺀 값이라 점수와 다를 수 있다 (점수 ≥ 정상 비율). 화면에서 점수 옆에 "패닉존·군말·반복 기준"이라고 밝혀 둔다.
 - `stats`는 모든 파트의 합산이다. `wpm` = 전체 단어 수 ÷ 발화 시간(분, pause 줄과 문장 사이 간격 제외, 필러 포함). `fillerCount`·`panicCount`·`repeatCount`·`expressionCount`·`grammarCount` = 해당 category의 하이라이트 수. `panicTotalSec` = `pauseSec`의 합.
-- `summary.comment`는 총평 LLM이 쓰는 전체 코멘트이고, `parts[].comment`는 파트별 코멘트(스피킹·면접만)다.
+- `summary.comment`는 총평 LLM이 쓰는 전체 코멘트이고, `parts[].comment`는 파트별 코멘트(스피킹·면접·발표 예상 질문 답변만)다. `summary.topPriorities`는 최대 3개다.
 - 용어: 서버가 쓰는 설명 글(`reason`, `comment`, `summary`, `retry`)은 화면과 같은 이름만 쓴다 — 패닉존(`panic`), 군말(`filler`), 반복(`repeat`), 표현 개선(`expression`), 문법(`grammar`), 정상(`normal`). LLM 프롬프트에도 같은 지시가 들어 있다.
 - 총평 화면 5개와의 대응: 카테고리 비율 = `charts.categoryRatio`, 중복 차트 = `charts.repeatTop`, 필러 차트 = `charts.fillerTop`, 분석 총평 = `analysis`, 최종 대본 = `parts[].final`.
 
@@ -278,7 +280,7 @@ type Analysis = {
 이전 결과 보관 → 이전 최종 대본을 보며 다시 녹음 → [1] transcribe → 전사 오류 수정 → [3] retry → 전후 비교 + 재도전 총평
 ```
 
-- analyze와 달리 **파트별 LLM을 부르지 않는다.** 패닉존·필러·중복은 코드가 찾고, LLM은 재도전 총평 1회만 부른다. 그래서 analyze보다 빠르다.
+- analyze와 달리 **파트별 분석 LLM(패닉 원인·표현 개선·최종 대본)을 부르지 않는다.** 패닉존·군말·반복은 코드가 찾고, LLM은 재도전 총평 1회만 부른다. `previous.accuracy`를 보냈을 때만 파트마다 정확성만 매기는 가벼운 호출이 더해진다. 그래서 analyze보다 빠르다.
 - 서버는 이전 결과를 저장하지 않으므로 프론트가 `previous`로 다시 보낸다.
 
 ### 요청
@@ -497,20 +499,21 @@ type FollowUpQuestionsRequest = {
   kind: "followUp";
   mode: "presentation" | "speaking" | "interview";
   language: "ko" | "en";
-  level?: "assignment" | "exam" | "keynote";   // 발표
-  exam?: "TOEIC-Speaking" | "opic";            // 스피킹
-  job?: string;                                // 면접 (처음 질문 응답의 job)
+  level?: "assignment" | "exam" | "keynote";   // 발표에서는 필수
+  exam?: "TOEIC-Speaking" | "opic";            // 스피킹에서는 필수
+  job?: string;                                // 면접 (처음 질문 응답의 job. 선택, 보내면 1~50자)
   count?: 1 | 2 | 3;                           // 받을 꼬리질문 개수. 기본 3
   answers: {                                   // 꼬리질문을 만들 재료: 원래 연습의 녹음(파트)마다 하나씩, 파트 순서대로 1~5개 (꼬리질문 개수와 무관)
-    question?: string;                         // 그 파트의 questions[i] (발표는 없음)
+    question?: string;                         // 그 파트의 questions[i] (발표 본편은 없음). 2,000자 이하
     text: string;                              // 실제로 말한 대본: 분석 결과 parts[i].script의 words를 공백으로 이어 붙인 것
   }[];
-  asked?: string[];                            // 이미 받은 꼬리질문 text (다시 받을 때 중복을 피한다)
+  asked?: string[];                            // 이미 받은 꼬리질문 text (다시 받을 때 중복을 피한다). 30개 이하
 };
 ```
 
 - `answers[].text`는 모범 답안(`final`)이 아니라 **실제로 말한 대본**이다. 꼬리질문은 사용자가 한 말에서 나와야 한다.
-- `answers[].text` 합계는 20,000자 이하.
+- `answers[].text` 합계는 20,000자 이하이고, 모두 비어 있으면 400이다.
+- 서버는 LLM이 준 질문 중 빈 질문, 그 모드에 없는 `type`, `asked`에 있거나 서로 겹치는 질문, 상황(`context`)이 없는 토익 Part 3 질문을 버리고 `count`개까지 돌려준다. 그래서 `count`보다 적게 올 수 있다.
 
 ### 응답 200
 
@@ -546,7 +549,7 @@ type Question = {
   topic?: { id: string; label: string };  // 처음 질문의 묘사·루틴·경험·롤플레이
   // 꼬리질문
   hint?: string;             // 발표: 답변 방향 한 줄 / 면접: 이 질문의 의도 한 줄 (한국어)
-  about?: number;            // 면접·스피킹 꼬리질문: 이어지는 답변 번호(answers 기준, 0부터). 면접 prompt 머리말의 QM은 이 답변의 원래 질문 번호
+  about?: number;            // 꼬리질문: 이어지는(가장 관련 있는) 답변·녹음 번호(answers 기준, 0부터). LLM이 정하지 못하면 없다. 면접 prompt 머리말의 QM은 이 답변의 원래 질문 번호
 };
 ```
 
@@ -569,14 +572,14 @@ type Question = {
 | initial · 면접 | `intro` → `motivation` → `job` → `experience` → `closing` | 5개, 순서 고정 |
 | initial · 토익 | `readAloud`(Part 1) → `describePicture`(Part 2) → `respond`(Part 3) → `information`(Part 4) → `opinion`(Part 5) | 5개, 순서 고정 |
 | initial · 오픽 | `intro` → `description` → `routine` → `experience` → `rolePlayAsk` 또는 `rolePlaySolve`(level 5 이상) | 5개, 순서 고정. 묘사·루틴·경험은 같은 주제 |
-| followUp · 발표 | `expected` (+ `hint`) | 1~3개 |
-| followUp · 토익 | `respond` 또는 `opinion` | 1~3개 |
+| followUp · 발표 | `expected` (+ `hint`, 관련 녹음을 알면 `about`) | 1~3개 |
+| followUp · 토익 | `respond`(Part 3, `context`에 상황) 또는 `opinion`(Part 5) (+ `part`, 이어지는 답변을 알면 `about`) | 1~3개 |
 | followUp · 오픽 | `followUp` (+ `about`. 이어지는 답변의 주제 id는 `prompt` 머리말에) | 1~3개 |
 | followUp · 면접 | `followUp` (+ `about`, `hint`) | 1~3개 |
 
 - **토익 Part 2 사진은 이미지 생성 모델로 만들고, 질문과 따로 받는다.** 사진 문제는 처음 질문(`initial` · 토익)의 Part 2 **한 문항뿐**이고, 꼬리질문에는 사진 문제를 넣지 않는다.
   - `/api/questions`는 사진을 기다리지 않고 질문 5개를 바로 돌려준다. Part 2에는 사진 대신 `picture`(장면 설명 + 두 가지 `prompt`)가 들어 있다.
-  - 장면 설명은 LLM이 질문과 함께 쓴다 (사람·사물·배경, 영어 2~3문장). `picture.prompt`의 `Picture:` 줄에 들어가 analyze가 묘사의 정확성을 판단하는 근거가 된다.
+  - 장면 설명은 LLM이 질문과 함께 쓴다 (사람·사물·배경, 영어 2~3문장). `picture.prompt`의 `Picture:` 줄에 들어가 analyze가 묘사의 정확성을 판단하는 근거가 된다. LLM이 장면 설명을 비워 주면 기본 사진(카페테리아)의 장면 설명을 `scene`으로 쓴다.
   - 질문 문장은 고정("Describe the picture in as much detail as you can.").
   - 사진 받는 순서는 아래 "사진 생성"을 따른다.
 
@@ -618,22 +621,30 @@ type QuestionImageResponse = {
 ```
 
 - **사진과 `questions[i]`는 반드시 짝을 맞춘다.** 화면에 보여 준 사진의 설명이 들어간 `prompt`를 보내야 analyze가 묘사를 맞게 평가한다.
-- 모델은 환경 변수 `OPENAI_IMAGE_MODEL=gpt-image-2.5-flare`, API 키는 `OPENAI_API_KEY` 그대로. 가로형 1장, 속도를 위해 낮은 품질 설정을 쓴다.
+- 모델은 환경 변수 `OPENAI_IMAGE_MODEL=gpt-image-2.5-flare`, API 키는 `OPENAI_API_KEY` 그대로. 가로형 1장(1536x1024, JPEG), 속도를 위해 낮은 품질 설정을 쓴다.
 - 서버는 사진을 저장하지 않는다.
-- 실패: `scene`이 비었거나 1000자를 넘으면 400, 이미지 생성 실패·시간 초과(서버 상한 60초)는 502. 프론트는 어느 경우든 기본 사진으로 출제한다.
+- 실패: `scene`이 비었거나 1000자를 넘으면 400, `OPENAI_IMAGE_MODEL`이 비어 있거나 이미지 생성 실패·시간 초과(서버 상한 60초)는 502. 프론트는 어느 경우든 기본 사진으로 출제한다.
+- mock 모드(`MOCK_LLM=true`)에서는 3초 뒤 장면 설명이 적힌 자리 표시 그림(`data:image/svg+xml;base64,...`)을 돌려준다.
 - 사용자가 Part 1 도중 나가면 이 요청의 결과는 버린다.
-- 꼬리질문으로 답변을 연습할 때(스피킹·면접): 받은 질문의 `prompt`를 `questions`로 해서 같은 모드로 녹음 → transcribe → analyze. 질문 수 = 녹음 수 (1~3개).
+
+### 꼬리질문으로 답변 연습하기
+
+- 받은 질문의 `prompt`를 `questions`로 해서 같은 모드로 녹음 → transcribe → analyze 한다. 질문 수 = 녹음 수 (1~3개).
+- 발표 예상 질문(`Presentation Q&A N`)은 `mode: "presentation"` + `level` + `questions`로 보낸다 (1절, 발표 질의응답 기준으로 평가).
 
 ### LLM 실패 시
 
 | 요청 | 응답 |
 |---|---|
 | initial · 면접 | 200. 직무를 넣은 기본 질문 5개 + `warnings: ["llm_failed"]` (아래 기본 질문) |
-| initial · 스피킹 | 200. `questions: []` + `warnings: ["llm_failed"]` → 프론트는 지금 가진 문항 데이터로 낸다 |
+| initial · 스피킹 | 200. `questions: []` + `warnings: ["llm_failed"]` → 프론트는 지금 가진 문항 데이터로 낸다 (응답이 15초 안에 오지 않거나 5개가 아니어도 같다) |
 | followUp | 200. `questions: []` + `warnings: ["llm_failed"]` → "질문을 만들지 못했어요. 다시 시도해 주세요" |
 
 - 면접 기본 질문(ko): "1분 동안 자기소개를 해 주세요." / "{job} 직무에 지원한 이유는 무엇인가요?" / "{job} 직무에서 가장 중요한 역량은 무엇이고, 본인은 그 역량을 어떻게 갖췄나요?" / "팀으로 일하며 갈등이나 어려움을 해결한 경험을 말해 주세요." / "마지막으로 하고 싶은 말이 있나요?" (en도 같은 구성)
-- LLM이 일부 질문을 빈 문자열로 주면: 면접 처음 질문은 그 칸만 기본 질문으로 채우고, 나머지는 빈 질문을 빼고 돌려준다 (`warnings` 없음).
+- LLM이 일부만 비워서 줄 때:
+  - 면접 처음 질문: 빈 칸만 기본 질문으로 채운다 (`warnings` 없음).
+  - 토익·오픽 처음 질문: 지문·질문이 하나라도 비면(토익 Part 4는 쓸 수 있는 자료 줄이 하나도 없어도) 시험이 성립하지 않으므로 전체를 실패로 본다 → `questions: []` + `warnings: ["llm_failed"]`. 토익 Part 2 장면 설명만은 비어도 기본 사진 장면으로 채운다.
+  - 꼬리질문: 쓸 수 없는 질문을 빼고 돌려준다 (`warnings` 없음). 하나도 남지 않으면 `questions: []` + `warnings: ["llm_failed"]`.
 
 ### 예시
 
@@ -700,24 +711,38 @@ type QuestionImageResponse = {
 
 ## 7. 공통 규칙
 
-### `questions` (스피킹·면접)
-- 아래 형식의 문자열은 `POST /api/questions` 응답의 `prompt`로 서버가 만들어 준다. 프론트는 그대로 보낸다.
+### `questions` (스피킹·면접·발표 예상 질문 답변)
+- 아래 형식의 문자열은 `POST /api/questions` 응답의 `prompt`로 서버가 만들어 준다. 프론트는 그대로 보낸다. (서버 질문 생성이 실패해 프론트 기본 문항으로 낼 때도 프론트가 같은 형식으로 만든다.)
 - transcribe(multipart)에서는 `JSON.stringify(questions)` 문자열, analyze·retry(JSON)에서는 배열 그대로 보낸다. `questions[i]`의 답이 `audio[i]`(= `parts[i]`)이고 개수가 같아야 한다.
-- 오픽은 질문 문장 그대로다.
-  ```json
-  ["Please introduce yourself in as much detail as possible.", "Tell me about the place where you live. What does it look like, and what do you like about it?"]
-  ```
-- 토익 스피킹은 파트 이름과 화면에만 있는 정보(지문, 사진 설명, 일정표)를 글로 풀어서 한 문자열에 넣는다 (일부만 표시).
+- 오픽은 머리말(문항 번호·유형·주제 id), 자가 평가 단계, 질문 문장을 한 문자열에 넣는다. 자기소개는 주제가 없다. 유형 영어 이름: `intro`=Self-introduction, `description`=Description, `routine`=Routine, `experience`=Past experience, `rolePlayAsk`=Role-play: ask the interviewer 3-4 questions, `rolePlaySolve`=Role-play: explain the problem and suggest alternatives
   ```json
   [
-    "TOEIC Speaking Part 1 (지문 읽기)\nText to read aloud: Attention, students. ...",
-    "TOEIC Speaking Part 2 (사진 묘사하기)\nPicture: a campus cafeteria. ...\nQuestion: Describe the picture in as much detail as you can.",
-    "TOEIC Speaking Part 3 (질문에 답하기)\nSituation: ...\nQuestion: ...",
-    "TOEIC Speaking Part 4 (정보 보고 답하기)\nInformation: Campus Career Fair — ...\nQuestion: ...",
-    "TOEIC Speaking Part 5 (의견 제시하기)\nQuestion: Do you agree or disagree with ..."
+    "OPIc Q1 (Self-introduction)\nSelf-assessment level: 3\nQuestion: Let's start the interview now. Tell me a little bit about yourself.",
+    "OPIc Q2 (Description, topic: cafe)\nSelf-assessment level: 3\nQuestion: You indicated in the survey that you enjoy going to cafes. Describe your favorite cafe. ..."
   ]
   ```
+- 토익 스피킹은 파트 이름과 화면에만 있는 정보(지문, 사진 설명, 일정표)를 글로 풀어서 한 문자열에 넣고, 마지막 줄에 답변 시간을 적는다 (Part 1 45초, Part 2~4 30초, Part 5 60초. 일부만 표시).
+  ```json
+  [
+    "TOEIC Speaking Part 1 (지문 읽기)\nText to read aloud: Attention, students. ...\nAnswer time limit: 45 seconds (recording continues after the limit)",
+    "TOEIC Speaking Part 2 (사진 묘사하기)\nPicture: a campus cafeteria. ...\nQuestion: Describe the picture in as much detail as you can.\nAnswer time limit: 30 seconds (recording continues after the limit)",
+    "TOEIC Speaking Part 3 (질문에 답하기)\nSituation: ...\nQuestion: ...\nAnswer time limit: 30 seconds (recording continues after the limit)",
+    "TOEIC Speaking Part 4 (정보 보고 답하기)\nInformation: Campus Career Fair. 10:00 Résumé Workshop (Dana Lee); 11:00 Interview Basics (Mark Chen); ...\nQuestion: ...\nAnswer time limit: 30 seconds (recording continues after the limit)",
+    "TOEIC Speaking Part 5 (의견 제시하기)\nQuestion: Do you agree or disagree with the following statement? ... Use specific reasons and examples to support your answer.\nAnswer time limit: 60 seconds (recording continues after the limit)"
+  ]
+  ```
+  - Part 4의 `Information:` 줄은 `{제목}. {time} {session} ({speaker}); …` 형식이다 (`speaker`가 비면 괄호 없이).
+  - Part 5 질문은 서버가 LLM의 진술 한 문장을 `Do you agree or disagree with the following statement? {진술} Use specific reasons and examples to support your answer.`로 감싼다.
 - 서버는 질문 문자열을 그대로 LLM에 전달한다. 사진 설명과 정보표가 글로 들어 있어서 LLM이 내용의 정확성까지 판단할 수 있다.
+- 서버 코드가 질문 문자열에서 직접 읽는 것은 아래뿐이다. 이 줄 이름·머리말을 바꾸면 서버 동작이 달라진다.
+
+  | 읽는 것 | 쓰임 |
+  |---|---|
+  | `Question:`·`Job:`·`Situation:`·`Information:` 줄 | whisper 힌트 (3절) |
+  | `TOEIC Speaking Part 1` 머리말 + `Text to read aloud:` 줄 | 지문 일치율로 정확성 계산 (4절) |
+  | `Presentation Q&A` 머리말 | 면접 모드로 와도 발표 질의응답으로 평가 (아래) |
+  | `Job:` 줄 | 면접 총평·재도전 총평의 상황 설명 |
+  | 꼬리질문 요청 `answers[].question`의 `Q숫자`, `topic: …` | 면접 꼬리질문 머리말의 `about QM`, 오픽 꼬리질문 머리말의 주제 id |
 - 면접은 질문 번호·유형, 지원 직무, 질문 문장을 한 문자열에 넣는다 (`job`은 별도 필드로 보내지 않는다). 유형 영어 이름: `intro`=Self-introduction, `motivation`=Motivation, `job`=Job knowledge, `experience`=Past experience (STAR), `closing`=Closing
   ```json
   [
@@ -725,14 +750,17 @@ type QuestionImageResponse = {
     "Interview Q2 (Motivation)\nJob: 백엔드 개발자\nQuestion: 백엔드 개발자 직무에 지원한 이유는 무엇인가요?"
   ]
   ```
-- 꼬리질문은 머리말만 다르다: 면접 `Interview Follow-up N (about QM)` (M은 `answers[about].question`의 원래 질문 번호. 없으면 `about + 1`), 오픽 `OPIc Follow-up N (topic: …)`, 토익 `TOEIC Speaking Part 3/5 (…)` (처음 질문과 같은 형식), 발표 예상 질문 `Presentation Q&A N`.
+- 꼬리질문은 머리말만 다르다: 면접 `Interview Follow-up N (about QM)` (M은 `answers[about].question`의 원래 질문 번호. 없으면 `about + 1`. `about`이 없으면 괄호도 없다. 요청에 `job`이 없으면 `Job:` 줄도 없다), 오픽 `OPIc Follow-up N (topic: …)` + `Question:` 줄 (자가 평가 단계 줄은 없다), 토익 `TOEIC Speaking Part 3/5 (…)` (처음 질문과 같은 형식), 발표 예상 질문 `Presentation Q&A N` + `Question:` 줄.
 - 발표 예상 질문 답변(`Presentation Q&A N`)은 `mode: "presentation"` + `questions`로 보낸다 (1절). 서버는 **발표 질의응답 기준**(바로 답하기·근거·모르면 인정·간결함)으로 코멘트·모범 답변·총평을 쓰고, 면접 기준(직무·STAR)은 쓰지 않는다. 예전처럼 `mode: "interview"`로 보내도 머리말을 보고 같은 기준으로 평가한다 (프론트가 옮길 때까지 호환).
 
 ### 검증
 - `mode`와 `language` 조합: 발표·면접은 `ko`·`en`, 스피킹은 `en`만 허용한다.
-- `level`은 발표에서, `exam`은 스피킹에서, `questions`는 스피킹·면접에서 필수. 스피킹·면접은 `questions` 개수 = 녹음(파트) 개수.
-- questions: `kind`·`mode`·`language`·`exam` 조합이 표(6절)와 다르면(예: initial + presentation), 면접 `job`이 비었거나 50자를 넘으면, 오픽 `topics`가 1~3개가 아니거나 `level`이 1~6이 아니면, followUp `answers`가 1~5개가 아니거나 합계 20,000자를 넘으면, `count`가 1~3이 아니면 400.
-- retry는 위 규칙에 더해 `previous`가 필수다. `previous.final`은 빈 배열이어도 된다.
+- `level`은 발표에서, `exam`은 스피킹에서, `questions`는 스피킹·면접에서 필수. 스피킹·면접은 `questions` 개수 = 녹음(파트) 개수. 발표는 `questions`가 없거나 빈 배열이면 본편, 있으면 예상 질문 답변이며 이때도 개수가 녹음 수와 같아야 한다.
+- analyze·retry의 `parts`는 1~5개. 각 줄은 `start`·`end`(숫자, `end` ≥ `start`)와 `words`(문자열 배열)가 있어야 한다. `wordTimes`는 단어 수와 맞을 때만 쓰고, 맞지 않으면 무시한다(400이 아니다).
+- questions: `kind`·`mode`·`language`·`exam` 조합이 표(6절)와 다르면(예: initial + presentation), 면접 `job`이 비었거나 50자를 넘으면(줄바꿈·연속 공백은 공백 하나로 정리한 뒤 센다), 오픽 `topics`가 1~3개가 아니거나 `id`·`label`이 비었거나 `level`이 1~6 정수가 아니면, followUp에서 발표인데 `level`이 없거나 스피킹인데 `exam`이 없으면, `answers`가 1~5개가 아니거나 `text` 합계가 20,000자를 넘거나 모두 비었으면, `answers[].question`이 2,000자를 넘으면, `asked`가 30개를 넘으면, `count`가 1~3이 아니면 400.
+- questions/image: `scene`이 1~1,000자가 아니면 400.
+- retry는 위 규칙에 더해 `previous`가 필수다. `previous.durationSec`는 0보다 커야 하고, `previous.stats`·`previous.categoryRatio`의 모든 항목이 숫자여야 하며, `previous.accuracy`를 보내면 0~100이어야 한다. `previous.final`은 빈 배열이어도 된다.
+- JSON 요청 본문은 2MB까지다.
 
 ### 길이 제한 (서버는 +5초 여유로 검증)
 
@@ -742,15 +770,16 @@ type QuestionImageResponse = {
 | 오픽 | 답변당 2분 |
 | 토익 스피킹 | 답변당 60초 (가장 긴 문항 기준) |
 | 면접 | 답변당 2분 |
+| 발표 예상 질문 답변 | 답변당 5분 (발표 모드 상한을 그대로 쓴다. 프론트 타이머는 2분) |
 
-토익은 파트마다 답변 시간이 다르지만 요청에 파트 번호 필드가 없어서 서버는 위 상한만 확인한다. 정확한 파트별 시간 제한은 프론트 녹음 타이머가 담당한다.
+토익은 파트마다 답변 시간이 다르지만 요청에 파트 번호 필드가 없어서 서버는 위 상한만 확인한다. 정확한 파트별 시간 제한은 프론트 녹음 타이머가 담당한다. transcribe는 whisper가 알려 준 길이로, analyze·retry는 요청의 `parts[].duration`으로 확인한다.
 
 ### 처리 흐름
 
 ```
 transcribe: 검증 → 녹음마다 병렬 STT(whisper, 질문 내용을 힌트로) → 문장 단위 분할 + pause 줄
-analyze:    검증 → 파트별 코드 분석(패닉존, 필러, 중복) → 파트별 LLM 병렬(패닉 원인, 표현 개선, 문법, 최종 대본)
-            → 총평 LLM 1회 → 합산
+analyze:    검증 → 파트별 코드 분석(패닉존, 필러, 중복) → 파트별 LLM 병렬(패닉 원인, 최종 대본, 표현 개선, 문법, 코멘트, 정확성)
+            → 합산(차트, 점수) → 총평 LLM 1회
 retry:      검증 → 파트별 코드 분석(패닉존, 필러, 중복) → (previous.accuracy가 있으면 파트별 정확성 채점 병렬)
             → 합산 + 전후 비교·대본 일치율 → 재도전 총평 LLM 1회
 questions:  검증 → 질문 생성 LLM 1회 (initial 면접은 실패 시 기본 질문, 나머지는 빈 목록)
@@ -762,6 +791,21 @@ questions/image: 검증 → 이미지 생성 1회 (실패·60초 초과 시 502 
 - 발표는 `level` 값을, 스피킹은 해당 파트의 질문 문자열과 `exam`을, 면접은 해당 파트의 질문 문자열(직무 포함)을 LLM 프롬프트에 함께 전달한다.
 - 면접 평가 기준: 질문 의도에 맞는 답인지, 결론 먼저(두괄식)인지, 경험 질문은 STAR(상황·과제·행동·결과)를 갖췄는지, 숫자·사례로 구체적인지, 지원 직무와 이어지는지. `parts[].comment`에 질문별 한 줄로 쓰고, `final`은 이 기준으로 다시 짠 모범 답안이다.
 - 토익 Part 1(지문 읽기)은 최종 대본을 만들지 않는다. LLM이 질문 문자열의 파트 이름을 보고 `final`을 빈 배열로 돌려준다.
+- LLM 호출 하나의 제한 시간은 45초, 재시도는 1번이다 (서버 `LLM_TIMEOUT_MS`, `LLM_MAX_RETRIES`). 늦어지면 오래 기다리지 않고 실패로 처리해 코드 분석 결과만이라도 돌려준다. STT는 일시적인 오류(429·5xx·네트워크)만 1번 재시도한다.
+- 서버는 요청마다 처리 시간을 로그로 남긴다 (`[http] 메서드 경로 상태 ms`, `[stt]`, `[llm]`). 본문과 키는 남기지 않는다.
+
+### 출처(Origin) 검사
+
+- 요청의 `Origin` 헤더가 허용 목록에 없으면 처리하지 않고 403을 돌려준다 (다른 사이트가 이 서버를 불러 OpenAI 크레딧을 쓰는 것을 막는다). `Origin`이 없는 요청(curl, 서버 간 호출)은 통과한다.
+- 기본 허용: `localhost`·`127.0.0.1`(모든 포트), 사설 IP(`10.*`, `192.168.*`, `172.16~31.*`), ngrok https 주소(`*.ngrok-free.app`, `*.ngrok.app`·`.dev`·`.io`).
+- 그 밖의 출처는 `backend/.env`의 `CORS_ORIGIN`에 쉼표로 추가한다. `https://*.example.com` 형식(하위 도메인 한 단계)과 `*`(모두 허용)를 쓸 수 있다.
+
+### mock 모드
+
+`backend/.env`의 `MOCK_STT=true`, `MOCK_LLM=true`면 OpenAI를 부르지 않고 `backend/fixtures/`의 저장된 응답으로 대신한다 (시연 백업, 프론트 개발용). `GET /api/health`의 `mock`으로 켜져 있는지 확인할 수 있다.
+
+- `MOCK_STT`: 녹음 내용과 상관없이 언어별 샘플 대본을 돌려준다 (한국어 발표, 영어 스피킹).
+- `MOCK_LLM`: 파트 분석·총평·재도전 총평·질문 생성·꼬리질문은 저장된 응답, 재도전 정확성은 고정 80점, 사진은 자리 표시 그림이다. 저장된 응답의 줄·단어 번호가 지금 대본과 맞지 않으면 그 하이라이트는 버려진다.
 
 ## 8. 에러
 
@@ -769,23 +813,24 @@ questions/image: 검증 → 이미지 생성 1회 (실패·60초 초과 시 502 
 
 | 상황 | 코드 |
 |---|---|
-| 요청 조합이 틀림 (모드·언어·level·exam 불일치, 질문·녹음 개수 불일치), 길이·개수·형식 초과, 잘못된 JSON | 400 |
+| 요청 조합이 틀림 (모드·언어·level·exam 불일치, 질문·녹음 개수 불일치), 길이·개수·형식 초과, 잘못된 JSON·2MB 초과 | 400 |
+| 업로드 오류 (transcribe): 파일 6개 이상, 파일 하나가 25MB 초과, `audio`가 아닌 파일 필드(예: `material`) | 400 (`업로드 오류: …`) |
+| 허용되지 않은 출처(`Origin`)의 요청 (모든 API, 7절) | 403 |
 | whisper가 읽을 수 없는 오디오 형식 (transcribe) | 400 |
-| 음성이 감지되지 않음 (transcribe, 몇 번째 녹음인지 포함) | 422 |
+| 음성이 감지되지 않음: 전사된 단어 3개 미만 (transcribe, 몇 번째 녹음인지 포함) | 422 |
 | 사용자가 한 녹음의 대본 단어를 모두 지움 (analyze·retry, 몇 번째 녹음인지 포함) | 422 |
 | 녹음 길이(`duration`)가 음수, 대본 단어가 문자열이 아님 (analyze·retry) | 400 |
 | STT 실패 (transcribe, 1회 재시도 후, 몇 번째인지 포함) | 502 |
-| LLM 실패 (analyze) | 200. `final`은 빈 배열, `summary`는 빈 문자열·빈 배열로 내려가고 `warnings: ["llm_failed"]`가 붙는다 |
+| LLM 실패 (analyze) | 200. 파트 분석이 실패한 파트는 `final`이 빈 배열이고 `comment`·`accuracy`와 LLM 하이라이트가 없다(패닉존은 `pauseSec`만, 토익 Part 1의 `accuracy`는 코드가 재므로 그대로 온다). 총평이 실패하면 `summary`가 빈 문자열·빈 배열이다. 어느 쪽이든 `warnings: ["llm_failed"]`가 붙는다 |
 | LLM 실패 (questions) | 200. 면접 처음 질문은 기본 질문 5개, 나머지는 `questions: []`. 둘 다 `warnings: ["llm_failed"]` (6절) |
 | 이미지 생성 실패·시간 초과 (questions/image) | 502. 프론트는 기본 사진(`picture.fallback`)으로 출제 |
-| LLM 실패 (retry) | 200. `retry`가 없고 `summary`는 빈 문자열·빈 배열, `warnings: ["llm_failed"]`. `compare`는 그대로 온다 |
+| LLM 실패 (retry) | 200. 재도전 총평이 실패하면 `retry`가 없고 `summary`는 빈 문자열·빈 배열. 정확성 채점이 실패한 파트는 `accuracy`가 없고, 모든 파트가 실패하면 습관 점수로만 비교한다. 어느 쪽이든 `warnings: ["llm_failed"]`. `compare`는 그대로 온다 |
+| 예상하지 못한 서버 오류 | 500 (`서버 오류가 발생했습니다.`) |
 
 ## 확인이 필요한 항목
 
-- 토익 스피킹의 파트별 시간 검증을 서버가 할지 (질문 문자열의 `Part N` 표기를 읽는 방식). 지금은 서버 상한 60초 + 프론트 타이머.
+- 토익 스피킹의 파트별 시간 검증을 서버가 할지 (질문 문자열의 `Part N`·`Answer time limit` 줄을 읽는 방식). 지금은 서버 상한 60초 + 프론트 타이머.
 - 점수에 패닉 길이·말 속도를 반영할지 (지금은 패닉존·군말·반복 단어 비율만. 샘플을 본 뒤 판단).
 - retry의 `RETRY_MATCH_LOW`(기본 40)가 적절한지 (대본을 보고 읽은 샘플과 즉흥 샘플을 녹음해 본 뒤 조정).
-- 이미지 모델 `gpt-image-2.5-flare`: 구현 후 실제 키로 호출해 동작·지원 크기·품질 옵션을 확인한다. 구현할 때 `backend/.env.example`에 키 이름 추가, README "외부 API·오픈소스" 표에 한 줄 추가.
-- 이미지 생성 서버 상한 60초가 적절한지 실제 응답 시간을 재 보고 조정한다 (실제 출제 여부는 Part 2 시작 시점에 프론트가 정한다).
-- 발표 예상 질문에 답하는 연습을 할지: 하려면 발표 모드에서도 `questions`를 받도록 analyze를 바꿔야 한다. 지금은 질문과 `hint`를 보여 주기만 한다.
-- 오픽 처음 질문을 LLM으로 만들면 서베이 주제 목록(`data/opic/survey.json`)의 문항 예시는 실패 시 대체용으로만 쓰인다.
+- 이미지 생성 서버 상한 60초와 프론트 대기 5초가 적절한지 실제 응답 시간을 재 보고 조정한다 (실제 출제 여부는 Part 2 시작 시점에 프론트가 정한다).
+- 오픽 처음 질문은 LLM이 만들고, 프론트의 문항 데이터(`frontend/src/pages/question/data/opic/`)는 서버 생성이 실패했을 때의 대체용이다.

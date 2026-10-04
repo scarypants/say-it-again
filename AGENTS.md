@@ -6,13 +6,13 @@
 ## 1. 프로젝트
 
 - 대학생의 말하기 연습(강의 발표 / 어학 스피킹 / 면접)을 AI가 진단하는 모바일 우선 반응형 웹.
-- 녹음 → STT(Whisper, 단어 타임스탬프) → 서버가 줄 분할 + 패닉존(2초 이상 침묵) 계산 → 필러워드/중복 탐지 → OpenAI LLM 1회 호출로 원인 진단·대안 대본·총평 → 스크립트 하이라이트 + 총평 화면.
+- (스피킹·면접은 질문 생성 →) 녹음 → STT(Whisper, 단어 타임스탬프) → 서버가 문장 분할 + 패닉존(2초, 스피킹은 1.5초 이상 침묵) 계산 → 사용자가 전사 오류 수정 → 필러워드/중복 탐지(코드) → OpenAI LLM(녹음 파일마다 1회 + 총평 1회)으로 원인 진단·대안 대본·총평 → 스크립트 하이라이트 + 총평 화면. 결과 화면에서 재도전(전후 비교)과 꼬리질문.
 - 상세 기획: `docs/plan.md` / 화면 설계: `docs/wireframe.webp` / API 계약: `docs/api.md`
 - 기술 스택
   - frontend: React(Vite) + TypeScript + TailwindCSS + DaisyUI, MediaRecorder API, recharts
   - backend: Node.js + Express + TypeScript(tsx), multer, cors, dotenv, `openai`(whisper-1 + LLM 분석 + 이미지 생성 gpt-image-2.5-flare)
 - 저장소 구조: npm workspaces 모노레포 `frontend/` + `backend/` (루트 `package.json`). DB 없음.
-- backend 구조: `backend/src/` 아래 `server.ts`(진입점), `config.ts`(튜닝 상수), `types/`(API·내부 타입), `http/`(라우트·요청 검증), `pipeline/`(전사·줄 분할·통계), `detectors/`(필러·중복 탐지), `llm/`(OpenAI 호출·프롬프트)
+- backend 구조: `backend/src/` 아래 `server.ts`(진입점·출처 검사·에러 처리), `config.ts`(튜닝 상수), `modes.ts`(모드별 분석 규칙), `text.ts`(정규화·어간·일치율), `openai.ts`(OpenAI 클라이언트), `mock.ts`(mock 모드), `errors.ts`, `types/`(API·내부 타입), `http/`(라우트·요청 검증), `pipeline/`(전사·문장 분할·분석·재도전·질문 생성·통계), `detectors/`(패닉존·필러·중복 탐지), `llm/`(OpenAI 호출·프롬프트·이미지 생성). 그 밖에 `backend/fixtures/`(mock 모드용 저장 응답), `backend/scripts/`(샘플 녹음 테스트 `npm run test:samples -w backend`), `backend/samples/`(테스트 녹음, git 제외)
 
 ## 2. 팀과 소유권 (가장 중요)
 
@@ -72,13 +72,13 @@
 - TypeScript strict. `any`는 최소화. (frontend, backend 공통)
 - 포맷은 Prettier(`.prettierrc`), 줄바꿈 LF, 들여쓰기 2칸. 자기 소유 파일에만 포맷을 적용한다.
 - 파일명: 컴포넌트 `PascalCase.tsx`, 그 외 `camelCase.ts`.
-- 서버 튜닝 상수는 `backend/src/config.ts` 한곳에 모은다: `PANIC_GAP=2.0`, `MAX_WORDS=40`, `PANIC_TAIL_WORDS=3`, `AMBIGUOUS_FILLER_GAP=0.3` 등.
+- 서버 튜닝 상수는 `backend/src/config.ts` 한곳에 모은다: `PANIC_GAP=2.0`, `SPEAKING_PANIC_GAP=1.5`, `LEAD_PANIC_SEC=3.0`, `MAX_WORDS=40`, `PANIC_TAIL_WORDS=3`, `AMBIGUOUS_FILLER_GAP=0.3`, `ACCURACY_WEIGHT`, `LLM_TIMEOUT_MS` 등. 모드에 따라 달라지는 규칙(문법 검사 여부, 정확성 비중, 패닉존 기준)은 `backend/src/modes.ts`에 모은다.
 - UI: DaisyUI 컴포넌트 우선. 하이라이트 5색 규칙은 `docs/plan.md` 6-1절을 따른다. 이모지 남발·의미 없는 카드 중첩 금지.
 
 ## 7. 비밀값 · 환경 변수
 
 - `.env`는 커밋 금지(.gitignore 등록됨). 대신 `backend/.env.example`에 키 이름만 적는다.
-  - `OPENAI_API_KEY=`, `OPENAI_LLM_MODEL=`, `OPENAI_IMAGE_MODEL=`(토익 Part 2 사진 생성, `gpt-image-2.5-flare`), `PORT=8080`, `CORS_ORIGIN=`(추가 허용 출처. localhost·사설 IP·ngrok은 기본 허용) (frontend는 `frontend/.env.example`에 `VITE_USE_MOCK`)
+  - `OPENAI_API_KEY=`, `OPENAI_LLM_MODEL=`, `OPENAI_IMAGE_MODEL=`(토익 Part 2 사진 생성, `gpt-image-2.5-flare`), `PORT=8080`, `CORS_ORIGIN=`(추가 허용 출처. localhost·사설 IP·ngrok은 기본 허용), `MOCK_STT=`·`MOCK_LLM=`(true면 `backend/fixtures/`의 저장 응답 사용), `STT_DUMP_DIR=`(whisper 원본 응답 저장 폴더, 비우면 저장 안 함) (frontend는 `frontend/.env.example`에 `VITE_USE_MOCK`)
 - 키는 각자 로컬 `.env`에 넣는다. 채팅·이슈·PR에 키를 붙여넣지 않는다.
 
 ## 8. 대회 규칙 준수
