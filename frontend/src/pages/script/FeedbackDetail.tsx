@@ -29,6 +29,14 @@ function mergeAdjacent(items: Highlight[]): Highlight[] {
   );
 }
 
+// 첫마디 전 멈춤(대본 맨 앞 pause 줄)의 패닉존인지. 이때는 서버가 멈춘 뒤 처음 한 말에 하이라이트를 붙인다
+// (docs/api.md 4절). 대본 맨 앞이 pause 줄이고, 첫 단어에서 시작하며, 멈춘 시간이 그 줄과 같으면 그렇다
+function isLeadPanic(part: Part, h: Highlight): boolean {
+  const first = part.script[0];
+  if (h.category !== "panic" || !first?.pause || h.from !== 0) return false;
+  return h.pauseSec === Math.round((first.end - first.start) * 10) / 10;
+}
+
 type Props = { part: Part; items: Highlight[]; onClose: () => void; inline?: boolean };
 
 // 하이라이트를 눌렀을 때 보이는 LLM 분석 (와이어프레임: 단어 / 변경 후 / 사유). 패닉존은 막힌 이유와 이어 갈 말.
@@ -49,7 +57,9 @@ export default function FeedbackDetail({ part, items: raw, onClose, inline }: Pr
       aria-label="하이라이트 분석"
       className={inline ? "mt-1 mb-2 rounded-box bg-base-200 px-4 py-4" : "animate-fade"}
     >
-      {items.map((h, i) => (
+      {items.map((h, i) => {
+        const lead = isLeadPanic(part, h);
+        return (
         <article key={i} className={i ? "mt-5 border-t border-base-300 pt-5" : ""}>
           <header className="flex items-center gap-2">
             <span className={`h-2.5 w-2.5 rounded-full ${CATEGORY[h.category].dot}`} aria-hidden />
@@ -75,14 +85,16 @@ export default function FeedbackDetail({ part, items: raw, onClose, inline }: Pr
           {/* 재도전 결과는 서버가 패닉존 원인·대안을 비워 보낸다 (docs/api.md 5절) */}
           {h.category === "panic" && h.fixed === undefined && !h.reason ? (
             <p className="mt-3 text-sm leading-relaxed text-secondary">
-              <b className="font-semibold text-base-content">{highlightText(part, h)}</b> 다음에
-              멈췄어요. 막힌 이유와 이어 갈 말은 첫 분석 결과에서 볼 수 있어요.
+              <b className="font-semibold text-base-content">{highlightText(part, h)}</b>{" "}
+              {lead
+                ? "앞에서, 첫마디를 떼기 전에 멈췄어요. 늦어진 이유와 첫 문장은 첫 분석 결과에서 볼 수 있어요."
+                : "다음에 멈췄어요. 막힌 이유와 이어 갈 말은 첫 분석 결과에서 볼 수 있어요."}
             </p>
           ) : (
             <dl className="mt-3 flex flex-col gap-3">
               <div>
                 <dt className="text-sm text-secondary">
-                  {h.category === "panic" ? "멈추기 직전에 한 말" : "말한 문장"}
+                  {lead ? "멈춘 뒤 처음 한 말" : h.category === "panic" ? "멈추기 직전에 한 말" : "말한 문장"}
                 </dt>
                 <dd className="mt-2 text-[1.0625rem] leading-8 wrap-anywhere">
                   <mark
@@ -94,7 +106,7 @@ export default function FeedbackDetail({ part, items: raw, onClose, inline }: Pr
               </div>
               <div>
                 <dt className="text-sm text-secondary">
-                  {h.category === "panic" ? "이렇게 이어 가 보세요" : "개선한 문장"}
+                  {lead ? "이렇게 시작해 보세요" : h.category === "panic" ? "이렇게 이어 가 보세요" : "개선한 문장"}
                 </dt>
                 <dd className="mt-2 text-[1.0625rem] leading-8 wrap-anywhere font-semibold">
                   {h.fixed === undefined
@@ -107,7 +119,7 @@ export default function FeedbackDetail({ part, items: raw, onClose, inline }: Pr
               {h.reason && (
                 <div>
                   <dt className="text-sm text-secondary">
-                    {h.category === "panic" ? "막힌 이유" : "이유"}
+                    {lead ? "시작이 늦은 이유" : h.category === "panic" ? "막힌 이유" : "이유"}
                   </dt>
                   <dd className="mt-1 text-sm leading-relaxed">{h.reason}</dd>
                 </div>
@@ -115,7 +127,8 @@ export default function FeedbackDetail({ part, items: raw, onClose, inline }: Pr
             </dl>
           )}
         </article>
-      ))}
+        );
+      })}
     </div>
   );
 }
